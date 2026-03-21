@@ -1,6 +1,6 @@
 /models/
 /voxelmorph_output/
-/draw-img/
+/draw-img/*
 !/draw-img/*.py
 /oasis/*
 !oasis/*.py
