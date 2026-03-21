@@ -1,0 +1,9 @@
+/models/
+/voxelmorph_output/
+/draw-img/
+!/draw-img/*.py
+/oasis/*
+!oasis/*.py
+
+__pycache__/
+

@@ -29,7 +29,7 @@ os.environ['VXM_BACKEND'] = 'pytorch'
 import voxelmorph as vxm
 
 # ============================================================
-# 路徑
+# 路徑()
 # ============================================================
 _HERE       = os.path.dirname(os.path.abspath(__file__))
 _ROOT       = os.path.normpath(os.path.join(_HERE, '..'))

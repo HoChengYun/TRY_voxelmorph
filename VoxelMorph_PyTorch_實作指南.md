@@ -369,7 +369,7 @@ python draw-img/visualize_registration.py --model models/0010.pt --csv models/di
 
 ---
 
-## 8. 模型原理
+## 8. 模型原理y
 
 ### 8.1 整體流程
 
