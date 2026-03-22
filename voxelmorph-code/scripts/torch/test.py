@@ -231,7 +231,7 @@ print()
 print('=' * 75)
 print('  TABLE I 格式')
 print('=' * 75)
-hdr = f'  {"Method":<28} {"Dice":>16}  {"GPU/CPU sec":>12}  {"|Jφ|≤0":>14}  {"% |Jφ|≤0":>14}'
+hdr = f'  {"Method":<28} {"Dice":>16}  {"GPU/CPU sec":>12}  {"|Jphi|<=0":>14}  {"% |Jphi|<=0":>14}'
 print(hdr)
 print(f'  {"-"*28} {"-"*16}  {"-"*12}  {"-"*14}  {"-"*14}')
 

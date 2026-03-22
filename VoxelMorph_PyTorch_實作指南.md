@@ -342,7 +342,46 @@ neg_ratio = (jac < 0).sum() / jac.size
 print(f'Negative Jacobian: {neg_ratio:.4%}')  # 微分同胚模型應接近 0%
 ```
 
-> [!NOTE]
+### 6.5 一次測量多組(`test.py`)
+
+寫一個 `batch_test.py`，自動跑所有 epoch 的模型，最後出一張 Dice vs Epoch 折線圖：
+
+Created batch testing script for VoxelMorph models
+
+使用方式：
+
+bash
+
+~~~bash
+# 全部模型都跑
+python voxelmorph-code/scripts/torch/batch_test.py --gpu 0
+
+# 只測 epoch 10~60
+python voxelmorph-code/scripts/torch/batch_test.py --start 10 --end 60
+
+# 用 CPU（不佔訓練的 GPU）
+python voxelmorph-code/scripts/torch/batch_test.py --gpu -1
+```
+
+
+輸出：
+```
+models/
+├── dice_0001.csv         ← 每個模型的 per-structure Dice
+├── dice_0002.csv
+├── ...
+├── batch_test_summary.csv  ← 所有 epoch 的 Dice 總表
+└── dice_vs_epoch.png       ← 折線圖（含論文基準線）
+~~~
+
+折線圖會畫兩條參考線：
+
+- 灰色虛線：**Affine only 基準 0.584**（沒有訓練的下限）
+- 綠色虛線：**論文最終結果 0.753**（目標）
+
+這樣訓練跑到一半就能用一個指令看所有 epoch 的進展。
+
+>  [!NOTE]
 >
 > **Table I** → Dice 均值±標準差、推論時間、負 Jacobian 數量和比例
 
