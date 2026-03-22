@@ -34,12 +34,15 @@ TEST_SCRIPT = os.path.join(_HERE, 'test.py')  # 同資料夾的 test.py
 # 參數
 # ============================================================
 parser = argparse.ArgumentParser()
-parser.add_argument('--model-dir', default='models/',   help='模型資料夾')
-parser.add_argument('--gpu',       default='-1',        help='GPU id，-1 用 CPU')
-parser.add_argument('--start',     type=int, default=0, help='從第幾個 epoch 開始測（0 = 全部）')
-parser.add_argument('--end',       type=int, default=0, help='測到第幾個 epoch（0 = 全部）')
-parser.add_argument('--out-dir',   default='models/',   help='結果輸出資料夾')
+parser.add_argument('--model-dir', required=True,        help='模型資料夾，例如 models/')
+parser.add_argument('--gpu',       default='0',          help='GPU id，-1 用 CPU')
+parser.add_argument('--start',     type=int, default=0,  help='從第幾個 epoch 開始測（0 = 全部）')
+parser.add_argument('--end',       type=int, default=0,  help='測到第幾個 epoch（0 = 全部）')
+parser.add_argument('--out-dir',   default=None,         help='結果輸出資料夾，不指定則和 --model-dir 相同')
 args = parser.parse_args()
+
+if args.out_dir is None:
+    args.out_dir = args.model_dir
 
 os.makedirs(args.out_dir, exist_ok=True)
 
@@ -217,9 +220,7 @@ ax.grid(alpha=0.3)
 ax.set_ylim(bottom=max(0, min(mean_dices) - 0.05))
 
 plt.tight_layout()
-draw_dir  = os.path.normpath(os.path.join(_ROOT, 'draw-img'))
-os.makedirs(draw_dir, exist_ok=True)
-plot_path = os.path.join(draw_dir, 'dice_vs_epoch.png')
+plot_path = os.path.join(args.out_dir, 'dice_vs_epoch.png')
 fig.savefig(plot_path, dpi=130, bbox_inches='tight')
 plt.close(fig)
 

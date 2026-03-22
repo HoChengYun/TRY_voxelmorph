@@ -82,13 +82,18 @@ parser.add_argument('--atlas',    default=DEFAULT_ATLAS)
 parser.add_argument('--subject',  default=None, help='指定測試影像 .npz，不指定則隨機選')
 parser.add_argument('--test-dir', default=DEFAULT_TEST_DIR)
 parser.add_argument('--csv',      default=None, help='test.py 產生的 per-structure Dice CSV，用於畫 Fig.5')
+parser.add_argument('--out-dir',  default=None, help='輸出資料夾，不指定則放到模型同目錄下的子資料夾')
 parser.add_argument('--gpu',      default='-1')
 args = parser.parse_args()
 
 model_stem = os.path.splitext(os.path.basename(args.model))[0]
 
-# 輸出資料夾：draw-img/{model名稱}/
-out_dir = os.path.join(_HERE, model_stem)
+# 輸出資料夾：有指定用指定的，否則放到模型同目錄下的 {model名稱}/ 子資料夾
+if args.out_dir:
+    out_dir = args.out_dir
+else:
+    model_dir = os.path.dirname(os.path.abspath(args.model))
+    out_dir   = os.path.join(model_dir, model_stem)
 os.makedirs(out_dir, exist_ok=True)
 
 device = 'cuda' if args.gpu != '-1' else 'cpu'
