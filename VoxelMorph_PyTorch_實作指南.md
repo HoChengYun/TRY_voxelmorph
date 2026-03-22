@@ -354,10 +354,10 @@ bash
 
 ~~~bash
 # 全部模型都跑
-python voxelmorph-code/scripts/torch/batch_test.py --gpu 0
+python voxelmorph-code/scripts/torch/batch_test.py --model-dir models/ --gpu 0
 
 # 只測 epoch 10~60
-python voxelmorph-code/scripts/torch/batch_test.py --start 10 --end 60
+python voxelmorph-code/scripts/torch/batch_test.py --model-dir models/ --start 10 --end 60
 
 # 用 CPU（不佔訓練的 GPU）
 python voxelmorph-code/scripts/torch/batch_test.py --gpu -1
@@ -394,7 +394,7 @@ models/
 ```bash
 source vxm_env/bin/activate
 
-python draw-img/visualize_registration.py --model models/0010.pt --csv models/dice_0010.csv
+python draw-img/visualize_registration.py --model models/0060.pt --csv models/dice_0010.csv
 ```
 
 ### 7.2 圖片說明
