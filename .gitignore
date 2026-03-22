@@ -2,7 +2,7 @@
 /voxelmorph_output/
 /draw-img/*
 /oasis/*
-/shared/**/*.csv
+/share_models/**/*.csv
 
 !*.py
 __pycache__/
