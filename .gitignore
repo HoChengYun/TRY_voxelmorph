@@ -3,7 +3,7 @@
 /draw-img/*
 /oasis/*
 /share_models/**/*.csv
-
+/*.pptx
 !*.py
 __pycache__/
 
