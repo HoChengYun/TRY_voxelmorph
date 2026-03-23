@@ -512,6 +512,36 @@ SEG35_TO_FS = {
 1. 各自指定不同的 `--model-dir`
 2. 如果 GPU 記憶體不夠，用 `--gpu -1` 讓其中一個跑 CPU（很慢，但不衝突）
 
+### 問題6：那訓練的時候有用到seg嗎？
+
+**訓練時沒有用到 seg，包含 OASIS 的 `seg35.nii.gz` 和 atlas 的 `seg`。**
+
+看 `scan_to_atlas` generator 的程式碼：
+
+python
+
+~~~python
+gen = volgen(vol_names, batch_size=batch_size, **kwargs)
+# ↑ 沒有傳 return_segs=True，所以 seg 完全不會被載入
+
+# 每個 batch 只輸出：
+invols  = [scan, atlas]   # 輸入：Moving 腦影像 + Atlas 腦影像
+outvols = [atlas]         # 目標：讓 Warped ≈ Atlas
+```
+
+---
+
+**整個流程中 seg 的角色：**
+```
+打包 npz 時：  vol + seg  都存進去
+訓練時：       只讀 vol，seg 靜靜躺在 npz 裡沒被碰
+測試時：       才讀 seg，套形變場 φ 去算 Dice
+~~~
+
+------
+
+其實 voxelmorph 還有另一種 **semisupervised** 模式（generators.py 第 125 行有），那個才會在訓練時同時載入 `vol` 和 `seg`，用標籤來輔助訓練。但你用的 scan-to-atlas 是純 unsupervised，seg 完全不進 loss。
+
 ---
 
 ## 10. 參考資源
