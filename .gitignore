@@ -6,5 +6,6 @@
 /share_models/**/*.csv
 /*.pptx
 !*.py
+!*.md
 __pycache__/
 
