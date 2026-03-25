@@ -2,6 +2,7 @@
 /voxelmorph_output/
 /draw-img/*
 /oasis/*
+/IXI/*
 /share_models/**/*.csv
 /*.pptx
 !*.py
