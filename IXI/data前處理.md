@@ -283,6 +283,64 @@ python voxelmorph-code\scripts\torch\test.py \
 | antspynet TF GPU warning（Windows） | TensorFlow >= 2.11 在 Windows 原生不支援 GPU，用 CPU 跑。不影響結果，可忽略。 |
 | `tf.function retracing` warning | 各張影像大小略不同，TF 重新編譯計算圖。不影響結果，可忽略。 |
 | `--skip-done` 要怎麼關掉 | 加 `--no-skip-done`，或直接刪掉 IXI_preprocessed 資料夾重跑。 |
+| `RuntimeError: Sizes of tensors must match except in dimension 1. Expected size 192 but got size 193` | atlas npz 的 shape 和訓練影像大小不一致，見下方「Atlas Resize 問題」。 |
+
+---
+
+## 6.1 Atlas Resize 問題（重要）
+
+### 問題描述
+
+`make_atlas.py` 產生的 `atlas_mni152_09c.npz` 原始 shape 為 `(193, 229, 193)`，但 `preprocess_ixi.py` 輸出的訓練影像是 `(192, 224, 192)`。訓練時 `train.py` 把 atlas vol 直接當 target，兩者大小不一致，導致 `torch.cat` 時報錯：
+
+```
+RuntimeError: Sizes of tensors must match except in dimension 1.
+Expected size 192 but got size 193 for tensor number 1 in the list.
+```
+
+### 根本原因
+
+`train.py` 沒有自動 resize 邏輯，它假設「atlas 和訓練影像一定是同樣大小」，大小要在前處理階段就對齊好。
+
+### 解法一：一次性修正現有 npz（快速）
+
+```python
+python -c "
+import numpy as np
+from scipy.ndimage import zoom
+
+data = np.load('IXI/atlas_mni152_09c.npz')
+vol = data['vol'].astype(np.float32)
+print('原始 shape:', vol.shape)
+
+target = (192, 224, 192)
+factors = tuple(t / s for t, s in zip(target, vol.shape))
+vol_resized = zoom(vol, factors, order=1)
+print('resize 後:', vol_resized.shape)
+
+np.savez_compressed('IXI/atlas_mni152_09c_resize.npz', vol=vol_resized)
+print('Done')
+"
+```
+
+### 解法二：make_atlas.py 加 --target-shape（根本解）
+
+`make_atlas.py` 已加入 `--target-shape` 參數，之後直接輸出 resize 好的版本：
+
+```powershell
+python IXI\make_atlas.py `
+    --t1   你的路徑\mni_icbm152_t1_tal_nlin_asym_09c.nii `
+    --mask 你的路徑\mni_icbm152_t1_tal_nlin_asym_09c_mask.nii `
+    --target-shape 192,224,192
+```
+
+### 為什麼 IXI train/test 資料不用重跑
+
+`preprocess_ixi.py` 流程是：
+1. 用 atlas 做 Affine 對位（對齊腦部空間，參考原始 193,229,193）
+2. resize 到 `--target-shape`（輸出 192,224,192）
+
+第一步只是配準用的參考座標系，輸出的 npz 已經是 `(192, 224, 192)`，跟 atlas 原始大小無關，所以不需要重跑前處理。
 
 ---
 
