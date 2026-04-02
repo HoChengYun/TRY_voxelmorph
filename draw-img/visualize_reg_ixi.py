@@ -94,10 +94,12 @@ atl_sl   = get_slice(atlas_vol, args.slice_axis, mid)
 warp_sl  = get_slice(moved_np,  args.slice_axis, mid)
 diff_sl  = np.abs(warp_sl - atl_sl)
 
-# Atlas / Warped 對齊 Source 的左右方向
-# imshow 用 .T 轉置，所以 flipud（翻行）才會在顯示上變成左右翻轉
+# ── 切面翻轉 ──────────────────────────────────────────────────────────
+# imshow 用 .T 轉置，所以 flipud 在顯示上 = 左右翻
+# src 不翻；atl flipud；warp 不翻；diff flipud
+# src_sl 不翻
 atl_sl  = np.flipud(atl_sl)
-warp_sl = np.flipud(warp_sl)
+# warp_sl 不翻
 diff_sl = np.flipud(diff_sl)
 
 # ── 計算指標 ──────────────────────────────────────────────────────────

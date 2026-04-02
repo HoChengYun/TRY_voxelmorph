@@ -8,4 +8,5 @@
 !*.py
 !*.md
 __pycache__/
+/meeting報告
 

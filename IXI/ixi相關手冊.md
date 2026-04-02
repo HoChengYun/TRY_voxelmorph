@@ -259,17 +259,85 @@ python voxelmorph-code\scripts\torch\train.py \
 
 ---
 
-### 5.3 測試指令（影像相似度）
+### 5.3 test_ixi.py — 單次測試（NCC / SSIM）
+
+IXI 沒有 seg，原本的 `test.py` 讀 `atlas['seg']` 會直接報錯。改用專門為 IXI 寫的 `test_ixi.py`：
 
 ```powershell
-python voxelmorph-code\scripts\torch\test.py \
-    --model   models\ixi_mni\XXXX.pt \
-    --datadir IXI\IXI_preprocessed\test \
-    --atlas   IXI\atlas_mni152_09c.npz \
-    --gpu     0
+python voxelmorph-code\scripts\torch\test_ixi.py `
+    --model    models\exp2_IXI\0100.pt `
+    --atlas    IXI\atlas_mni152_09c_resize.npz `
+    --test-dir IXI\IXI_preprocessed\test `
+    --gpu      0
 ```
 
-> ⚠️ **注意**：IXI 資料沒有 seg，test.py 無法計算 Dice。若需要 Dice，可先用 SynthSeg 或 `antspynet.desikan_killiany_tourville_labeling()` 產生偽標籤。
+輸出每張的 NCC / SSIM，並自動存成 CSV（`models/exp2_IXI/eval_0100.csv`）。
+
+| 參數 | 說明 |
+|------|------|
+| `--model` | 模型路徑（.pt） |
+| `--atlas` | atlas npz（resize 後版本） |
+| `--test-dir` | test 資料夾 |
+| `--out-csv` | 指定 CSV 輸出路徑（預設：模型同目錄） |
+| `--gpu` | GPU ID，`-1` 表示 CPU |
+
+**注意事項：**
+- 需在最前面加 `os.environ['NEURITE_BACKEND'] = 'pytorch'` 避免 TF Keras 版本衝突
+- 需在 `model.eval()` 前加 `model.to(device)` 確保模型在 GPU 上
+
+---
+
+### 5.4 batch_test_ixi.py — 逐 epoch 比較曲線
+
+跑 `models/` 資料夾裡所有 `.pt`，畫出 NCC / SSIM vs Epoch 曲線：
+
+```powershell
+python voxelmorph-code\scripts\torch\batch_test_ixi.py `
+    --model-dir models\exp2_IXI `
+    --atlas     IXI\atlas_mni152_09c_resize.npz `
+    --test-dir  IXI\IXI_preprocessed\test `
+    --out-dir   draw-img\output `
+    --step      10 `
+    --gpu       0
+```
+
+| 參數 | 說明 |
+|------|------|
+| `--model-dir` | 存放 .pt 的資料夾 |
+| `--step` | 每幾個 epoch 評估一次（預設 1，全跑；建議 10 節省時間） |
+| `--out-dir` | 輸出圖片和 CSV 的資料夾 |
+
+輸出：
+- `draw-img/output/epoch_curve.png`：NCC / SSIM vs Epoch 折線圖
+- `draw-img/output/epoch_curve.csv`：各 epoch 數值
+
+---
+
+### 5.5 visualize_reg_ixi.py — 配準視覺化四格圖
+
+輸出論文常見的四格圖：Source / Atlas / Warped / Difference
+
+```powershell
+python draw-img\visualize_reg_ixi.py `
+    --model    models\exp2_IXI\0100.pt `
+    --atlas    IXI\atlas_mni152_09c_resize.npz `
+    --test-dir IXI\IXI_preprocessed\test `
+    --out-dir  draw-img\output `
+    --gpu      0
+```
+
+| 參數 | 說明 |
+|------|------|
+| `--subject` | 指定單張 npz 路徑，不指定則從 test-dir 隨機選 |
+| `--slice-axis` | 切面方向：`axial`（預設）/ `coronal` / `sagittal` |
+| `--out-dir` | 輸出圖片資料夾 |
+
+Difference 圖顯示資訊：
+- colorbar：顏色對應差異絕對值大小（0~1）
+- `MAD`（Mean Absolute Difference）：切面平均差異，越接近 0 越好
+- `max`：切面最大差異點數值
+
+> **注意**：Atlas / Warped 顯示時會自動 flipud 對齊 Source 的左右方向（因為 imshow 用 `.T` 轉置，flipud 在顯示上才等於左右翻轉）。
 
 ---
 
@@ -360,10 +428,14 @@ claude_cheng/
 ├── models/
 │   ├── exp1/                      ← OASIS 訓練結果
 │   └── ixi_mni/                   ← IXI 訓練結果（待）
+├── draw-img/
+│   ├── visualize_reg_ixi.py       ← 配準四格視覺化圖（Source/Atlas/Warped/Diff）
+│   └── output/                    ← 輸出的圖片和 CSV
 └── voxelmorph-code/
     ├── data/atlas.npz             ← OASIS 原始 atlas
     └── scripts/torch/
         ├── train.py
-        ├── test.py
-        └── batch_test.py
+        ├── test.py                ← OASIS 用（需要 seg）
+        ├── test_ixi.py            ← IXI 用，計算 NCC / SSIM
+        └── batch_test_ixi.py      ← 逐 epoch 評估，畫曲線圖
 ```
