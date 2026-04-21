@@ -14,11 +14,11 @@
         --gpu      0
 
     # 不指定 --subject 則隨機從 test-dir 選一張
-    python draw-img/visualize_reg_ixi.py \
-        --model    models/exp2_IXI/0100.pt \
-        --atlas    IXI/atlas_mni152_09c_resize.npz \
-        --test-dir IXI/IXI_preprocessed/test \
-        --out-dir  draw-img/output \
+    python draw-img/visualize_reg_ixi.py `
+        --model    models/exp2_IXI/0100.pt `
+        --atlas    IXI/atlas_mni152_09c_resize.npz `
+        --test-dir IXI/IXI_preprocessed/test `
+        --out-dir  draw-img/output `
         --gpu      0
 """
 
