@@ -4,10 +4,12 @@ IXI T1 前處理腳本
 
 用法：
     python preprocess_ixi.py
+    python preprocess_ixi.py --save-nii   # 額外輸出 .nii.gz 供驗證方向
 
 輸出：
     IXI/IXI_preprocessed/train/  (90%)
     IXI/IXI_preprocessed/test/   (10%)
+    IXI/IXI_preprocessed/nii/    (若有 --save-nii，抽樣輸出 .nii.gz)
 """
 
 import os
@@ -24,14 +26,16 @@ parser.add_argument('--in-dir',   default=os.path.join(_HERE, 'IXI-T1'),
                     help='原始 .nii.gz 資料夾')
 parser.add_argument('--out-dir',  default=os.path.join(_HERE, 'IXI_preprocessed'),
                     help='輸出資料夾')
-parser.add_argument('--atlas',    default=os.path.join(_HERE, 'atlas_mni152_09c.npz'),
-                    help='對位目標（atlas.npz 或 .nii.gz）')
+parser.add_argument('--atlas',    default=os.path.join(_HERE, 'atlas_mni152_09c_resize.npz'),
+                    help='對位目標（atlas.npz 或 .nii.gz），建議用已 resize 到 target-shape 的版本')
 parser.add_argument('--target-shape', default='192,224,192',
-                    help='輸出影像大小，預設 160,192,224')
+                    help='輸出影像大小，預設 192,224,192（必須能被 16 整除）')
 parser.add_argument('--skip-done', action='store_true', default=True,
                     help='略過已處理的檔案（中斷後可續跑）')
 parser.add_argument('--no-brain-extract', action='store_true', default=False,
                     help='跳過去顱骨（測試用）')
+parser.add_argument('--save-nii', type=int, default=0, metavar='N',
+                    help='額外輸出前 N 筆 .nii.gz 檔案，用來驗證方向和 spacing（預設 0 = 不輸出）')
 parser.add_argument('--seed', type=int, default=42)
 args = parser.parse_args()
 
@@ -59,6 +63,12 @@ target_shape = tuple(int(x) for x in args.target_shape.split(','))
 for split in ['train', 'test']:
     os.makedirs(os.path.join(args.out_dir, split), exist_ok=True)
 
+if args.save_nii > 0:
+    nii_dir = os.path.join(args.out_dir, 'nii')
+    os.makedirs(nii_dir, exist_ok=True)
+    nii_saved_count = 0
+    print(f"[save-nii] 將額外輸出前 {args.save_nii} 筆 .nii.gz 到 {nii_dir}/")
+
 # ── 載入 atlas 當對位目標 ────────────────────────────────────────────
 atlas_path = os.path.normpath(args.atlas)
 print(f"載入 atlas：{atlas_path}")
@@ -69,14 +79,12 @@ if atlas_path.endswith('.npz'):
 else:
     atlas_ants = ants.image_read(atlas_path)
 
-# atlas 若大小與 target_shape 不同，先 resize
+# atlas 大小必須與 target_shape 一致
 if atlas_ants.numpy().shape != target_shape:
-    from scipy.ndimage import zoom
-    arr = atlas_ants.numpy().astype(np.float32)
-    factors = tuple(t / s for t, s in zip(target_shape, arr.shape))
-    arr_resized = zoom(arr, factors, order=1)
-    atlas_ants = ants.from_numpy(arr_resized.astype(np.float32), spacing=(1.0, 1.0, 1.0))
-    print(f"Atlas resize：{arr.shape} → {arr_resized.shape}")
+    print(f"❌ Atlas shape {atlas_ants.numpy().shape} != target_shape {target_shape}")
+    print(f"   請先用 make_atlas.py --target-shape {','.join(map(str, target_shape))} 產生正確大小的 atlas")
+    print(f"   或指定 --atlas 指向已 resize 的 atlas（如 atlas_mni152_09c_resize.npz）")
+    sys.exit(1)
 
 print(f"Atlas shape：{atlas_ants.numpy().shape}")
 print()
@@ -160,12 +168,14 @@ for idx, src_path in enumerate(all_files):
         )
         img_reg = reg['warpedmovout']
 
-        # 5. 重採樣到目標大小
+        # 5. 確認輸出 shape（若 atlas 已 resize 到 target_shape，這裡應直接一致）
         img_np = img_reg.numpy().astype(np.float32)
         if img_np.shape != target_shape:
-            from scipy.ndimage import zoom
-            zoom_factors = tuple(t / s for t, s in zip(target_shape, img_np.shape))
-            img_np = zoom(img_np, zoom_factors, order=1)
+            raise ValueError(
+                f"配準輸出 shape {img_np.shape} != target {target_shape}。\n"
+                f"請確認 atlas 已 resize 到 {target_shape}：\n"
+                f"  python IXI\\make_atlas.py --target-shape {','.join(map(str, target_shape))} ..."
+            )
 
         # 6. 灰值正規化到 [0, 1]（clip 1% / 99% percentile 後再正規化）
         p1, p99 = np.percentile(img_np[img_np > 0], [1, 99])
@@ -178,6 +188,21 @@ for idx, src_path in enumerate(all_files):
         ok_count += 1
         print(f"        ✓ 儲存：{dst_path}  shape={img_np.shape}  "
               f"min={img_np.min():.3f} max={img_np.max():.3f}")
+
+        # 8. 額外存 .nii.gz（用 ANTs 配準後的 image 物件，保留 header）
+        if args.save_nii > 0 and nii_saved_count < args.save_nii:
+            import nibabel as nib
+            # 方法 A：從 ANTs image 直接寫（保留配準後的 spacing/direction）
+            nii_ants_path = os.path.join(nii_dir, name + '_ants.nii.gz')
+            ants.image_write(img_reg, nii_ants_path)
+            # 方法 B：從 npz 的 numpy array 寫（用 identity affine，模擬 VoxelMorph 讀取的方式）
+            nii_npz_path = os.path.join(nii_dir, name + '_npz.nii.gz')
+            nii_img = nib.Nifti1Image(img_np, np.diag([1.0, 1.0, 1.0, 1.0]))
+            nib.save(nii_img, nii_npz_path)
+            nii_saved_count += 1
+            print(f"        ✓ [save-nii {nii_saved_count}/{args.save_nii}] "
+                  f"{nii_ants_path} (有header)")
+            print(f"          {nii_npz_path} (identity affine)")
 
     except Exception as e:
         fail_count += 1
