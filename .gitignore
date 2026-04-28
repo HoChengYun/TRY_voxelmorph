@@ -3,6 +3,10 @@
 /draw-img/*
 /oasis/*
 /IXI/*
+!/IXI/verify/
+!/IXI/preprocess_vis/
+/IXI/preprocess_vis/*
+!/IXI/preprocess_vis/.gitkeep
 /*.pptx
 !*.py
 !*.md
