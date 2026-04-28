@@ -284,9 +284,9 @@ for idx, src_path in enumerate(all_files):
             plt.close()
             print(f"        ✓ [vis] {vis_path}")
 
-            # ── 圖 2：Atlas vs 處理後 overlay ─────────────────
+            # ── 圖 2：Atlas vs 處理後（4 種比較）──────────────
             atlas_np_vis = atlas_ants.numpy()
-            fig2, axes2 = plt.subplots(2, 3, figsize=(12, 8))
+            fig2, axes2 = plt.subplots(4, 3, figsize=(12, 15))
             slice_labels = ['Axis 0 (mid)', 'Axis 1 (mid)', 'Axis 2 (mid)']
 
             for col in range(3):
@@ -301,29 +301,49 @@ for idx, src_path in enumerate(all_files):
                     sl_proc = img_np[:, :, w//2]
                     sl_atlas = atlas_np_vis[:, :, w//2]
 
-                # 上排：並排比較
+                p_norm = sl_proc / (sl_proc.max() + 1e-8)
+                a_norm = sl_atlas / (sl_atlas.max() + 1e-8)
+
+                # Row 1：Atlas 灰階
                 axes2[0][col].imshow(sl_atlas.T, cmap='gray', origin='lower')
                 axes2[0][col].set_title(f'Atlas - {slice_labels[col]}', fontsize=10)
                 axes2[0][col].axis('off')
 
-                # 下排：Atlas（紅色）疊在處理後（灰階）上面
-                p_norm = sl_proc / (sl_proc.max() + 1e-8)
-                a_norm = sl_atlas / (sl_atlas.max() + 1e-8)
+                # Row 2：Atlas（紅色）疊在處理後（灰階）
                 alpha = 0.7
                 gray = p_norm.T
                 a_t = a_norm.T
-                # Atlas 紅色在最上層（atlas 越亮紅越深）
                 rgb = np.stack([
-                    gray * (1 - alpha * a_t) + a_t * alpha,  # R
-                    gray * (1 - alpha * a_t),                 # G
-                    gray * (1 - alpha * a_t),                 # B
+                    gray * (1 - alpha * a_t) + a_t * alpha,
+                    gray * (1 - alpha * a_t),
+                    gray * (1 - alpha * a_t),
                 ], axis=-1)
                 rgb = np.clip(rgb, 0, 1)
                 axes2[1][col].imshow(rgb, origin='lower')
-                axes2[1][col].set_title(f'Atlas (red, top) + Processed (gray)', fontsize=9)
+                axes2[1][col].set_title('Atlas (red) + Processed (gray)', fontsize=9)
                 axes2[1][col].axis('off')
 
-            fig2.suptitle(f'Atlas vs Processed: {name}', fontsize=14, fontweight='bold')
+                # Row 3：Checkerboard
+                block = 16  # 格子大小（pixel）
+                rows_cb, cols_cb = a_norm.T.shape
+                yy, xx = np.mgrid[0:rows_cb, 0:cols_cb]
+                checker = ((xx // block) + (yy // block)) % 2  # 0 或 1
+                cb_img = np.where(checker, a_norm.T, p_norm.T)
+                axes2[2][col].imshow(cb_img, cmap='gray', origin='lower')
+                axes2[2][col].set_title('Checkerboard (Atlas / Processed)', fontsize=9)
+                axes2[2][col].axis('off')
+
+                # Row 4：Difference map
+                diff = np.abs(p_norm.T - a_norm.T)
+                axes2[3][col].imshow(diff, cmap='hot', origin='lower', vmin=0, vmax=0.5)
+                axes2[3][col].set_title('|Processed − Atlas|', fontsize=9)
+                axes2[3][col].axis('off')
+
+            # Row labels
+            for row, label in enumerate(['Atlas', 'Overlay', 'Checkerboard', 'Difference']):
+                axes2[row][0].set_ylabel(label, fontsize=12, fontweight='bold')
+
+            fig2.suptitle(f'Registration Quality: {name}', fontsize=14, fontweight='bold')
             plt.tight_layout()
             overlay_path = os.path.join(args.out_dir, f'vis_{name}_overlay.png')
             plt.savefig(overlay_path, dpi=150, bbox_inches='tight')
