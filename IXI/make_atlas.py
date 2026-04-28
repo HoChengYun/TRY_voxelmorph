@@ -1,11 +1,14 @@
 """
-將 MNI152 2009c .nii 製作成 atlas_mni152_09c.npz
+將 MNI152 2009c .nii 製作成 atlas npz + nii.gz
 
 用法：
     python IXI\make_atlas.py --t1 你的路徑\mni_icbm152_t1_tal_nlin_asym_09c.nii
                              --mask 你的路徑\mni_icbm152_t1_tal_nlin_asym_09c_mask.nii
-                             --target-shape 192,224,192   # 可選，預設輸出原始大小
-                             --save-nii                   # 可選，額外輸出 .nii.gz 供驗證
+                             --target-shape 192,224,192
+
+輸出（兩個都會產生）：
+    atlas_mni152_09c.npz       ← 給 VoxelMorph train.py 用（只有 numpy array）
+    atlas_mni152_09c.nii.gz    ← 給 preprocess_ixi.py 用（帶完整 header）
 """
 
 import os
@@ -17,16 +20,13 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('--t1',           required=True, help='T1 .nii 路徑')
 parser.add_argument('--mask',         required=True, help='brain mask .nii 路徑')
-parser.add_argument('--out',          default=os.path.join(_HERE, 'atlas_mni152_09c.npz'),
-                    help='輸出 npz 路徑')
+parser.add_argument('--out',          default=os.path.join(_HERE, 'atlas_mni152_09c'),
+                    help='輸出路徑（不含副檔名，會同時產生 .npz 和 .nii.gz）')
 parser.add_argument('--target-shape', default=None,
                     help='resize 目標大小，格式 192,224,192（必須能被 16 整除）')
-parser.add_argument('--save-nii', action='store_true', default=False,
-                    help='額外輸出 .nii.gz 檔案，用來驗證方向和 spacing')
 args = parser.parse_args()
 
 import ants
-from scipy.ndimage import zoom
 
 print(f'載入 T1  ：{args.t1}')
 print(f'載入 mask：{args.mask}')
@@ -36,6 +36,9 @@ mask = ants.image_read(args.mask)
 
 print(f'原始 shape  ：{t1.shape}')
 print(f'原始 spacing：{t1.spacing}')
+print(f'原始 origin ：{t1.origin}')
+print(f'原始 direction：')
+print(f'{t1.direction}')
 
 # 套 mask → 去顱骨
 brain = ants.mask_image(t1, mask)
@@ -47,39 +50,58 @@ arr = np.clip(arr, p1, p99)
 arr = (arr - arr.min()) / (arr.max() - arr.min() + 1e-8)
 arr = arr.astype(np.float32)
 
-print(f'去顱骨後 shape：{arr.shape}')
+# 把正規化後的數值放回 ANTs image（保留原始 header）
+brain_norm = brain.new_image_like(arr)
+
+print(f'去顱骨+正規化後 shape：{brain_norm.shape}')
 
 # resize（若有指定 --target-shape）
-# 注意：這裡用 scipy.ndimage.zoom（雙線性插值縮放）
-#   - 不是補零（zero-padding）
-#   - 不是裁切（cropping）
-#   - 是對每個 voxel 重新計算插值後的值
-#   - 不會改變軸順序或翻轉，方向不會跑掉
+# 使用 ANTs resample_image，保留 header（origin, direction, 調整 spacing）
+# 這比 scipy.ndimage.zoom 好，因為不會丟失空間資訊
 if args.target_shape is not None:
     target = tuple(int(x) for x in args.target_shape.split(','))
-    factors = tuple(t / s for t, s in zip(target, arr.shape))
-    print(f'resize：{arr.shape} → {target}')
-    print(f'  zoom factors = {tuple(round(f, 4) for f in factors)}')
-    print(f'  方法 = scipy.ndimage.zoom (bilinear interpolation, order=1)')
-    arr = zoom(arr, factors, order=1).astype(np.float32)
+    print(f'resize：{brain_norm.shape} → {target}')
+    print(f'  方法 = ants.resample_image (保留 header)')
+    
+    brain_resized = ants.resample_image(
+        brain_norm,
+        target,            # 目標 voxel 數量
+        use_voxels=True,   # True = 參數是 voxel 數量，不是 spacing
+        interp_type=1,     # 1 = linear interpolation
+    )
+else:
+    brain_resized = brain_norm
 
-print(f'處理後 shape：{arr.shape}')
-print(f'min/max     ：{arr.min():.4f} / {arr.max():.4f}')
+final_arr = brain_resized.numpy().astype(np.float32)
 
-# 存成 npz
-np.savez_compressed(args.out, vol=arr)
-print(f'\n✓ 儲存 npz：{args.out}')
+print(f'處理後 shape  ：{brain_resized.shape}')
+print(f'處理後 spacing：{brain_resized.spacing}')
+print(f'處理後 origin ：{brain_resized.origin}')
+print(f'處理後 direction：')
+print(f'{brain_resized.direction}')
+print(f'min/max       ：{final_arr.min():.4f} / {final_arr.max():.4f}')
 
-# 額外存 .nii.gz（用來驗證方向）
-if args.save_nii:
-    import nibabel as nib
-    nii_path = args.out.replace('.npz', '.nii.gz')
-    # 用 identity affine（spacing=1mm，和 preprocess_ixi.py 裡 ants.from_numpy 一致）
-    nii_img = nib.Nifti1Image(arr, np.diag([1.0, 1.0, 1.0, 1.0]))
-    nib.save(nii_img, nii_path)
-    print(f'✓ 儲存 nii：{nii_path}')
-    print(f'  → 可以用 ITK-SNAP 或 3D Slicer 開啟驗證方向')
+# 移除副檔名（如果使用者帶了 .npz 或 .nii.gz）
+out_base = args.out
+for ext in ['.npz', '.nii.gz', '.nii']:
+    if out_base.endswith(ext):
+        out_base = out_base[:-len(ext)]
+        break
+
+# 1. 存 .nii.gz（帶完整 MNI152 header，給 preprocess_ixi.py 的 ANTs 用）
+nii_path = out_base + '.nii.gz'
+ants.image_write(brain_resized, nii_path)
+print(f'\n✓ 儲存 nii.gz：{nii_path}  （帶 header，給 preprocess_ixi.py --atlas 用）')
+
+# 2. 存 .npz（只有 numpy array，給 VoxelMorph train.py 用）
+npz_path = out_base + '.npz'
+np.savez_compressed(npz_path, vol=final_arr)
+print(f'✓ 儲存 npz   ：{npz_path}  （給 train.py --atlas 用）')
 
 print()
-print('下一步，執行前處理：')
-print(f'  python IXI\\preprocess_ixi.py --atlas {args.out}')
+print('下一步：')
+print(f'  # 前處理 IXI（用帶 header 的 .nii.gz atlas）')
+print(f'  python IXI\\preprocess_ixi.py --atlas {nii_path}')
+print()
+print(f'  # 訓練 VoxelMorph（用 .npz atlas）')
+print(f'  python voxelmorph-code\\scripts\\torch\\train.py --atlas {npz_path} ...')
