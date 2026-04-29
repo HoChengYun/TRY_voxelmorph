@@ -89,41 +89,69 @@ def ncc(a, b):
     a, b = a - a.mean(), b - b.mean()
     return float(np.dot(a, b) / (np.sqrt((a**2).sum() * (b**2).sum()) + 1e-8))
 
-ncc_val  = ncc(moved_np, atlas_vol)
-dr       = max(moved_np.max(), atlas_vol.max()) - min(moved_np.min(), atlas_vol.min())
-ssim_val = ssim_fn(moved_np, atlas_vol, data_range=dr)
+def jacobian_negative_ratio(flow_np):
+    du_dd = np.gradient(flow_np[0], axis=0)
+    du_dh = np.gradient(flow_np[0], axis=1)
+    du_dw = np.gradient(flow_np[0], axis=2)
+    dv_dd = np.gradient(flow_np[1], axis=0)
+    dv_dh = np.gradient(flow_np[1], axis=1)
+    dv_dw = np.gradient(flow_np[1], axis=2)
+    dw_dd = np.gradient(flow_np[2], axis=0)
+    dw_dh = np.gradient(flow_np[2], axis=1)
+    dw_dw = np.gradient(flow_np[2], axis=2)
+    j11 = 1.0 + du_dd;  j12 = du_dh;        j13 = du_dw
+    j21 = dv_dd;        j22 = 1.0 + dv_dh;  j23 = dv_dw
+    j31 = dw_dd;        j32 = dw_dh;        j33 = 1.0 + dw_dw
+    det_j = (j11 * (j22 * j33 - j23 * j32)
+           - j12 * (j21 * j33 - j23 * j31)
+           + j13 * (j21 * j32 - j22 * j31))
+    return float((det_j <= 0).sum() / det_j.size)
+
+ncc_val_source = ncc(vol, atlas_vol)
+dr_source = max(vol.max(), atlas_vol.max()) - min(vol.min(), atlas_vol.min())
+ssim_val_source = ssim_fn(vol, atlas_vol, data_range=dr_source)
+
+ncc_val_warped  = ncc(moved_np, atlas_vol)
+dr_warped       = max(moved_np.max(), atlas_vol.max()) - min(moved_np.min(), atlas_vol.min())
+ssim_val_warped = ssim_fn(moved_np, atlas_vol, data_range=dr_warped)
+
+jneg_val = jacobian_negative_ratio(flow_np)
 
 model_name = os.path.splitext(os.path.basename(args.model))[0]
-print(f'NCC={ncc_val:.4f}  SSIM={ssim_val:.4f}')
+print(f'Warped NCC={ncc_val_warped:.4f}  SSIM={ssim_val_warped:.4f}  %|J|<=0={jneg_val*100:.3f}%')
 
 # ── 工具函數 ─────────────────────────────────────────────────────────
 D, H, W = vol.shape
 
+# ── 論文風格主題設定 ─────────────────────────────────────────────────────
+BG_COLOR = 'white'
+CARD_COLOR = '#F8F9FA'
+TEXT_MAIN = 'black'
+TEXT_SUB = '#495057'
+ACCENT = '#0056B3'  # 學術深藍色
+BORDER = '#DEE2E6'
+
 def get_slice(vol3d, axis, idx):
     """取 2D 切面"""
-    if axis == 'axial':    return vol3d[idx, :, :]
+    if axis == 'sagittal': return vol3d[idx, :, :]
     if axis == 'coronal':  return vol3d[:, idx, :]
-    if axis == 'sagittal': return vol3d[:, :, idx]
+    if axis == 'axial':    return vol3d[:, :, idx]
 
 def get_flow_slice(flow3d, axis, idx):
     """取 flow field 的 2D 切面，回傳 (u, v) 兩個分量"""
-    # flow3d shape: (3, D, H, W) → 取兩個面內方向
-    if axis == 'axial':    return flow3d[1, idx, :, :], flow3d[2, idx, :, :]   # H, W
+    if axis == 'sagittal': return flow3d[1, idx, :, :], flow3d[2, idx, :, :]   # H, W
     if axis == 'coronal':  return flow3d[0, :, idx, :], flow3d[2, :, idx, :]   # D, W
-    if axis == 'sagittal': return flow3d[0, :, :, idx], flow3d[1, :, :, idx]   # D, H
+    if axis == 'axial':    return flow3d[0, :, :, idx], flow3d[1, :, :, idx]   # D, H
 
 def get_mid(axis):
-    return {'axial': D//2, 'coronal': H//2, 'sagittal': W//2}[axis]
+    return {'sagittal': D//2, 'coronal': H//2, 'axial': W//2}[axis]
 
 def flip_for_display(sl, axis, vol_type):
     """
-    根據之前測試得到的翻轉規則：
-    - atlas 和 diff 需要 flipud
-    - source 和 warped 不翻
-    此規則在 axial 切面已驗證，其他切面保持一致
+    統一翻轉規則：因為輸入的 NPZ 已經對齊過，所有影像(Source, Atlas, Warped)
+    在 Numpy Array 裡的空間方向是完全一致的，不應該對 atlas 特別翻轉。
+    我們統一回傳原始切片，交由 imshow(origin='lower') 處理。
     """
-    if vol_type in ('atlas', 'diff'):
-        return np.flipud(sl)
     return sl
 
 def make_checkerboard(img_a, img_b, block_size=16):
@@ -141,23 +169,24 @@ def make_checkerboard(img_a, img_b, block_size=16):
                 result[y:yy, x:xx] = img_b[y:yy, x:xx]
     return result
 
-def draw_warped_grid(ax, flow_u, flow_v, spacing=4, color='#5EEAD4', linewidth=0.4):
-    """在 ax 上畫扭曲網格"""
-    h, w = flow_u.shape
-    # 水平線
-    for y in range(0, h, spacing):
-        xs = np.arange(w, dtype=float)
-        ys = np.full(w, y, dtype=float) + flow_u[y, :]
-        ax.plot(xs, ys, color=color, linewidth=linewidth, alpha=0.7)
-    # 垂直線
-    for x in range(0, w, spacing):
-        ys = np.arange(h, dtype=float)
-        xs = np.full(h, x, dtype=float) + flow_v[:, x]
-        ax.plot(xs, ys, color=color, linewidth=linewidth, alpha=0.7)
+def draw_warped_grid(ax, flow_u, flow_v, spacing=4, color=ACCENT, linewidth=0.5):
+    """在 ax 上畫扭曲網格 (配合 imshow(sl.T) 轉置座標)"""
+    H_dim, W_dim = flow_u.shape
+    
+    # 畫水平線 (Y 軸固定，X 軸變動)
+    for y_idx in range(0, W_dim, spacing):
+        xs = np.arange(H_dim, dtype=float)
+        dx = flow_u[:, y_idx]
+        dy = flow_v[:, y_idx]
+        ax.plot(xs + dx, y_idx + dy, color=color, linewidth=linewidth, alpha=0.7)
+        
+    # 畫垂直線 (X 軸固定，Y 軸變動)
+    for x_idx in range(0, H_dim, spacing):
+        ys = np.arange(W_dim, dtype=float)
+        dx = flow_u[x_idx, :]
+        dy = flow_v[x_idx, :]
+        ax.plot(x_idx + dx, ys + dy, color=color, linewidth=linewidth, alpha=0.7)
 
-# ── 暗色主題設定 ─────────────────────────────────────────────────────
-BG_COLOR = '#0D1117'
-CARD_COLOR = '#161B22'
 
 # ════════════════════════════════════════════════════════════════════════
 # 圖 1：三切面四格圖  (3 rows × 4 cols)
@@ -193,43 +222,43 @@ for row_i, axis in enumerate(axes_list):
 
     for col_i, (sl, cmap) in enumerate(zip(
             [s_sl, a_sl, w_sl, d_sl],
-            ['gray', 'gray', 'gray', 'hot'])):
+            ['gray', 'gray', 'gray', 'magma'])):
         ax = fig1.add_subplot(gs1[row_i, col_i])
         vmax = 1.0 if cmap == 'gray' else d_sl.max()
         ax.imshow(sl.T, cmap=cmap, origin='lower', aspect='equal', vmin=0, vmax=vmax)
 
         # 第一列標題
         if row_i == 0:
-            ax.set_title(col_titles[col_i], color='white', fontsize=12,
+            ax.set_title(col_titles[col_i], color=TEXT_MAIN, fontsize=12,
                          fontweight='bold', pad=6)
         # 第一行標注切面名
         if col_i == 0:
             ax.text(-0.05, 0.5, f'{axis}\nslice={mid}',
-                    transform=ax.transAxes, color='#8B949E', fontsize=10,
+                    transform=ax.transAxes, color=TEXT_SUB, fontsize=10,
                     ha='right', va='center', rotation=0)
 
         # Difference 加 colorbar + 統計
         if col_i == 3:
             im = ax.images[0]
             cbar = fig1.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.ax.yaxis.set_tick_params(color='#8B949E', labelcolor='#8B949E')
-            cbar.outline.set_edgecolor('#30363D')
+            cbar.ax.yaxis.set_tick_params(color=TEXT_SUB, labelcolor=TEXT_SUB)
+            cbar.outline.set_edgecolor(BORDER)
             ax.text(0.05, 0.04,
                     f'MAD = {mad_val:.4f}\nmax = {diff_max:.4f}',
-                    transform=ax.transAxes, color='white', fontsize=8,
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor=CARD_COLOR, alpha=0.8))
+                    transform=ax.transAxes, color=TEXT_MAIN, fontsize=8,
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor=CARD_COLOR, edgecolor=BORDER, alpha=0.9))
         ax.axis('off')
 
 fig1.suptitle(
     f'{subject_name}   |   model: {model_name}   |   '
-    f'NCC={ncc_val:.4f}   SSIM={ssim_val:.4f}',
-    color='white', fontsize=13, y=0.97
+    f'NCC={ncc_val_warped:.4f}   SSIM={ssim_val_warped:.4f}',
+    color=TEXT_MAIN, fontsize=14, y=0.97, fontweight='bold'
 )
 
 out1 = os.path.join(args.out_dir, f'reg_{subject_name}_{model_name}_triplanar.png')
 plt.savefig(out1, dpi=150, bbox_inches='tight', facecolor=fig1.get_facecolor())
 plt.close(fig1)
-print(f'✓ 儲存：{out1}')
+print(f'[OK] 儲存：{out1}')
 
 # ════════════════════════════════════════════════════════════════════════
 # 圖 2：Checkerboard  (1 row × 3 cols: axial / coronal / sagittal)
@@ -255,20 +284,20 @@ for i, axis in enumerate(axes_list):
 
     ax = fig2.add_subplot(gs2[i])
     ax.imshow(checker, cmap='gray', origin='lower', aspect='equal', vmin=0, vmax=1)
-    ax.set_title(f'{axis}  (slice={get_mid(axis)})', color='white',
+    ax.set_title(f'{axis}  (slice={get_mid(axis)})', color=TEXT_MAIN,
                  fontsize=12, fontweight='bold', pad=6)
     ax.axis('off')
 
 fig2.suptitle(
     f'Checkerboard:  Warped ↔ Atlas   |   {subject_name}   |   '
     f'block={args.checker_block}px',
-    color='white', fontsize=13, y=0.96
+    color=TEXT_MAIN, fontsize=14, y=0.96, fontweight='bold'
 )
 
 out2 = os.path.join(args.out_dir, f'checker_{subject_name}_{model_name}.png')
 plt.savefig(out2, dpi=150, bbox_inches='tight', facecolor=fig2.get_facecolor())
 plt.close(fig2)
-print(f'✓ 儲存：{out2}')
+print(f'[OK] 儲存：{out2}')
 
 # ════════════════════════════════════════════════════════════════════════
 # 圖 3：Warped Grid  (1 row × 3 cols: axial / coronal / sagittal)
@@ -294,25 +323,89 @@ for i, axis in enumerate(axes_list):
     ax.imshow(s_sl.T * 0.4, cmap='gray', origin='lower', aspect='equal', vmin=0, vmax=1)
     # 畫扭曲網格
     draw_warped_grid(ax, fu, fv, spacing=args.grid_spacing,
-                     color='#5EEAD4', linewidth=0.3)
-    ax.set_title(f'{axis}  (slice={get_mid(axis)})', color='white',
+                     color=ACCENT, linewidth=0.5)
+    ax.set_title(f'{axis}  (slice={get_mid(axis)})', color=TEXT_MAIN,
                  fontsize=12, fontweight='bold', pad=6)
-    ax.set_xlim(0, s_sl.shape[1])
-    ax.set_ylim(0, s_sl.shape[0])
     ax.axis('off')
 
 fig3.suptitle(
     f'Warped Grid (Deformation Field)   |   {subject_name}   |   '
     f'spacing={args.grid_spacing}px',
-    color='white', fontsize=13, y=0.96
+    color=TEXT_MAIN, fontsize=14, y=0.96, fontweight='bold'
 )
 
 out3 = os.path.join(args.out_dir, f'grid_{subject_name}_{model_name}.png')
 plt.savefig(out3, dpi=150, bbox_inches='tight', facecolor=fig3.get_facecolor())
 plt.close(fig3)
-print(f'✓ 儲存：{out3}')
+print(f'[OK] 儲存：{out3}')
 
-print(f'\n完成！共輸出 3 張圖到 {args.out_dir}/')
+# ════════════════════════════════════════════════════════════════════════
+# 圖 4：Overlay  (2 rows × 3 cols: axial / coronal / sagittal)
+#   row 1 = Source + Atlas Overlay
+#   row 2 = Warped + Atlas Overlay
+# ════════════════════════════════════════════════════════════════════════
+print('繪製 Overlay...')
+fig4 = plt.figure(figsize=(16, 11))
+fig4.patch.set_facecolor(BG_COLOR)
+
+gs4 = gridspec.GridSpec(2, 3, figure=fig4, wspace=0.08, hspace=0.15,
+                        left=0.18, right=0.97, top=0.82, bottom=0.03)
+
+row_titles = ['Linear Registration\n(Source)\n+ Atlas (Red)', 
+              'VoxelMorph Registration\n(Warped)\n+ Atlas (Red)']
+
+for row_i in range(2):
+    for i, axis in enumerate(axes_list):
+        mid = get_mid(axis)
+        a_sl = get_slice(atlas_vol, axis, mid)
+        a_sl = flip_for_display(a_sl, axis, 'atlas')
+        
+        if row_i == 0:
+            sl = get_slice(vol, axis, mid)
+            sl = flip_for_display(sl, axis, 'source')
+        else:
+            sl = get_slice(moved_np, axis, mid)
+            sl = flip_for_display(sl, axis, 'warped')
+
+        ax = fig4.add_subplot(gs4[row_i, i])
+        ax.imshow(sl.T, cmap='gray', origin='lower', aspect='equal', vmin=0, vmax=1)
+        
+        # 疊加紅色 atlas (背景透明)
+        cmap_reds = plt.get_cmap('Reds')
+        norm = plt.Normalize(vmin=0, vmax=a_sl.max())
+        rgba = cmap_reds(norm(a_sl.T))
+        rgba[..., 3] = np.clip(a_sl.T / a_sl.max(), 0, 1) * 0.85  # alpha blending (調高讓紅色更深)
+        ax.imshow(rgba, origin='lower', aspect='equal')
+        ax.axis('off')
+
+        if i == 0:
+            color = TEXT_SUB if row_i == 0 else ACCENT
+            ax.text(-0.05, 0.5, row_titles[row_i],
+                    transform=ax.transAxes, color=color, fontsize=12,
+                    ha='right', va='center', rotation=0, fontweight='bold')
+        
+        if row_i == 0:
+            ax.set_title(f'{axis}  (slice={get_mid(axis)})', color=TEXT_MAIN,
+                         fontsize=12, fontweight='bold', pad=6)
+
+# 標題與指標
+info_text = (
+    f"Linear (Source)          |  NCC: {ncc_val_source:.4f}   |   SSIM: {ssim_val_source:.4f}\n"
+    f"VoxelMorph (Warped)  |  NCC: {ncc_val_warped:.4f}   |   SSIM: {ssim_val_warped:.4f}   |   %|J|≤0: {jneg_val*100:.3f}%"
+)
+fig4.suptitle(
+    f'Registration Overlay vs Atlas   |   {subject_name}   |   model: {model_name}',
+    color=TEXT_MAIN, fontsize=14, y=0.97, fontweight='bold'
+)
+fig4.text(0.5, 0.88, info_text, ha='center', va='bottom', color=ACCENT, fontsize=12,
+          bbox=dict(boxstyle='round,pad=0.6', facecolor=CARD_COLOR, edgecolor=BORDER, alpha=0.9))
+
+out4 = os.path.join(args.out_dir, f'overlay_{subject_name}_{model_name}.png')
+plt.savefig(out4, dpi=150, bbox_inches='tight', facecolor=fig4.get_facecolor())
+plt.close(fig4)
+print(f'[OK] 儲存：{out4}')
+
+print(f'\n完成！共輸出 4 張圖到 {args.out_dir}/')
 
 
 '''
