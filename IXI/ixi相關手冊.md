@@ -318,9 +318,11 @@ python voxelmorph-code\scripts\torch\test_ixi.py `
 
 ---
 
-### 5.4 batch_test_ixi.py — 逐 epoch 比較曲線
+### 5.4 batch_test_ixi.py — 逐 epoch 比較曲線 (Fast Evaluation / Test)
 
-跑 `models/` 資料夾裡所有 `.pt`，畫出 NCC / SSIM vs Epoch 曲線：
+**定位：** 專門用來「快速掃描並找出最佳權重」。為了追求極致速度，它一律使用輕量級的 `.npz` 格式讀取，省略了解析 NIfTI header 的時間，能在幾分鐘內評估完上百個 epoch。
+
+跑 `models/` 資料夾裡所有 `.pt`，畫出 NCC / SSIM / %\|J\|≤0 / Smoothness vs Epoch 曲線：
 
 ```powershell
 python voxelmorph-code\scripts\torch\batch_test_ixi.py `
@@ -339,14 +341,14 @@ python voxelmorph-code\scripts\torch\batch_test_ixi.py `
 | `--out-dir` | 輸出圖片和 CSV 的資料夾 |
 
 輸出：
-- `draw-img/output/epoch_curve.png`：NCC / SSIM vs Epoch 折線圖
-- `draw-img/output/epoch_curve.csv`：各 epoch 數值
+- `draw-img/output/epoch_curve.png`：四大指標 vs Epoch 趨勢折線圖，並標示最佳 epoch（★）
+- `draw-img/output/epoch_curve.csv`：各 epoch 數值列表
 
 ---
 
-### 5.5 visualize_reg_ixi.py — 配準視覺化四格圖
+### 5.5 visualize_reg_ixi.py — 學術級視覺化與推論存檔 (Inference / Register)
 
-輸出論文常見的四格圖：Source / Atlas / Warped / Difference
+**定位：** 當你用 `batch_test_ixi.py` 挑出最強模型後，用這支腳本來進行**「正式配準推論」**。它融合了官方 `register.py` 的功能，不僅能產出 MICCAI 等頂級醫學影像會議標準的 5 張圖表，還能直接把結果存成帶有空間座標 (Affine) 的實體 `.nii.gz` 檔案供後續使用。
 
 ```powershell
 python draw-img\visualize_reg_ixi.py `
@@ -354,21 +356,23 @@ python draw-img\visualize_reg_ixi.py `
     --atlas    IXI\atlas_mni152_09c_resize.npz `
     --test-dir IXI\IXI_preprocessed\test `
     --out-dir  draw-img\output `
+    --save-nii `
     --gpu      0
 ```
 
 | 參數 | 說明 |
 |------|------|
-| `--subject` | 指定單張 npz 路徑，不指定則從 test-dir 隨機選 |
-| `--slice-axis` | 切面方向：`axial`（預設）/ `coronal` / `sagittal` |
+| `--subject` | 指定單張 npz 或 nii 路徑，不指定則從 test-dir 隨機選 |
+| `--save-nii` | **關鍵開關**：加上此參數，會自動輸出包含 Affine 座標的 `warped_*.nii.gz` 與形變場 `warp_*.nii.gz` 實體檔案 |
 | `--out-dir` | 輸出圖片資料夾 |
 
-Difference 圖顯示資訊：
-- colorbar：顏色對應差異絕對值大小（0~1）
-- `MAD`（Mean Absolute Difference）：切面平均差異，越接近 0 越好
-- `max`：切面最大差異點數值
-
-> **注意**：Atlas / Warped 顯示時會自動 flipud 對齊 Source 的左右方向（因為 imshow 用 `.T` 轉置，flipud 在顯示上才等於左右翻轉）。
+輸出內容（5 張學術風 PNG + 2 份 NIfTI）：
+1. **Triplanar (三切面對比)**：Source / Atlas / Warped / Difference，熱圖採 `magma` 色階。
+2. **Checkerboard (棋盤格)**：Warped 與 Atlas 棋盤格交錯，檢查邊界對齊。
+3. **Warped Grid (形變網格)**：以藍色網格顯示模型學到的 3D 空間擠壓推擠方向。
+4. **Overlay (疊加圖)**：Atlas（半透明紅色）疊在影像上，對比 Linear vs VoxelMorph 的精準度。
+5. **Jacobian Determinant Map**：使用 `bwr` 發散色階檢測空間折疊。紅色(>1)為放大，藍色(<1)為縮小，<=0 代表發生物理不合理的空間折疊。
+6. **NIfTI 實體檔案**：若啟用 `--save-nii`，將產生給 ITK-SNAP/FreeSurfer 等軟體讀取的標準醫學影像檔。
 
 ---
 

@@ -46,6 +46,7 @@ parser.add_argument('--out-dir',  required=True)
 parser.add_argument('--gpu',      default='0')
 parser.add_argument('--checker-block', type=int, default=16, help='Checkerboard 方塊大小（pixel）')
 parser.add_argument('--grid-spacing', type=int, default=4, help='Warped Grid 網格間距（pixel）')
+parser.add_argument('--save-nii', action='store_true', help='是否將配準結果與變形場儲存為 .nii.gz 實體檔案')
 args = parser.parse_args()
 
 os.makedirs(args.out_dir, exist_ok=True)
@@ -53,7 +54,8 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = torch.device('cuda' if args.gpu != '-1' and torch.cuda.is_available() else 'cpu')
 
 # ── 載入 atlas ────────────────────────────────────────────────────────
-atlas_vol = np.load(args.atlas)['vol'].astype(np.float32)
+atlas_vol, atlas_affine = vxm.py.utils.load_volfile(args.atlas, add_batch_axis=False, add_feat_axis=False, ret_affine=True)
+atlas_vol = atlas_vol.astype(np.float32)
 atlas_tensor = torch.from_numpy(atlas_vol)[None, None].to(device)
 
 # ── 載入模型 ──────────────────────────────────────────────────────────
@@ -67,13 +69,17 @@ if args.subject is not None:
 else:
     import random
     files = [os.path.join(args.test_dir, f)
-             for f in os.listdir(args.test_dir) if f.endswith('.npz')]
+             for f in os.listdir(args.test_dir) 
+             if f.endswith('.npz') or f.endswith('.nii.gz') or f.endswith('.nii')]
     subject_path = random.choice(files)
 
 subject_name = os.path.splitext(os.path.basename(subject_path))[0]
+if subject_name.endswith('.nii'):
+    subject_name = subject_name[:-4]
 print(f'受試者：{subject_name}')
 
-vol = np.load(subject_path)['vol'].astype(np.float32)
+vol, vol_affine = vxm.py.utils.load_volfile(subject_path, add_batch_axis=False, add_feat_axis=False, ret_affine=True)
+vol = vol.astype(np.float32)
 vol_tensor = torch.from_numpy(vol)[None, None].to(device)
 
 # ── 推論 ──────────────────────────────────────────────────────────────
@@ -105,7 +111,8 @@ def jacobian_negative_ratio(flow_np):
     det_j = (j11 * (j22 * j33 - j23 * j32)
            - j12 * (j21 * j33 - j23 * j31)
            + j13 * (j21 * j32 - j22 * j31))
-    return float((det_j <= 0).sum() / det_j.size)
+    neg_ratio = float((det_j <= 0).sum() / det_j.size)
+    return neg_ratio, det_j
 
 ncc_val_source = ncc(vol, atlas_vol)
 dr_source = max(vol.max(), atlas_vol.max()) - min(vol.min(), atlas_vol.min())
@@ -115,7 +122,7 @@ ncc_val_warped  = ncc(moved_np, atlas_vol)
 dr_warped       = max(moved_np.max(), atlas_vol.max()) - min(moved_np.min(), atlas_vol.min())
 ssim_val_warped = ssim_fn(moved_np, atlas_vol, data_range=dr_warped)
 
-jneg_val = jacobian_negative_ratio(flow_np)
+jneg_val, jacobian_map = jacobian_negative_ratio(flow_np)
 
 model_name = os.path.splitext(os.path.basename(args.model))[0]
 print(f'Warped NCC={ncc_val_warped:.4f}  SSIM={ssim_val_warped:.4f}  %|J|<=0={jneg_val*100:.3f}%')
@@ -405,7 +412,63 @@ plt.savefig(out4, dpi=150, bbox_inches='tight', facecolor=fig4.get_facecolor())
 plt.close(fig4)
 print(f'[OK] 儲存：{out4}')
 
-print(f'\n完成！共輸出 4 張圖到 {args.out_dir}/')
+# ════════════════════════════════════════════════════════════════════════
+# 圖 5：Jacobian Determinant Map  (1 row × 3 cols: axial / coronal / sagittal)
+#   熱圖：紅色(>1)表示放大，藍色(<1)表示縮小，接近0或負值代表摺疊
+# ════════════════════════════════════════════════════════════════════════
+print('繪製 Jacobian Determinant Map...')
+fig5 = plt.figure(figsize=(16, 5.5))
+fig5.patch.set_facecolor(BG_COLOR)
+
+gs5 = gridspec.GridSpec(1, 3, figure=fig5, wspace=0.08,
+                        left=0.03, right=0.97, top=0.85, bottom=0.03)
+
+for i, axis in enumerate(axes_list):
+    mid = get_mid(axis)
+    j_sl = get_slice(jacobian_map, axis, mid)
+    j_sl = flip_for_display(j_sl, axis, 'diff')
+    
+    ax = fig5.add_subplot(gs5[i])
+    # 發散色階 (bwr) 中心點設為 1.0 (無體積變化)
+    im = ax.imshow(j_sl.T, cmap='bwr', origin='lower', aspect='equal', vmin=0.5, vmax=1.5)
+    ax.set_title(f'{axis}  (slice={get_mid(axis)})', color=TEXT_MAIN,
+                 fontsize=12, fontweight='bold', pad=6)
+    ax.axis('off')
+    
+    if i == 2:
+        cbar = fig5.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.ax.yaxis.set_tick_params(color=TEXT_SUB, labelcolor=TEXT_SUB)
+        cbar.outline.set_edgecolor(BORDER)
+        cbar.set_label('Jacobian Determinant (1.0 = No Volume Change)', color=TEXT_MAIN)
+
+fig5.suptitle(
+    f'Jacobian Determinant Map   |   {subject_name}   |   '
+    f'%|J|≤0 (Folding) = {jneg_val*100:.3f}%',
+    color=TEXT_MAIN, fontsize=14, y=0.96, fontweight='bold'
+)
+
+out5 = os.path.join(args.out_dir, f'jacobian_{subject_name}_{model_name}.png')
+plt.savefig(out5, dpi=150, bbox_inches='tight', facecolor=fig5.get_facecolor())
+plt.close(fig5)
+print(f'[OK] 儲存：{out5}')
+
+print(f'\n完成！共輸出 5 張圖到 {args.out_dir}/')
+
+# ── 儲存 NIfTI 實體檔案 ───────────────────────────────────────────────────
+if args.save_nii or subject_path.endswith('.nii') or subject_path.endswith('.nii.gz'):
+    print('\n儲存 NIfTI 實體檔案 (Inference Mode)...')
+    # 取 subject_affine，如果沒有就借用 atlas_affine
+    affine = vol_affine if vol_affine is not None else atlas_affine
+    
+    moved_out = os.path.join(args.out_dir, f'warped_{subject_name}_{model_name}.nii.gz')
+    vxm.py.utils.save_volfile(moved_np, moved_out, affine)
+    print(f'[OK] Warped Image: {moved_out}')
+    
+    warp_out = os.path.join(args.out_dir, f'warp_{subject_name}_{model_name}.nii.gz')
+    # warp field 必須從 (3, D, H, W) 轉回 (D, H, W, 3) 才能存成標準 NIfTI
+    flow_to_save = np.transpose(flow_np, (1, 2, 3, 0))
+    vxm.py.utils.save_volfile(flow_to_save, warp_out, affine)
+    print(f'[OK] Deformation Field: {warp_out}')
 
 
 '''
@@ -429,4 +492,5 @@ Sources:
 - [VoxelMorph: A Learning Framework for Deformable Medical Image Registration](https://arxiv.org/abs/1809.05231)
 - [TransMorph: Transformer for unsupervised medical image registration](https://pmc.ncbi.nlm.nih.gov/articles/PMC9999483/)
 - [Evaluation of volume-based and surface-based brain image registration methods](https://pmc.ncbi.nlm.nih.gov/articles/PMC2862732/)
+嗨
 '''

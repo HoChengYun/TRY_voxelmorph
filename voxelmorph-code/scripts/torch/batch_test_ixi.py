@@ -219,49 +219,50 @@ print(f'\nCSV 已存：{csv_path}')
 
 # ── 畫曲線圖 ──────────────────────────────────────────────────────────
 fig, axes = plt.subplots(2, 2, figsize=(14, 9))
-fig.patch.set_facecolor('#0D1117')
+fig.patch.set_facecolor('white')
 
 # 四個子圖的設定
 plot_cfgs = [
-    {'data': ncc_means,    'color': '#58A6FF', 'title': 'NCC vs Epoch',        'ylabel': 'NCC',     'better': 'higher'},
-    {'data': ssim_means,   'color': '#3FB950', 'title': 'SSIM vs Epoch',       'ylabel': 'SSIM',    'better': 'higher'},
-    {'data': [v*100 for v in jneg_means], 'color': '#F85149', 'title': '%|J|≤0 vs Epoch',   'ylabel': '%|J|≤0',  'better': 'lower'},
-    {'data': smooth_means, 'color': '#F0883E', 'title': 'Smoothness vs Epoch', 'ylabel': 'Gradient Energy', 'better': 'lower'},
+    {'data': ncc_means,    'color': '#0056B3', 'title': 'NCC vs Epoch',        'ylabel': 'NCC',     'better': 'higher'},
+    {'data': ssim_means,   'color': '#2E7D32', 'title': 'SSIM vs Epoch',       'ylabel': 'SSIM',    'better': 'higher'},
+    {'data': [v*100 for v in jneg_means], 'color': '#D32F2F', 'title': '%|J|≤0 (Folding) vs Epoch',   'ylabel': '%|J|≤0',  'better': 'lower'},
+    {'data': smooth_means, 'color': '#E65100', 'title': 'Smoothness vs Epoch', 'ylabel': 'Gradient Energy', 'better': 'lower'},
 ]
 
 for ax, cfg in zip(axes.flat, plot_cfgs):
-    ax.set_facecolor('#161B22')
-    ax.tick_params(colors='#8B949E')
-    ax.xaxis.label.set_color('#8B949E')
-    ax.yaxis.label.set_color('#8B949E')
+    ax.set_facecolor('#F8F9FA')
+    ax.tick_params(colors='black')
+    ax.xaxis.label.set_color('black')
+    ax.yaxis.label.set_color('black')
     for spine in ax.spines.values():
-        spine.set_edgecolor('#30363D')
+        spine.set_edgecolor('#DEE2E6')
 
     data = cfg['data']
-    ax.plot(epochs, data, color=cfg['color'], linewidth=1.8, marker='o', markersize=3)
-    ax.set_title(cfg['title'], color='white', fontsize=12, fontweight='bold')
+    ax.plot(epochs, data, color=cfg['color'], linewidth=2.0, marker='o', markersize=4, alpha=0.8)
+    ax.set_title(cfg['title'], color='black', fontsize=13, fontweight='bold')
     ax.set_xlabel('Epoch')
     ax.set_ylabel(cfg['ylabel'])
-    ax.grid(True, color='#30363D', linestyle='--', alpha=0.5)
+    ax.grid(True, color='#DEE2E6', linestyle='--', alpha=0.7)
 
     # 標示最佳 epoch
     best_val = data[best_idx]
-    ax.axvline(x=best_epoch, color='#5EEAD4', linestyle='--', linewidth=1, alpha=0.6)
-    ax.plot(best_epoch, best_val, marker='*', color='#5EEAD4', markersize=14, zorder=5)
+    ax.axvline(x=best_epoch, color='#FFC107', linestyle='--', linewidth=1.5, alpha=0.8)
+    ax.plot(best_epoch, best_val, marker='*', color='#FFC107', markeredgecolor='black', markersize=16, zorder=5)
+    
     # 標注文字
-    ax.annotate(f'★ epoch {best_epoch}\n{best_val:.4f}',
+    ax.annotate(f'★ Best: Epoch {best_epoch}\n{best_val:.4f}',
                 xy=(best_epoch, best_val),
-                xytext=(15, 10 if cfg['better'] == 'higher' else -25),
+                xytext=(15, 10 if cfg['better'] == 'higher' else -30),
                 textcoords='offset points',
-                color='#5EEAD4', fontsize=9, fontweight='bold',
-                arrowprops=dict(arrowstyle='->', color='#5EEAD4', lw=1),
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='#161B22', edgecolor='#5EEAD4', alpha=0.9))
+                color='black', fontsize=10, fontweight='bold',
+                arrowprops=dict(arrowstyle='->', color='black', lw=1.2),
+                bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='#DEE2E6', alpha=0.9))
 
 fig.suptitle(
-    f'Epoch Evaluation   |   ★ Best = epoch {best_epoch}   |   '
+    f'Epoch Evaluation Curves   |   ★ Overall Best = Epoch {best_epoch}   |   '
     f'NCC={ncc_means[best_idx]:.4f}  SSIM={ssim_means[best_idx]:.4f}  '
     f'%|J|≤0={jneg_means[best_idx]*100:.3f}%',
-    color='white', fontsize=12, y=0.98
+    color='black', fontsize=16, y=0.98, fontweight='bold'
 )
 
 plt.tight_layout(rect=[0, 0, 1, 0.95])
