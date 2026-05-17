@@ -531,3 +531,85 @@ python IXI\read_nii_header.py  IXI\IXI_preprocessed\nii\*.nii.gz
 python IXI\read_nii_header.py  --full  IXI\atlas_mni152_09c.nii.gz
 ```
 
+---
+
+## 9. 實驗記錄
+
+### 9.1 實驗總覽
+
+| 實驗 | epochs | image-loss | λ | 備註 |
+|------|--------|------------|---|------|
+| exp4 | 500 | ncc | 0.005 | 第一次 IXI 正式實驗 |
+| exp5 | 500 | ncc | 0.05  | 調大 λ 嘗試改善灰白質失真 |
+| exp6 | 250 | **mse**（預設）| 0.01（預設）| ⚠️ 未指定 --image-loss ncc，跑的是 MSE loss |
+
+> ⚠️ **exp6 注意**：沒有加 `--image-loss ncc`，預設走 MSE，與 exp4/exp5 的 NCC loss 不同，比較時需說明。
+
+---
+
+### 9.2 exp4 最佳結果（epoch 69）
+
+由 `batch_test_ixi.py` 評估後選出，選取標準：**NCC 高 + %|J|≤0 低**的 trade-off 甜蜜點。
+
+| 指標 | epoch 69 | epoch 477（最高 NCC） | epoch 494（最高 SSIM） |
+|------|----------|-----------------------|------------------------|
+| NCC | 0.9863 | 0.9905 | 0.9901 |
+| SSIM | 0.9455 | — | 0.9645 |
+| %\|J\|≤0 | **0.003%** | ~2.26% | ~2.26% |
+
+> epoch 494/477 雖然 NCC/SSIM 更高，但 Jneg 達 2.26%，形變場物理上不合理，故選 epoch 69。
+
+---
+
+### 9.3 超參數說明
+
+**Learning Rate（學習率）**
+控制優化器更新權重的步伐大小，與 loss function 無關。公式：`θ ← θ - lr × ∇L(θ)`。
+
+**λ（正則化參數，train.py 裡叫 `--lambda`）**
+控制 loss function 中正則化項的權重：
+```
+Loss = NCC(Warped, Atlas) + λ × Reg(φ)
+```
+- λ 越大 → 形變場越平滑，%|J|≤0 越低，但 NCC 上限可能下降
+- λ 越小 → 允許激進形變，NCC 可能更高，但容易出現折疊
+
+VoxelMorph train.py 預設值：`λ = 0.01`
+
+> **λ 調大時注意**：loss 整體數值會放大，梯度也跟著放大，原本合適的 lr 可能會太大造成不穩定。調 λ 後可能需要一起調小 lr。
+
+**NCC patch size（win）**
+NCC 使用滑動視窗計算局部相似度，視窗大小預設 `[9, 9, 9]`（3D）。
+
+位置：`voxelmorph-code/voxelmorph/torch/losses.py` 第 26 行：
+```python
+win = [9] * ndims if self.win is None else self.win
+```
+
+train.py 目前的呼叫方式（沒有傳 win，使用預設）：
+```python
+image_loss_func = vxm.losses.NCC().loss  # → win=[9,9,9]
+```
+
+若要修改，在 train.py 加 argument：
+```python
+parser.add_argument('--ncc-win', type=int, default=9)
+image_loss_func = vxm.losses.NCC(win=[args.ncc_win]*3).loss
+```
+
+---
+
+### 9.4 灰白質界面模糊問題
+
+**觀察**：exp4/exp5 的 Warped 影像，灰白質邊界比 Source 略模糊。
+
+**根本原因**：NCC 是 patch-based 的整體相似度，對灰白質界面等高頻細節不敏感。只要大範圍 NCC 夠高，網路就滿意，不在乎 2~3 個 voxel 級別的界面銳利度。
+
+**改善方向（優先序）**：
+1. 縮小 NCC patch size（win=5 或 7）→ 改 train.py 加 argument，最省事
+2. 調大 λ（exp5 已試：λ=0.05，效果與 exp4 接近，NCC/SSIM 幾乎不變）
+3. 改用 multi-scale NCC → 需改 losses.py
+4. 加入 MI（Mutual Information）loss → 需改 losses.py，改動較大
+
+**現況結論**：SSIM=0.944 在 scan-to-atlas 配準中屬於正常水準，灰白質輕微模糊是 NCC loss 的固有特性，不一定需要繼續追。
+
