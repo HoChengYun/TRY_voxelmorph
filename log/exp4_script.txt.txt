@@ -1,0 +1,1 @@
+python voxelmorph-code\scripts\torch\train.py IXI\IXI_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v2.npz --model-dir models\exp4 --epochs 500 --gpu 0 --lambda 0.005 --image-loss ncc > ./log/exp4.txt 2>&1
