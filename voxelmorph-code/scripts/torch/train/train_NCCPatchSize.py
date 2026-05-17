@@ -58,6 +58,7 @@ parser.add_argument('--bidir', action='store_true', help='enable bidirectional c
 
 # loss hyperparameters
 parser.add_argument('--image-loss', default='mse', help='image reconstruction loss - can be mse or ncc (default: mse)')
+parser.add_argument('--ncc-win', type=int, default=5, help='NCC patch size (default: 5)')
 parser.add_argument('--lambda', type=float, dest='weight', default=0.01, help='weight of deformation loss (default: 0.01)')
 args = parser.parse_args()
 
@@ -127,7 +128,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 # prepare image loss
 if args.image_loss == 'ncc':
-    image_loss_func = vxm.losses.NCC(win=[5,5,5]).loss
+    image_loss_func = vxm.losses.NCC(win=[args.ncc_win] * 3).loss
 elif args.image_loss == 'mse':
     image_loss_func = vxm.losses.MSE().loss
 else:
