@@ -1,15 +1,32 @@
 """
 IXI T1 前處理腳本
-流程：N4 bias correction → 去顱骨 → 對位到 atlas 空間 → 正規化 → 打包 npz
+流程：N4 bias correction -> 去顱骨 -> 對位到 atlas 空間 -> 正規化 -> 打包 npz
+
+輸出 shape 和 spacing 完全由 --atlas 決定，不需要另外指定 --target-shape。
+建議用 make_atlas.py --method crop 產生 atlas（spacing=1mm isotropic）。
 
 用法：
-    python preprocess_ixi.py
-    python preprocess_ixi.py --save-nii   # 額外輸出 .nii.gz 供驗證方向
+    # 標準前處理（全部 581 張）
+    python IXI\preprocess_ixi.py \
+        --out-dir IXI\IXI_preprocessed_v3 \
+        --atlas   IXI\atlas_mni152_09c_v3.nii.gz
+
+    # 額外輸出 .nii.gz 供驗證方向/spacing
+    python IXI\preprocess_ixi.py \
+        --out-dir IXI\IXI_preprocessed_v3 \
+        --atlas   IXI\atlas_mni152_09c_v3.nii.gz \
+        --save-nii
+
+    # 視覺化單張前處理流程（不存 npz）
+    python IXI\preprocess_ixi.py \
+        --out-dir IXI\preprocess_vis \
+        --atlas   IXI\atlas_mni152_09c_v3.nii.gz \
+        --vis     IXI\IXI-T1\IXI060-Guys-0709-T1.nii.gz
 
 輸出：
-    IXI/IXI_preprocessed/train/  (90%)
-    IXI/IXI_preprocessed/test/   (10%)
-    IXI/IXI_preprocessed/nii/    (若有 --save-nii，抽樣輸出 .nii.gz)
+    IXI_preprocessed_v3/train/  (90%, 522 筆)
+    IXI_preprocessed_v3/test/   (10%, 59 筆)
+    IXI_preprocessed_v3/nii/    (若有 --save-nii)
 """
 
 import os
@@ -28,8 +45,7 @@ parser.add_argument('--out-dir',  required=True,
                     help='輸出資料夾（必填）')
 parser.add_argument('--atlas',    required=True,
                     help='對位目標（.nii.gz 帶 header，建議用 make_atlas.py 產生的版本）')
-parser.add_argument('--target-shape', default='192,224,192',
-                    help='輸出影像大小，預設 192,224,192（必須能被 16 整除）')
+# --target-shape 已移除：output shape 直接由 atlas 決定
 parser.add_argument('--skip-done', action='store_true', default=True,
                     help='略過已處理的檔案（中斷後可續跑）')
 parser.add_argument('--no-brain-extract', action='store_true', default=False,
@@ -59,7 +75,6 @@ except ImportError:
 
 # ── 設定 ─────────────────────────────────────────────────────────────
 random.seed(args.seed)
-target_shape = tuple(int(x) for x in args.target_shape.split(','))
 
 # 建立輸出資料夾（--vis 模式不建 train/test）
 if not args.vis:
@@ -83,14 +98,9 @@ if atlas_path.endswith('.npz'):
 else:
     atlas_ants = ants.image_read(atlas_path)
 
-# atlas 大小必須與 target_shape 一致
-if atlas_ants.numpy().shape != target_shape:
-    print(f"❌ Atlas shape {atlas_ants.numpy().shape} != target_shape {target_shape}")
-    print(f"   請先用 make_atlas.py --target-shape {','.join(map(str, target_shape))} 產生正確大小的 atlas")
-    print(f"   或指定 --atlas 指向已 resize 的 atlas（如 atlas_mni152_09c_resize.npz）")
-    sys.exit(1)
-
-print(f"Atlas shape：{atlas_ants.numpy().shape}")
+# output shape 直接由 atlas 決定
+target_shape = atlas_ants.shape
+print(f"Atlas shape：{target_shape}  spacing：{atlas_ants.spacing}")
 print()
 
 # ── 列出所有輸入檔案並分割 ───────────────────────────────────────────
@@ -188,9 +198,8 @@ for idx, src_path in enumerate(all_files):
         img_np = img_reg.numpy().astype(np.float32)
         if img_np.shape != target_shape:
             raise ValueError(
-                f"配準輸出 shape {img_np.shape} != target {target_shape}。\n"
-                f"請確認 atlas 已 resize 到 {target_shape}：\n"
-                f"  python IXI\\make_atlas.py --target-shape {','.join(map(str, target_shape))} ..."
+                f"配準輸出 shape {img_np.shape} != atlas shape {target_shape}。\n"
+                f"請確認 --atlas 路徑正確，且 atlas 是用 make_atlas.py --method crop 產生的版本。"
             )
 
         # 6. 灰值正規化到 [0, 1]（clip 1% / 99% percentile 後再正規化）
