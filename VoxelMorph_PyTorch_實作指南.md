@@ -5,6 +5,30 @@
 
 ---
 
+> ## ⚠️ 這是三份文件中**最舊**的一份（2026/03，OASIS 時期）
+>
+> **最新狀態請以專案根目錄的 `CLAUDE.md` 為準。**
+>
+> 本文寫作時專案還在跑 OASIS，**完全沒有 IXI 這條線**——而主線早就轉到
+> **IXI + 自製 MNI152 2009c atlas** 了。IXI 的操作細節見 `IXI/ixi相關手冊.md`（也需搭配其更正框閱讀）。
+>
+> 本文已知失效的地方：
+>
+> | 項目 | 本文的說法 | 現況 |
+> |---|---|---|
+> | 環境啟動 | Linux 語法（`source .../bin/activate`）| **本專案是 Windows 原生**：`.\vxm_env\Scripts\activate` |
+> | 評估腳本 | 原文寫 `test.py`、`batch_test.py` | 已拆成 `test_oasis.py` / `test_ixi.py`、`batch_test_oasis.py` / `batch_test_ixi.py` |
+> | 視覺化腳本 | 原文寫 `visualize_registration.py` | 已拆成 `visualize_reg_oasis.py` / `visualize_reg_ixi.py`，輸出改為 5 種圖 |
+> | `atlas.npz` 的 `train_avg` | 「訓練集平均影像」 | ❌ 錯的，見 §2 的更正框 |
+>
+> **但有一處本文其實是對的、後來反而被做錯了**：§6 的訓練指令用
+> `--image-loss ncc --lambda 1.0`，這個 λ 正好命中論文對 CC 的最佳值（≈1–2）。
+> 後續 exp3–exp8 改用 0.005 / 0.01 / 0.05，反而讓正則化形同虛設。詳見 `CLAUDE.md`「超參數」節。
+>
+> 已知問題都加了 🔻 標記就地更正（2026-08-23）。§1、§8 的原理說明仍然有效。
+
+---
+
 ## 目錄
 
 1. [什麼是 VoxelMorph](#1-什麼是-voxelmorph)
@@ -17,6 +41,12 @@
 8. [模型原理](#8-模型原理)
 9. [常見問題與解決方案](#9-常見問題與解決方案)
 10. [參考資源](#10-參考資源)
+
+---
+
+> 🔻 **腳本改名對照（2026-08-23）**：本文提到的腳本後來都拆成 OASIS / IXI 兩版，
+> 內文已直接改成 OASIS 版的名字。IXI 版請用 `test_ixi.py` / `batch_test_ixi.py` /
+> `visualize_reg_ixi.py`，用法見 `CLAUDE.md`。
 
 ---
 
@@ -50,7 +80,7 @@ claude_cheng/                          ← 工作根目錄（所有指令從這�
 │   ├── scripts/torch/
 │   │   ├── train.py                   ← 訓練腳本
 │   │   ├── register.py                ← 單對影像配準推論
-│   │   └── test.py                    ← 批次測試，計算 Dice（我們自己寫的）
+│   │   └── test_oasis.py              ← 批次測試，計算 Dice（我們自己寫的）
 │   └── voxelmorph/torch/
 │       ├── networks.py                ← VxmDense 主模型
 │       ├── losses.py                  ← NCC, MSE, Grad, Dice 損失函數
@@ -64,7 +94,7 @@ claude_cheng/                          ← 工作根目錄（所有指令從這�
 │   └── prepare_oasis.py               ← 將 .nii.gz 轉為 .npz 的腳本
 │
 ├── draw-img/                          ← 視覺化相關
-│   ├── visualize_registration.py      ← 畫配準結果圖
+│   ├── visualize_reg_oasis.py         ← 畫配準結果圖
 │   └── registration_result.png        ← 輸出圖片
 │
 ├── models/                            ← 訓練存檔
@@ -79,7 +109,10 @@ claude_cheng/                          ← 工作根目錄（所有指令從這�
 **atlas.npz 說明：**
 - `vol`：160×192×224 的標準腦影像（float，已歸一化）
 - `seg`：同尺寸的分割標籤（使用 **FreeSurfer 解剖 ID**，如 2, 3, 4, 7, 8, 10...）
-- `train_avg`：訓練集平均影像（可選用）
+- `train_avg`：🔻 **更正（2026-08-23）**：**不是**「訓練集平均影像」。
+  實際載入 `voxelmorph-code/data/atlas.npz` 確認：`shape=(256,)`、`dtype=float64`，是 **1D 陣列不是影像**。
+  它是**訓練集各標籤的平均 Dice**（256 正好是 FreeSurfer label ID 的範圍 0–255），供 `test_oasis.py` 比較用。
+  `IXI/ixi相關手冊.md` §1.1 的說法才是對的。
 
 **labels.npz 說明：**
 - 包含 30 個評估用標籤 ID：`[2,3,4,7,8,10,11,12,13,14,15,16,17,18,24,28,31,41,42,43,46,47,49,50,51,52,53,54,60,63]`
@@ -102,8 +135,8 @@ claude_cheng/                          ← 工作根目錄（所有指令從這�
 virtualenv -p python3.10 vxm_env
 
 # 啟動虛擬環境
-source vxm_env/bin/activate     # Linux / macOS
-# vxm_env\Scripts\activate      # Windows
+.\vxm_env\Scripts\activate            # Windows（本專案用這個）
+# 🔻 原文預設 Linux（source vxm_env/bin/activate），本專案是 Windows 原生，已對調
 
 # 確認版本
 python --version    # Python 3.10.x
@@ -140,7 +173,7 @@ export VXM_BACKEND=pytorch
 ### 3.5 快速驗證安裝
 
 ```bash
-source vxm_env/bin/activate
+.\vxm_env\Scripts\activate
 python voxelmorph_quick_test.py
 ```
 
@@ -177,7 +210,7 @@ oasis/neurite-oasis.v1.0/
 VoxelMorph 訓練使用 `.npz` 格式，需要轉換：
 
 ```bash
-source vxm_env/bin/activate
+.\vxm_env\Scripts\activate
 python oasis/prepare_oasis.py
 ```
 
@@ -208,7 +241,7 @@ neurite-oasis 的 `aligned_seg35.nii.gz` 使用的是**連續編號（1~35）**�
 | 30 | 53 | Right-Hippocampus |
 | ... | ... | ... |
 
-`test.py` 已內建完整的對應表（`SEG35_TO_FS`）並自動轉換，不需要手動處理。
+`test_oasis.py` 已內建完整的對應表（`SEG35_TO_FS`）並自動轉換，不需要手動處理。
 
 ---
 
@@ -219,7 +252,7 @@ neurite-oasis 的 `aligned_seg35.nii.gz` 使用的是**連續編號（1~35）**�
 每張影像都配準到同一個標準腦（`atlas.npz`）。這是最常見的腦部 MRI 配準訓練方式。
 
 ```bash
-source vxm_env/bin/activate
+.\vxm_env\Scripts\activate
 
 python voxelmorph-code/scripts/torch/train.py \
     oasis/oasis_npz/train \
@@ -243,8 +276,22 @@ python voxelmorph-code/scripts/torch/train.py \
 | `--epochs` | 訓練幾個 epoch | 初次測試用 10，正式訓練用 1500 |
 | `--steps-per-epoch` | 每個 epoch 跑幾個 batch | 100（約等於 100 張影像 / epoch） |
 | `--batch-size` | 每次輸入幾張 | 1（3D 影像記憶體很大，通常只能用 1）|
-| `--image-loss` | 影像相似度損失 | `ncc`（對亮度差異更魯棒，推薦） |
-| `--lambda` | 形變正則化權重 | 1.0（越大形變越平滑） |
+| `--image-loss` | 影像相似度損失 | `ncc`（對亮度差異更魯棒，推薦）。🔻 **不寫的話預設是 `mse`**，本專案的 exp6 就是漏寫而整組跑成 MSE |
+| `--lambda` | 形變正則化權重 | 1.0 —— 🔻 **這個值是對的，見下方補充** |
+
+> ### 🔻 補充（2026-08-23）：λ 的尺度取決於 `--image-loss`
+>
+> 上表的 `--lambda 1.0` 搭配 `--image-loss ncc`，**正好命中論文（TMI 2019, Fig. 7）對 CC 的最佳值（≈1–2）**。
+>
+> 但要注意 `train.py` 的**預設值是 0.01**，那是為 **MSE** 設的：
+>
+> | image-loss | 損失量級 | 論文最佳 λ |
+> |---|---|---|
+> | MSE | ~0.005（影像正規化到 [0,1]）| 0.01 – 0.02 |
+> | NCC | ~1（`-mean(cc)`）| **≈ 1 – 2** |
+>
+> **拿 0.01 去搭 NCC，等於幾乎沒有正則化。** 本專案後續的 exp3–exp8 改用 0.005 / 0.01 / 0.05，
+> 實測平滑項只佔總損失 1–3%——反而是這份最舊文件的 1.0 才是對的。詳見 `CLAUDE.md`「超參數」節。
 | `--int-steps` | 積分步數（微分同胚） | 7 |
 | `--gpu` | 使用第幾張 GPU | 0（單卡用 0） |
 
@@ -282,9 +329,9 @@ NCC loss 是負值（因為實作是 -NCC），越負表示影像越相似。
 — 跑測試，產生 Table I + CSV
 
 ```bash
-source vxm_env/bin/activate
+.\vxm_env\Scripts\activate
 
-python voxelmorph-code/scripts/torch/test.py --model models/0010.pt
+python voxelmorph-code/scripts/torch/test_oasis.py --model models/0010.pt
 ```
 
 腳本會對 `oasis/oasis_npz/test/` 裡所有 40 張影像做配準，並計算每張的 Dice 。
@@ -331,6 +378,13 @@ python voxelmorph-code/scripts/torch/test.py --model models/0010.pt
 - 4 epochs 後：約 0.61 ~ 0.67（平均約 0.63）
 - 10 epochs 後：持續改善中
 
+> 🔻 **待釐清（2026-08-23）**：本文有兩個互相矛盾的「基準線」——
+> 這裡說 **0.6565**，但 §7 的曲線圖說「**Affine only 基準 0.584**」。
+> 論文 Table I 的 Affine only 是 **0.584**（與 §7 一致）。
+> 所以 0.6565 很可能**不是**未配準基準，而是 `voxelmorph_quick_test.py` 載入的
+> **官方預訓練模型**跑出來的 Dice（§3.5 的敘述正是「預訓練模型的 Dice ≈ 0.6565」）。
+> 原作者未說明，**引用前請自行確認來源**，不要當成未配準下限。
+
 ### 6.4 Jacobian 行列式（進階評估）
 
 衡量形變場的拓撲品質，負值代表 folding（形變場自我交叉，物理上不合理）：
@@ -342,25 +396,23 @@ neg_ratio = (jac < 0).sum() / jac.size
 print(f'Negative Jacobian: {neg_ratio:.4%}')  # 微分同胚模型應接近 0%
 ```
 
-### 6.5 一次測量多組(`test.py`)
+### 6.5 一次測量多組(`test_oasis.py`)
 
-寫一個 `batch_test.py`，自動跑所有 epoch 的模型，最後出一張 Dice vs Epoch 折線圖：
+寫一個 `batch_test_oasis.py`，自動跑所有 epoch 的模型，最後出一張 Dice vs Epoch 折線圖：
 
-Created batch testing script for VoxelMorph models
+🔻 **更正（2026-08-23）**：原文此處誤貼了一句 AI 回話殘留（「Created batch testing script for VoxelMorph models」），已移除。
 
 使用方式：
 
-bash
-
-~~~bash
+```bash
 # 全部模型都跑
-python voxelmorph-code/scripts/torch/batch_test.py --model-dir models/ --gpu 0
+python voxelmorph-code/scripts/torch/batch_test_oasis.py --model-dir models/ --gpu 0
 
 # 只測 epoch 10~60
-python voxelmorph-code/scripts/torch/batch_test.py --model-dir models/ --start 10 --end 60
+python voxelmorph-code/scripts/torch/batch_test_oasis.py --model-dir models/ --start 10 --end 60
 
 # 用 CPU（不佔訓練的 GPU）
-python voxelmorph-code/scripts/torch/batch_test.py --gpu -1
+python voxelmorph-code/scripts/torch/batch_test_oasis.py --gpu -1
 ```
 
 
@@ -372,7 +424,7 @@ models/
 ├── ...
 ├── batch_test_summary.csv  ← 所有 epoch 的 Dice 總表
 └── dice_vs_epoch.png       ← 折線圖（含論文基準線）
-~~~
+```
 
 折線圖會畫兩條參考線：
 
@@ -392,9 +444,9 @@ models/
 ### 7.1 執行視覺化
 
 ```bash
-source vxm_env/bin/activate
+.\vxm_env\Scripts\activate
 
-python draw-img/visualize_registration.py --model models/0060.pt --csv models/dice_0010.csv
+python draw-img/visualize_reg_oasis.py --model models/0060.pt --csv models/dice_0010.csv
 ```
 
 ### 7.2 圖片說明
@@ -408,7 +460,7 @@ python draw-img/visualize_registration.py --model models/0060.pt --csv models/di
 
 ---
 
-## 8. 模型原理y
+## 8. 模型原理
 
 ### 8.1 整體流程
 
@@ -474,10 +526,10 @@ $$\mathcal{L} = \mathcal{L}_{sim}(I_{warped}, I_{atlas}) + \lambda \cdot \mathca
 
 **原因：** neurite-oasis 的 `aligned_seg35` 使用連續編號（1~35），但 `atlas.npz` 的 `seg` 使用 FreeSurfer 解剖 ID（2, 3, 4, 7, 8, 10...）。兩者完全不對應，導致 Dice 計算結果幾乎為零。
 
-**解決：** `test.py` 已內建 `SEG35_TO_FS` 對應表和 `remap_seg()` 函式，執行前會自動轉換。
+**解決：** `test_oasis.py` 已內建 `SEG35_TO_FS` 對應表和 `remap_seg()` 函式，執行前會自動轉換。
 
 ```python
-# test.py 裡的對應表（部分）
+# test_oasis.py 裡的對應表（部分）
 SEG35_TO_FS = {
     0:  0,   1:  2,   2:  3,   3:  4,   5:  7,
     7: 10,  14: 17,  20: 41,  30: 53,  35: 63,
@@ -491,11 +543,11 @@ SEG35_TO_FS = {
 
 **解決：** 確保最後一個參數後面沒有 `\`。
 
-### 問題 3：找不到 scripts/torch/test.py
+### 問題 3：找不到 scripts/torch/test_oasis.py
 
-**原因：** VoxelMorph 官方的 PyTorch 版沒有提供 `test.py`，只有 TensorFlow 版有。
+**原因：** VoxelMorph 官方的 PyTorch 版沒有提供 `test_oasis.py`，只有 TensorFlow 版有。
 
-**解決：** 我們自己寫了 `voxelmorph-code/scripts/torch/test.py`，就在那個位置。
+**解決：** 我們自己寫了 `voxelmorph-code/scripts/torch/test_oasis.py`，就在那個位置。
 
 ### 問題 4：GPU OOM（記憶體不足）
 
@@ -520,7 +572,7 @@ SEG35_TO_FS = {
 
 python
 
-~~~python
+```python
 gen = volgen(vol_names, batch_size=batch_size, **kwargs)
 # ↑ 沒有傳 return_segs=True，所以 seg 完全不會被載入
 
@@ -536,7 +588,7 @@ outvols = [atlas]         # 目標：讓 Warped ≈ Atlas
 打包 npz 時：  vol + seg  都存進去
 訓練時：       只讀 vol，seg 靜靜躺在 npz 裡沒被碰
 測試時：       才讀 seg，套形變場 φ 去算 Dice
-~~~
+```
 
 ------
 

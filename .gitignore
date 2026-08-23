@@ -4,6 +4,9 @@
 /oasis/*
 /IXI/**/*
 !/IXI/**/
+/ASD/**/*
+!/ASD/**/
+!/ASD/*.txt
 /*.pptx
 !*.py
 !*.md

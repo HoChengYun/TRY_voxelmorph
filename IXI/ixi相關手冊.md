@@ -4,6 +4,25 @@
 
 ---
 
+> ## ⚠️ 這份文件記錄的是 2026/04（v2 / resample）時期的狀態
+>
+> **最新狀態請以專案根目錄的 `CLAUDE.md` 為準。**
+>
+> 本文寫作時專案還在 v2，之後的重要變更本文**沒有**反映：
+>
+> | 變更 | 本文的說法 | 現況 |
+> |---|---|---|
+> | atlas 產生方式 | `resample`（§6.1 把 `crop` 標成 ❌）| **v3 起改用 `--method crop`**，spacing 精確 1mm |
+> | atlas 檔名 | `atlas_mni152_09c.nii.gz` / `_resize.npz` | 這兩個檔案**已不存在**，現為 `_v2.*` / `_v3.*` |
+> | 資料版本 | 沒有版本概念 | 有 v1 / v2 / v3 三版，**atlas 與資料版本必須一致** |
+> | `preprocess_ixi.py --target-shape` | 還在教怎麼用 | **已移除**，shape 由 `--atlas` 決定 |
+> | 評估腳本 | `test.py` | 已改名為 `test_oasis.py` / `test_ixi.py` |
+>
+> 已知會誤導的地方，本文內都加了 🔻 標記並就地更正（2026-08-23）。
+> §1–§3 的原理說明、§8–§9 的分析仍然有效。
+
+---
+
 ## 1. 背景知識回顧
 
 ### 1.1 atlas.npz 裡面有什麼
@@ -14,9 +33,9 @@ VoxelMorph 訓練用的 atlas 檔案（atlas.npz）包含三個 key：
 |-----|-------------|
 | `vol` | `(160, 192, 224)` 腦部 T1 影像，灰值正規化至 [0, 0.73] |
 | `seg` | `(160, 192, 224)` FreeSurfer 解剖標籤（39 個唯一值，使用 FreeSurfer ID） |
-| `train_avg` | `(256,)` 訓練集各標籤的平均 Dice，供 test.py 比較用 |
+| `train_avg` | `(256,)` 訓練集各標籤的平均 Dice，供 test_oasis.py 比較用 |
 
-> **重點**：訓練時只讀 `vol`，`seg` 靜靜躺在 npz 裡不會被使用。`seg` 只在 `test.py` 評估 Dice 時才被載入。
+> **重點**：訓練時只讀 `vol`，`seg` 靜靜躺在 npz 裡不會被使用。`seg` 只在 `test_oasis.py`（原名 test.py）評估 Dice 時才被載入。
 
 ---
 
@@ -123,8 +142,8 @@ python IXI\make_atlas.py `
     --target-shape 192,224,192
 
 # 同時輸出兩個檔案：
-#   IXI/atlas_mni152_09c.nii.gz  ← 帶 MNI152 header（給 preprocess_ixi.py 的 ANTs 配準用）
-#   IXI/atlas_mni152_09c.npz    ← 只有 numpy array（給 VoxelMorph train.py 用）
+#   IXI/atlas_mni152_09c_v3.nii.gz  ← 帶 MNI152 header（給 preprocess_ixi.py 的 ANTs 配準用）
+#   IXI/atlas_mni152_09c_v3.npz    ← 只有 numpy array（給 VoxelMorph train.py 用）
 ```
 
 腳本做了什麼：
@@ -132,7 +151,7 @@ python IXI\make_atlas.py `
 1. 用 `ants.mask_image()` 套 mask，去掉頭骨
 2. clip 1%~99% percentile 去掉極端值
 3. 正規化到 [0, 1]
-4. resize 到 target-shape（`ants.resample_image`，**保留 MNI152 header**）
+4. 調整成 target-shape（**方法由 `--method` 決定**，見下方更正）
 5. 同時存成 `.nii.gz`（帶 header）和 `.npz`（只有 array）
 
 | 參數 | 說明 |
@@ -140,12 +159,33 @@ python IXI\make_atlas.py `
 | `--t1` | MNI152 T1 .nii 路徑 |
 | `--mask` | brain mask .nii 路徑 |
 | `--out` | 輸出路徑（不含副檔名，自動產生 .npz + .nii.gz）|
-| `--target-shape` | resize 目標，如 `192,224,192`（必須能被 16 整除）|
+| `--target-shape` | 目標大小，如 `192,224,192`（必須能被 16 整除）|
+| **`--method`** | 🔻 **本文寫作後新增**：`crop`（v3 現行）或 `resample`（v2）|
 
-> **為什麼用 `ants.resample_image` 而不是 `scipy.ndimage.zoom`？**
-> `ants.resample_image` 會保留原始 MNI152 的 header（origin、direction），讓 ANTs 配準時能用真正的空間資訊做初始化。`scipy.zoom` 只處理 numpy array，header 會丟失。
+> ### 🔻 更正（2026-08-23）：現行做法是 `crop`，不是 `resample`
 >
-> **Spacing 不是精確 1mm**：resize 後 spacing ≈ `(1.005, 1.022, 1.005)` mm，因為 `ants.resample_image` 保留了物理範圍（FOV），193mm / 192 voxels ≈ 1.005mm。差距 < 2.3%，對訓練無影響。
+> 本節原文只講 `ants.resample_image`，因為寫的時候還沒有 `--method`。**現在 v3 用的是 `crop`。**
+>
+> 完整現行指令：
+>
+> ```powershell
+> python IXI\make_atlas.py `
+>     --t1   IXI\mni_icbm152_nlin_asym_09c_nifti\mni_icbm152_t1_tal_nlin_asym_09c.nii `
+>     --mask IXI\mni_icbm152_nlin_asym_09c_nifti\mni_icbm152_t1_tal_nlin_asym_09c_mask.nii `
+>     --target-shape 192,224,192 `
+>     --method crop `
+>     --out IXI\atlas_mni152_09c_v3
+> ```
+>
+> **`crop` 為什麼比較好**：MNI152 2009c 的 `(193,229,193)` 邊緣是背景，裁到 `(192,224,192)`
+> 砍掉的是空白，**spacing 維持精確 1mm**，體素不會被拉長。詳見 §6.1 的更正框。
+
+> **為什麼不用 `scipy.ndimage.zoom`？**（這段仍然成立）
+> `ants.resample_image` 會保留原始 MNI152 的 header（origin、direction），讓 ANTs 配準時能用真正的空間資訊做初始化。`scipy.zoom` 只處理 numpy array，header 會丟失。v1 就是用 `scipy.zoom`，因此**已不可重現**。
+>
+> **各方法的 spacing**：
+> - **v3 `crop`（現行）**：精確 `(1.0, 1.0, 1.0)` mm
+> - v2 `resample`：≈ `(1.005, 1.022, 1.005)` mm，因為保留了物理範圍（FOV），193mm / 192 voxels ≈ 1.005mm。差距 < 2.3%，影響不大但 v3 已不需要妥協。
 
 ---
 
@@ -206,16 +246,19 @@ VoxelMorph 的 U-Net 有 4 層 downsampling，每層除以 2，因此三個維�
 ```powershell
 # 執行前處理（必填 --out-dir 和 --atlas）
 python IXI\preprocess_ixi.py `
-    --out-dir IXI\IXI_preprocessed `
-    --atlas   IXI\atlas_mni152_09c.nii.gz `
+    --out-dir IXI\IXI_preprocessed_v3 `
+    --atlas   IXI\atlas_mni152_09c_v3.nii.gz `
     --save-nii
 
 # 視覺化單張前處理流程（不會存 npz，不建 train/test）
 python IXI\preprocess_ixi.py `
     --out-dir IXI\preprocess_vis `
-    --atlas   IXI\atlas_mni152_09c.nii.gz `
+    --atlas   IXI\atlas_mni152_09c_v3.nii.gz `
     --vis     IXI\IXI-T1\IXI002-Guys-0828-T1.nii.gz
 ```
+
+> 🔻 **更正（2026-08-23）**：原文用的是 `IXI_preprocessed`（v1）和 `atlas_mni152_09c.nii.gz`。
+> v1 的 atlas 檔案**已刪除**，那批資料已不可重現；上面已改為現行的 v3。
 
 每張影像的處理步驟：
 
@@ -246,7 +289,7 @@ IXI/IXI_preprocessed/
 | `--in-dir` | `IXI/IXI-T1` | 原始 .nii.gz 資料夾 |
 | `--out-dir` | **必填** | 輸出資料夾 |
 | `--atlas` | **必填** | 對位目標（.nii.gz 帶 header，用 make_atlas.py 產生）|
-| `--target-shape` | `192,224,192` | 輸出影像大小（必須能被 16 整除）|
+| ~~`--target-shape`~~ | — | 🔻 **已移除（2026-08-23 更正）**。輸出 shape 直接由 `--atlas` 決定。指定會報 unrecognized argument |
 | `--skip-done` | `True`（預設開啟） | 略過已處理的檔案，中斷後可續跑 |
 | `--no-brain-extract` | `False` | 跳過去顱骨（測試用） |
 | `--save-nii` | `False` | 額外輸出**每筆** .nii.gz（正規化後值 + 完整 header）|
@@ -268,14 +311,31 @@ IXI/IXI_preprocessed/
 
 ### 5.1 訓練指令
 
+> ### 🔻 更正（2026-08-23）：下面這段指令跑不動，已改寫
+>
+> 原文有三個問題：
+> 1. **`--datadir` 不是旗標**，datadir 是**位置參數**，直接接在腳本後面
+> 2. PowerShell 區塊卻用 `\` 換行 —— PowerShell 要用反引號 `` ` ``
+> 3. `atlas_mni152_09c.npz` 這個檔案**已不存在**（現為 `_v2` / `_v3`）
+>
+> 另外原文沒寫 `--image-loss`：**它預設是 `mse` 不是 `ncc`**，想跑 NCC 一定要明寫。
+
 ```powershell
-python voxelmorph-code\scripts\torch\train.py \
-    --datadir  IXI\IXI_preprocessed\train \
-    --atlas    IXI\atlas_mni152_09c.npz \
-    --model-dir models\ixi_mni \
-    --epochs   200 \
-    --gpu      0
+python voxelmorph-code\scripts\torch\train.py IXI\IXI_preprocessed_v3\train `
+    --atlas     IXI\atlas_mni152_09c_v3.npz `
+    --model-dir models\expN `
+    --epochs    250 `
+    --gpu       0 `
+    --image-loss ncc `
+    --lambda    1.0 > .\log\expN.txt 2>&1
 ```
+
+> 🔴 **鐵則：`--atlas` 的版本必須跟 `datadir` 的資料版本一致**（都用 v3，或都用 v2）。
+> 混用會報 `Sizes of tensors must match`，或更糟——安靜地訓練出對不準的模型。
+>
+> 📌 **關於 `--lambda 1.0`**：λ 的合適尺度**取決於 `--image-loss`**。
+> 論文（TMI 2019 Fig. 7）對 CC 的最佳值是 ≈1–2，對 MSE 是 0.01–0.02，差兩個數量級。
+> `train.py` 的預設 0.01 是為 MSE 設的，**搭 NCC 用會等於幾乎沒有正則化**。詳見 `CLAUDE.md`。
 
 ---
 
@@ -292,12 +352,12 @@ python voxelmorph-code\scripts\torch\train.py \
 
 ### 5.3 test_ixi.py — 單次測試（NCC / SSIM）
 
-IXI 沒有 seg，原本的 `test.py` 讀 `atlas['seg']` 會直接報錯。改用專門為 IXI 寫的 `test_ixi.py`：
+IXI 沒有 seg，原本的 `test_oasis.py`（本文寫作時叫 test.py）讀 `atlas['seg']` 會直接報錯。改用專門為 IXI 寫的 `test_ixi.py`：
 
 ```powershell
 python voxelmorph-code\scripts\torch\test_ixi.py `
     --model    models\exp2_IXI\0100.pt `
-    --atlas    IXI\atlas_mni152_09c_resize.npz `
+    --atlas    IXI\atlas_mni152_09c_v3.npz `
     --test-dir IXI\IXI_preprocessed\test `
     --gpu      0
 ```
@@ -327,7 +387,7 @@ python voxelmorph-code\scripts\torch\test_ixi.py `
 ```powershell
 python voxelmorph-code\scripts\torch\batch_test_ixi.py `
     --model-dir models\exp2_IXI `
-    --atlas     IXI\atlas_mni152_09c_resize.npz `
+    --atlas     IXI\atlas_mni152_09c_v3.npz `
     --test-dir  IXI\IXI_preprocessed\test `
     --out-dir   draw-img\output `
     --step      10 `
@@ -353,7 +413,7 @@ python voxelmorph-code\scripts\torch\batch_test_ixi.py `
 ```powershell
 python draw-img\visualize_reg_ixi.py `
     --model    models\exp2_IXI\0100.pt `
-    --atlas    IXI\atlas_mni152_09c_resize.npz `
+    --atlas    IXI\atlas_mni152_09c_v3.npz `
     --test-dir IXI\IXI_preprocessed\test `
     --out-dir  draw-img\output `
     --save-nii `
@@ -381,8 +441,9 @@ python draw-img\visualize_reg_ixi.py `
 | 問題 | 原因 / 解法 |
 |------|-------------|
 | `visualize_registration.py` 卡住不動 | 沒有加 `--gpu 0`，預設走 CPU，3D U-Net 推論很慢。加 `--gpu 0` 即可。 |
-| `RuntimeError: size XXX not divisible` | 影像大小無法被 16 整除。在 preprocess_ixi.py 指定 `--target-shape` 修正。 |
-| `CUDA out of memory` | 影像太大或 batch 太多。縮小 `--target-shape` 或加 `--batch-size 1`。 |
+| `RuntimeError: size XXX not divisible` | 影像大小無法被 16 整除。🔻 **更正**：要在 **`make_atlas.py`** 指定 `--target-shape`（`preprocess_ixi.py` 的同名旗標已移除，指定會直接報錯）。 |
+| `unrecognized arguments: --target-shape` | 🔻 **新增**：`preprocess_ixi.py` 的 `--target-shape` 已移除，輸出 shape 由 `--atlas` 決定。把旗標拿掉即可。 |
+| `CUDA out of memory` | 影像太大或 batch 太多。加 `--batch-size 1`，或在 `make_atlas.py` 用更小的 `--target-shape` 重做 atlas。 |
 | antspynet TF GPU warning（Windows） | TensorFlow >= 2.11 在 Windows 原生不支援 GPU，用 CPU 跑。不影響結果，可忽略。 |
 | `tf.function retracing` warning | 各張影像大小略不同，TF 重新編譯計算圖。不影響結果，可忽略。 |
 | `--skip-done` 要怎麼關掉 | 加 `--no-skip-done`，或直接刪掉 IXI_preprocessed 資料夾重跑。 |
@@ -396,20 +457,43 @@ python draw-img\visualize_reg_ixi.py `
 
 MNI152 2009c 原始 shape 為 `(193, 229, 193)`，無法被 16 整除，不能直接進 VoxelMorph U-Net。
 
-### 解法（現行做法）
+### 解法
 
-`make_atlas.py --target-shape 192,224,192` 用 `ants.resample_image` resize，**同時產生 .nii.gz（帶 header）和 .npz（給 train.py）**。
+`make_atlas.py --target-shape 192,224,192` **同時產生 .nii.gz（帶 header）和 .npz（給 train.py）**。
+
+🔻 **更正（2026-08-23）**：本節原寫「現行做法用 `ants.resample_image` resize」。
+**現行（v3）已改用 `--method crop`**，理由見下方「Resize 方法說明」的更正框。
+`make_atlas.py` 的 `--target-shape` 仍然存在且仍要指定；被移除的是 `preprocess_ixi.py` 的同名旗標。
 
 ### Resize 方法說明
 
 | 方法 | 做法 | 適用情境 |
 |------|------|----------|
-| **`ants.resample_image`** ✅ 目前使用 | 均勻縮放 + 保留 header | 保留 MNI152 空間資訊，供 ANTs 配準初始化 |
-| `scipy.ndimage.zoom` | 均勻縮放，丟失 header | 之前的做法，可行但 ANTs 初始化不精準 |
+| **裁切（cropping）** ✅ **v3 起改用這個** | 砍掉邊緣**背景** voxel | **spacing 維持精確 1mm**，不動到體素尺寸。`make_atlas.py --method crop` |
+| `ants.resample_image` | 均勻縮放 + 保留 header | v2 使用。保留 MNI152 空間資訊，但 spacing 會被拉長 |
+| `scipy.ndimage.zoom` | 均勻縮放，丟失 header | v1 使用，已淘汰（header 會丟失，ANTs 初始化不精準）|
 | 補零（zero-padding） | 在邊緣填 0 | ❌ 會導致腦部不對稱 |
-| 裁切（cropping） | 砍掉邊緣 voxel | ❌ 可能砍到腦組織邊緣 |
 
-**Spacing 說明**：resize 後 spacing ≈ `(1.005, 1.022, 1.005)` mm（不是精確 1mm），因為保留了原始物理範圍（193mm / 192 voxels ≈ 1.005mm）。差距 < 2.3%，對訓練無影響。
+> ### 🔻 更正（2026-08-23）
+>
+> **本表原本把「裁切」標成 ❌「可能砍到腦組織邊緣」——那是錯的，而且是本文最危險的一處。**
+>
+> **v3（現行版本）用的就是 `--method crop`。** MNI152 2009c 的 `(193, 229, 193)` 邊緣是背景，
+> 裁到 `(192, 224, 192)` 砍掉的是空白，不會動到腦組織。照原表的建議做會退回 v2。
+>
+> 兩者的實際差別：
+>
+> | | v2 `resample` | **v3 `crop`（現行）** |
+> |---|---|---|
+> | spacing | ≈ (1.005, 1.022, 1.005) mm | **精確 (1.0, 1.0, 1.0) mm** |
+> | 體素 | 被稍微拉長 | 不變 |
+> | 檔名 | `atlas_mni152_09c_v2.*` | `atlas_mni152_09c_v3.*` |
+>
+> 現行指令見 `CLAUDE.md`「常用指令 → 製作 atlas」。
+
+**Spacing 說明**：
+- **v3（`crop`，現行）**：spacing 精確 `(1.0, 1.0, 1.0)` mm。
+- v2（`resample`）：spacing ≈ `(1.005, 1.022, 1.005)` mm，因為保留了原始物理範圍（193mm / 192 voxels ≈ 1.005mm）。差距 < 2.3%，對訓練影響不大，但 v3 已不需要妥協。
 
 ### 流程圖
 
@@ -485,32 +569,50 @@ claude_cheng/
 ├── IXI/
 │   ├── IXI-T1/                        ← 原始 IXI T1 .nii.gz（581 張）
 │   ├── mni_icbm152_nlin_asym_09c_nifti/  ← 下載的 MNI152 2009c NIfTI
-│   ├── atlas_mni152_09c.nii.gz        ← make_atlas.py 產生（帶 header，給 ANTs 配準用）
-│   ├── atlas_mni152_09c.npz           ← make_atlas.py 產生（只有 array，給 train.py 用）
+│   ├── atlas_mni152_09c_v3.nii.gz     ← make_atlas.py 產生（帶 header，給 ANTs 配準用）
+│   ├── atlas_mni152_09c_v3.npz        ← make_atlas.py 產生（只有 array，給 train.py 用）
 │   ├── make_atlas.py                  ← 製作 atlas（同時輸出 .nii.gz + .npz）
 │   ├── preprocess_ixi.py              ← IXI 前處理腳本（支援 --save-nii N）
 │   ├── read_nii_header.py             ← 讀取 NIfTI header 工具
-│   ├── verify_orientation.py          ← 方向視覺化驗證（抽樣畫圖）
-│   ├── verify_orientation_strict.py   ← 方向嚴謹驗證（有header vs 無header 比對）
-│   ├── verify_preprocess.py           ← 前處理結果統計驗證
-│   └── IXI_preprocessed/
+│   ├── visualize_preprocess_ixi.py    ← 🔻 新增
+│   ├── verify/                        ← 🔻 這三支已移到 verify/ 子資料夾
+│   │   ├── verify_orientation.py          ← 方向視覺化驗證（抽樣畫圖）
+│   │   ├── verify_orientation_strict.py   ← 方向嚴謹驗證（有header vs 無header 比對）
+│   │   └── verify_preprocess.py           ← 前處理結果統計驗證
+│   ├── NPZtoNII/                      ← 🔻 新增：npz → nii 轉檔工具
+│   ├── orientation_verify/            ← 🔻 新增：方向驗證產物
+│   ├── preprocess_vis/                ← 🔻 新增：--vis 模式輸出
+│   ├── IXI_preprocessed/              ← v1（🔴 atlas 已刪除，不可重現）
+│   ├── IXI_preprocessed_v2/           ← v2
+│   └── IXI_preprocessed_v3/           ← 🔻 v3（現行）
 │       ├── train/  （522 筆）
 │       ├── test/   （59 筆）
 │       └── nii/    （--save-nii 輸出的驗證用 .nii.gz）
+├── ASD/                               ← 🔻 新增：ASD 資料集 + FreeSurfer 標籤接入
+│   ├── ASD相關手冊.md                     ← ASD 這條線的操作手冊
+│   ├── preprocess_fs.py                   ← FreeSurfer 產物 → npz（含 seg）
+│   └── verify_seg_transform.py            ← 驗證 affine 共用 + 最近鄰內插
 ├── models/
-│   ├── exp1/                          ← OASIS 訓練結果
-│   └── ixi_mni/                       ← IXI 訓練結果（待）
+│   ├── exp1/ … exp8/                  ← 🔻 已跑到 exp8（不是 ixi_mni）
+│   └── *.h5                           ← 官方 TF 版預訓練權重 ×2
 ├── draw-img/
-│   ├── visualize_reg_ixi.py           ← 配準四格視覺化圖（Source/Atlas/Warped/Diff）
-│   └── output/                        ← 輸出的圖片和 CSV
+│   ├── visualize_reg_ixi.py           ← 配準視覺化（現為 5 種圖）
+│   ├── visualize_reg_oasis.py         plot_epoch_curve.py
 └── voxelmorph-code/
-    ├── data/atlas.npz                 ← OASIS 原始 atlas
+    ├── data/
+    │   ├── atlas.npz                  ← OASIS 原始 atlas
+    │   └── labels.npz                 ← 🔻 Dice 評估用的 30 個 FreeSurfer 標籤 ID
     └── scripts/torch/
         ├── train.py
-        ├── test.py                    ← OASIS 用（需要 seg）
+        ├── train/train_NCCPatchSize.py    ← 🔻 可調 --ncc-win 的變體
+        ├── test_oasis.py              ← 🔻 原本叫 test.py，OASIS 用（需要 seg）
         ├── test_ixi.py                ← IXI 用，計算 NCC / SSIM
-        └── batch_test_ixi.py          ← 逐 epoch 評估，畫曲線圖
+        ├── batch_test_ixi.py          ← 逐 epoch 評估，畫曲線圖
+        └── batch_test_oasis.py        register.py
 ```
+
+> 🔻 **更正（2026-08-23）**：上面標 🔻 的是本文寫作後才有的變動。
+> 完整最新結構請看 `CLAUDE.md`。
 
 ## 8. 工具腳本
 
@@ -522,13 +624,13 @@ claude_cheng/
 
 ```powershell
 # 讀單個檔案
-python IXI\read_nii_header.py  IXI\atlas_mni152_09c.nii.gz
+python IXI\read_nii_header.py  IXI\atlas_mni152_09c_v3.nii.gz
 
 # 讀多個（支援 wildcard）
 python IXI\read_nii_header.py  IXI\IXI_preprocessed\nii\*.nii.gz
 
 # 顯示完整 header
-python IXI\read_nii_header.py  --full  IXI\atlas_mni152_09c.nii.gz
+python IXI\read_nii_header.py  --full  IXI\atlas_mni152_09c_v3.nii.gz
 ```
 
 ---
@@ -591,11 +693,25 @@ train.py 目前的呼叫方式（沒有傳 win，使用預設）：
 image_loss_func = vxm.losses.NCC().loss  # → win=[9,9,9]
 ```
 
-若要修改，在 train.py 加 argument：
-```python
-parser.add_argument('--ncc-win', type=int, default=9)
-image_loss_func = vxm.losses.NCC(win=[args.ncc_win]*3).loss
-```
+> ### 🔻 更正（2026-08-23）：這件事已經做完了，不要重寫
+>
+> 本節原文建議「自己去 train.py 加 argument」。**專門的腳本早就存在**：
+>
+> ```
+> voxelmorph-code/scripts/torch/train/train_NCCPatchSize.py    ← 有 --ncc-win
+> ```
+>
+> ```powershell
+> python voxelmorph-code\scripts\torch\train\train_NCCPatchSize.py IXI\IXI_preprocessed_v3\train `
+>     --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\expN `
+>     --epochs 250 --gpu 0 --image-loss ncc --ncc-win 5
+> ```
+>
+> ⚠️ **但這支腳本至今一次都沒用來跑過實驗。**
+> `CLAUDE.md` 舊版曾記載「exp7 / exp8 是 NCC patch size 實驗」——**那是錯的**，
+> 已由 `log/exp7_script.txt`、`log/exp8_script.txt` 與 `.pt` 存的 config 雙重推翻：
+> 兩者都是用 `train.py` 跑的，win 一律是預設的 9。
+> **patch size 比較仍是待辦事項。**
 
 ---
 
@@ -606,8 +722,11 @@ image_loss_func = vxm.losses.NCC(win=[args.ncc_win]*3).loss
 **根本原因**：NCC 是 patch-based 的整體相似度，對灰白質界面等高頻細節不敏感。只要大範圍 NCC 夠高，網路就滿意，不在乎 2~3 個 voxel 級別的界面銳利度。
 
 **改善方向（優先序）**：
-1. 縮小 NCC patch size（win=5 或 7）→ 改 train.py 加 argument，最省事
+1. 縮小 NCC patch size（win=5 或 7）→ 🔻 用現成的 `train_NCCPatchSize.py`，見 §9.3 更正框
 2. 調大 λ（exp5 已試：λ=0.05，效果與 exp4 接近，NCC/SSIM 幾乎不變）
+   🔻 **更正（2026-08-23）：λ=0.05 對 NCC 而言根本不算「調大」。**
+   實測 exp5 的平滑項只佔總損失 3.3%（exp4 是 1.2%），等於還是幾乎沒有正則化。
+   論文對 CC 的最佳 λ 是 **≈1–2**，比 0.05 大 20–40 倍。「效果與 exp4 接近」是因為兩者都太小。
 3. 改用 multi-scale NCC → 需改 losses.py
 4. 加入 MI（Mutual Information）loss → 需改 losses.py，改動較大
 
