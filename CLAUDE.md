@@ -32,7 +32,8 @@
 atlas 為 **MNI152 ICBM 2009c Asymmetric**（自製，非官方 OASIS atlas）。
 
 **當前狀態**：前處理／訓練／評估／視覺化都已跑通，完成 8 組實驗（exp1–exp8）。
-FreeSurfer 標籤接入的**程式已寫好並驗證過**，卡在資料還沒送到（見「待辦 1」）。
+ASD（老師提供）那條線的**前處理已跑完**（167 顆 → train 150 / test 17），
+訓練在**另一台機器**上跑（見「待辦 1」與 `ASD/ASD相關手冊.md`）。
 
 ⚠️ **本專案不含 TransMorph**。TransMorph 在 `D:\MyHome\MRI\TransMorph\`，有自己的 `CLAUDE.md`。
 根目錄的 `TransMorph_Report.docx` 只是報告備份，與本專案程式碼無關。
@@ -83,10 +84,11 @@ C:\Users\h4524\claude_cheng\
 │   ├── verify_one_subject.py           # 單顆量化驗證（含左右翻轉檢查）
 │   ├── subjects_final.txt              # ✅ FINAL 清單（167 個 ID）
 │   ├── groups.txt                      # 歸戶對照（目前不需要，見手冊 §3）
-│   ├── ASD_data
-orm\  ASD_dataseg\  # ✅ 已落地：各 167 個 .nii.gz，共 285 MB
+│   ├── ASD_data\norm\  ASD_data\aseg\  # ✅ 已落地：各 167 個 .nii.gz，共 285 MB
 │   ├── fs_check\                       # --only 單顆驗證輸出
-│   └── ASD_preprocessed_v1\            # train/ test/ nii/ split.json（待產生）
+│   ├── run_preprocess.py               # 前處理包裝（檢查→預覽→執行→抽驗）
+│   ├── run_train.py                    # 訓練包裝（--check-only / --resume）
+│   └── ASD_preprocessed_v1\            # ✅ train 150 / test 17 + split.json（1.28 GB）
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
 │   ├── mni_icbm152_nlin_asym_09c_nifti\ # 下載的 MNI152 2009c
@@ -445,7 +447,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 
 ## 待辦
 
-### 1. 🟡 接入 FreeSurfer 標籤 → 改用 Dice 評估（程式已就緒，卡在資料）
+### 1. 🟢 接入 FreeSurfer 標籤（前處理已完成）→ 🔴 Dice 評估仍待寫
 
 > 🔴 **程式已經寫好了，不要重寫。**
 > **完整操作細節在 `ASD/ASD相關手冊.md`**，先讀那份；程式是 `ASD/` 底下這兩支。
@@ -478,14 +480,18 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 - **最終清單**：167 顆，已複製一份到 `ASD/subjects_final.txt` 進版控。
 - **影像來源**：使用者選 `norm.mgz`（不是 `brain.mgz`），167 顆全體一致。
 
-**還卡著的兩件事**：
-1. 🔴 **資料還沒搬到這台機器** —— 那 285 MB 在 **另一台電腦**上
-   （`/mnt/hgfs/outside` 是跑 FreeSurfer VM 那台的共享資料夾，本機沒有該路徑）。
-   使用者另打算把訓練搬到第三台機器，搬運方式待定。
-2. 🟠 **A013 / A0131 / A0132、A016_1 / A016_2 是否同一人** —— 要問老師。
-   已用程式掃過全部 167 個 ID，**這種命名曖昧全批只有這兩組**，沒有第三處。
-   ⚠️ 目前採「都是不同人」的**暫定假設**（使用者決定），若錯會造成 data leakage，
-   **要發表必須在方法學說明或先確認**。詳見 `ASD/ASD相關手冊.md` §3。
+**✅ 前處理已完成（2026-08-23）**：
+資料已落地 `ASD/ASD_data/norm`＋`aseg`（各 167 個，285 MB），
+批次前處理跑完 **0 失敗、0 個標籤消失**，輸出 `ASD/ASD_preprocessed_v1/`
+（train 150 / test 17，**1.28 GB**）。
+
+**還卡著的一件事**：
+🟠 **A013 / A0131 / A0132、A016_1 / A016_2 是否同一人** —— 要問老師。
+已用程式掃過全部 167 個 ID，**這種命名曖昧全批只有這兩組**，沒有第三處。
+⚠️ 目前採「都是不同人」的**暫定假設**（使用者決定，`--grouping none`），
+若錯會造成 data leakage，**要發表必須在方法學說明或先確認**。
+好消息是可逆：寫一份 `ASD/groups.txt` 用 `--group-map` 重跑切分即可，不用改程式。
+詳見 `ASD/ASD相關手冊.md` §3。
 
 **清單**：
 ```

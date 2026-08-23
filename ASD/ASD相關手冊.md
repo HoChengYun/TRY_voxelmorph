@@ -14,8 +14,16 @@
 > - **FreeSurfer 端寫給我們的接入說明**：`FreeSurfer_到_VoxelMorph_交接.md`
 > - **FreeSurfer 端的資料品質原始記錄**：`D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md`
 >
-> ✅ **2026-08-23：混掃描檢查已通過，FINAL 清單（167）已交付，閘門已可解除。**
-> ⚠️ **仍卡在：資料尚未送到 Windows**（使用者打算把訓練搬到另一台機器，搬運方式待定）。
+> ## 現況（2026-08-23）
+>
+> | 階段 | 狀態 |
+> |---|---|
+> | 混掃描檢查 | ✅ 通過，異常 0 |
+> | FINAL 清單 | ✅ 167 顆，`ASD/subjects_final.txt` |
+> | 資料落地 | ✅ `ASD/ASD_data/norm` + `aseg`，各 167 個，285 MB |
+> | **前處理** | ✅ **已跑完**：train 150 / test 17，0 失敗、0 標籤消失 |
+> | **訓練** | ⏳ 在 **B 台**（`D:\chengyun\TRY_voxelmorph`）進行，見 §7 |
+> | Dice 評估 | 🔴 **腳本尚未撰寫** |
 
 ---
 
@@ -57,7 +65,7 @@
 
 `A043` / `T085` / `T065` 已從來源資料夾移除，本來就不會出現在 `--img-dir` 裡。
 
-### ⚠️⚠️ 尚未完成的檢查：混掃描全面掃描
+### 混掃描全面掃描
 
 **A012 是因為疊成 384 層超過 FreeSurfer 的 256 上限才報錯露餡。**
 如果某個資料夾也混了兩次掃描、但總層數剛好塞得進 256，**`recon-all` 不會報錯**，
@@ -243,14 +251,27 @@ ASD/
 
 ### 5.3 執行順序
 
+> ✅ **這一節已經執行完畢（2026-08-23）**，輸出在 `ASD/ASD_preprocessed_v1/`。
+> 以下保留完整步驟，供之後換資料或需要重跑時參考。
+
+**最省事的做法是用包裝腳本**，它會自動帶入正確參數（`--grouping none`、
+`--list-is-final`）、跑起跑前檢查、顯示切分讓你確認、跑完抽驗 3 顆：
+
+```
+python ASD\run_preprocess.py --dry-run    # 只看切分
+python ASD\run_preprocess.py              # 正式跑（會問你確認）
+```
+
+底下是它實際呼叫的指令，需要自訂參數時可以直接用。
+
 > 清單來源：`D:\MyHome\MRI\FreeSurfer\docs\ASD_可用清單_FINAL.txt`（167 個，檔頭有 `#` 註解，
-> 程式會自動跳過）。建議複製一份到 `ASD/subjects_final.txt` 一起進版控。
+> 程式會自動跳過）。已複製一份到 `ASD/subjects_final.txt` 進版控。
 > ⚠️ 舊的 `ASD_可用清單_暫定.txt`（166）**已被 FreeSurfer 端刪除**，避免誤用。
 
 **① 先看歸戶與切分（不動影像）**
 ```powershell
 python ASD\preprocess_fs.py `
-    --img-dir ASD\norm --seg-dir ASD\aseg `
+    --img-dir ASD\ASD_data\norm --seg-dir ASD\ASD_data\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz `
     --out-dir ASD\ASD_preprocessed_v1 `
     --subject-list ASD\subjects_final.txt `
@@ -275,7 +296,7 @@ python ASD\preprocess_fs.py `
 **② 驗證 1 顆**（產生 nii 供 ITK-SNAP / Freeview 目視確認）
 ```powershell
 python ASD\preprocess_fs.py `
-    --img-dir ASD\norm --seg-dir ASD\aseg `
+    --img-dir ASD\ASD_data\norm --seg-dir ASD\ASD_data\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz `
     --out-dir ASD\fs_check --only A001 --save-nii
 ```
@@ -287,7 +308,7 @@ python ASD\preprocess_fs.py `
 **③ 批次跑（閘門已解除）**
 ```powershell
 python ASD\preprocess_fs.py `
-    --img-dir ASD\norm --seg-dir ASD\aseg `
+    --img-dir ASD\ASD_data\norm --seg-dir ASD\ASD_data\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz `
     --out-dir ASD\ASD_preprocessed_v1 `
     --subject-list ASD\subjects_final.txt --list-is-final `
@@ -354,18 +375,58 @@ python ASD\verify_seg_transform.py `
 
 ---
 
-## 7. 訓練設定
+## 7. 訓練（在 B 台跑）
 
-atlas、shape、正規化方式全部沿用 IXI 那條線，所以指令跟 `CLAUDE.md` 的一樣，
-只是 `datadir` 換成 ASD 的。
+### 7.1 兩台機器的分工
 
-```powershell
-python voxelmorph-code\scripts\torch\train.py ASD\ASD_preprocessed_v1\train `
-    --atlas IXI\atlas_mni152_09c_v3.npz `
-    --model-dir models\asd_expN `
-    --epochs 250 --gpu 0 `
-    --image-loss ncc --lambda 1.0 > .\log\asd_expN.txt 2>&1
+| | A 台（主機） | B 台（訓練機） |
+|---|---|---|
+| 路徑 | `C:\Users\h4524\claude_cheng` | `D:\chengyun\TRY_voxelmorph` |
+| 負責 | 前處理、評估、視覺化、文件 | **只跑訓練** |
+| 需要 ANTs / antspynet | ✅ | ❌ **不用裝** |
+| 需要原始 `.IMA` / `norm.mgz` | ✅ | ❌ **不要搬** |
+
+**為什麼這樣切**：前處理只需要做一次，而且 `antspynet` 相依 TensorFlow，
+在 Windows 上很麻煩（原生 TF ≥ 2.11 還沒有 GPU）。B 台只要 PyTorch 就夠了。
+
+📌 **順帶的好處**：npz 裡只有 `vol` 和 `seg` 兩個 numpy 陣列，
+**沒有 DICOM header、沒有受試者姓名**，檔名也只是 `A001` 這種代碼。
+搬 npz 到 B 台等於順便去識別化。**原始 `.IMA` 的檔名與 DICOM 檔頭有真名，不要搬、也不要進 git。**
+
+### 7.2 要搬什麼
+
+程式和文件走 GitHub（`git pull` 就有）。**只有兩樣要另外搬**，因為 `.gitignore` 擋著：
+
+| 從 A 台 | 大小 |
+|---|---|
+| `ASD\ASD_preprocessed_v1\` | **1.28 GB** |
+| `IXI\atlas_mni152_09c_v3.npz` | 6 MB |
+
+`ASD/ASD_preprocessed_v1/MANIFEST.json` 有 167 個檔案的名稱與大小，搬完可以核對。
+
+⚠️ **atlas 版本必須跟前處理用的一致**（都是 v3）。混用會報
+`Sizes of tensors must match`，或更糟——安靜地訓練出對不準的模型。
+
+### 7.3 在 B 台怎麼跑
+
 ```
+python ASD\run_train.py --check-only     # 先檢查，不訓練
+python ASD\run_train.py                  # 正式跑
+python ASD\run_train.py --resume         # 中斷後續跑
+```
+
+`--check-only` 要確認的三行：**python 路徑是不是你的 venv**、
+**`ASD_preprocessed_v1\train` 有沒有 150 個 npz**、**GPU 有沒有抓到**。
+
+> 📌 包裝腳本刻意寫成 **Python 而不是 `.ps1`**：
+> cmd.exe 不會執行 `.ps1`（只會用預設關聯程式開啟，看起來像「跳出編輯器」），
+> PowerShell 還要處理 ExecutionPolicy 與 BOM。
+> Python 版在 cmd / PowerShell 都能跑，而且用 `sys.executable`，
+> **就是你當下啟動的那個 venv，不可能抓錯**。
+
+`run_train.py` 會自動把指令存成 `log/asd_expN_script.txt`（含機器名稱與資料版本）。
+
+### 7.4 超參數
 
 🔴 **`--image-loss` 預設是 `mse`**，想跑 NCC 一定要明寫。
 
@@ -373,8 +434,38 @@ python voxelmorph-code\scripts\torch\train.py ASD\ASD_preprocessed_v1\train `
 `train.py` 預設的 0.01 是為 MSE 設的，**搭 NCC 用等於幾乎沒有正則化**。
 IXI 那邊的 exp3–exp8 就是踩了這個（平滑項只佔損失 1–3%）。詳見 `CLAUDE.md`「超參數」節。
 
-📌 **log 檔名用 `asd_expN` 前綴**，跟 IXI 那邊的 `expN` 區隔。
-**每跑一個實驗，指令一定要存成 `log/asd_expN_script.txt`**（UTF-8）。
+**asd_exp1 採用 `ncc` + `λ=1.0`**（使用者決定）。這是本專案第一次把 λ 放到論文建議的尺度。
+
+### 7.5 ⚠️ 沒有 validation set
+
+**現況：train 150 / test 17，沒有 val。**
+
+`train.py` 本身不做任何評估；挑 epoch 是靠 `batch_test_ixi.py` 掃過所有 `.pt`，
+在 **test set** 上算指標再取綜合分數最高的（`batch_test_ixi.py:204`）。
+
+> 🔴 **這代表「挑 epoch」和「報成績」用的是同一批資料**，test 實質上變成 validation，
+> 報出來的數字會樂觀偏高。
+>
+> 論文（TMI 2019 §V-A）的做法是 3231 train / **250 validation** / 250 test，
+> 「select the network that optimizes Dice on our validation set, and report results on our test set」。
+
+**使用者決定維持 150/17**（跟 IXI 那條線 exp4–exp8 的現行做法一致）。
+📌 **要發表的話，這點必須在方法學中明講。**
+
+改的話很便宜：從 `train/` 挪 17 顆出來即可（133/17/17），**不用重跑前處理**——
+npz 已經產生好了，只是移動檔案。但訓練資料會從 150 掉到 133。
+
+### 7.6 產出與搬回
+
+| 產出 | 大小 | 要搬回 A 台嗎 |
+|---|---|---|
+| `models\asd_exp1\0000.pt` … `0250.pt` | 1.16 MB × 251 ≈ **292 MB** | ❌ 只搬最佳的 1~3 個 |
+| `epoch_curve.csv` / `.png` | 350 KB | ✅ |
+| `log\asd_exp1.txt` | ~2 MB | ✅ |
+| `log\asd_exp1_script.txt` | < 1 KB | ✅ |
+
+⚠️ `train.py` **每個 epoch 都存一個 `.pt`，不會自動清理**。
+IXI 的 `exp4` 就留下 501 個檔、970 MB。挑完 epoch 記得清。
 
 ---
 
@@ -412,11 +503,15 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 
 ## 9. 實驗記錄
 
-> 尚未開始。每跑一個補一列，並存 `log/asd_expN_script.txt`。
+`run_train.py` 會自動把指令存到 `log/asd_expN_script.txt`（含機器名稱與資料版本）。
 
 | 實驗 | 資料 | atlas | epochs | image-loss | λ | int-steps | int-downsize | 最佳 epoch | Dice | %\|J\|≤0 | 備註 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| （待填）| | | | | | | | | | | |
+| **asd_exp1** | ASD_preprocessed_v1 | v3 | 250 | **ncc** | **1.0** | 7 | 2 | — | — | — | 在 B 台跑；λ=1.0 是論文對 CC 的建議值 |
+
+📌 **λ=1.0 是這個專案第一次這樣跑。** IXI 那邊的 exp3–exp8 用的是 0.005~0.05，
+實測平滑項只佔損失 1–3%（形同沒有正則化）。λ=1.0 之後平滑佔比應該會明顯拉高，
+這是判斷「有沒有真的生效」的第一個檢查點。
 
 **評估提醒**：
 - Dice 用 `voxelmorph-code/data/labels.npz` 的 **30 個 FreeSurfer 標籤 ID**
@@ -431,11 +526,18 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 
 ## 10. 待辦 / 待確認
 
-### 🔴 擋住開跑的
+### ✅ 已完成
 
-- [x] ~~**混掃描全面檢查**~~ ✅ 2026-08-23 完成，異常 0，FINAL 清單（167）已交付
-- [ ] **`/mnt/hgfs/outside` 對應的 Windows 路徑**（§4.2）
-- [ ] **資料從另一台機器搬到 `ASD/norm/`、`ASD/aseg/`**（285 MB），並核對檔案數與大小
+- [x] **混掃描全面檢查** —— 2026-08-23，167 個資料夾異常 0，FINAL 清單（167）已交付
+- [x] **資料搬到本機** —— `ASD/ASD_data/norm` + `aseg`，各 167 個，285 MB，
+      gzip 完整性 334/334 通過
+- [x] **批次前處理** —— train 150 / test 17，0 失敗、0 個標籤消失
+- [x] **單顆端到端驗證** —— A001 量化檢查 10/10 通過（含左右翻轉檢查）
+
+### 🔴 進行中
+
+- [ ] **在 B 台訓練 asd_exp1**（ncc + λ=1.0, 250 epochs）—— 見 §7
+- [ ] 把 `ASD_preprocessed_v1/`（1.28 GB）+ atlas 搬到 B 台
 
 ### 🟠 需要問老師
 
@@ -449,8 +551,9 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 
 ### 程式面
 
-- [ ] **Dice 評估腳本尚未撰寫**（`test_ixi.py` 只算 NCC / SSIM）
-- [ ] 資料到位後跑 §5.3 的三步驟
+- [ ] **⭐ Dice 評估腳本尚未撰寫**（`test_ixi.py` 只算 NCC / SSIM）——
+      這是接 aseg 標籤的真正回報，`labels.npz` 的 30 個結構已確認可直接用
+- [ ] 跑完訓練後用 `batch_test_ixi.py` 挑 epoch，並清掉多餘的 `.pt`
 
 ---
 
