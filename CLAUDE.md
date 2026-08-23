@@ -80,9 +80,12 @@ C:\Users\h4524\claude_cheng\
 │   ├── ASD相關手冊.md                  # ⭐ ASD 這條線的完整操作手冊，先讀這個
 │   ├── preprocess_fs.py                # FreeSurfer 產物 → npz（含 seg）
 │   ├── verify_seg_transform.py         # 驗證 affine 共用 + 最近鄰內插（已實測 6/6 通過）
-│   ├── subjects_final.txt              # 最終可用清單（待 FreeSurfer 端交付）
-│   ├── groups.txt                      # 受試者歸戶對照（待老師確認）
-│   ├── brain\  aseg\                   # 轉檔進來的 .nii.gz（待資料）
+│   ├── verify_one_subject.py           # 單顆量化驗證（含左右翻轉檢查）
+│   ├── subjects_final.txt              # ✅ FINAL 清單（167 個 ID）
+│   ├── groups.txt                      # 歸戶對照（目前不需要，見手冊 §3）
+│   ├── ASD_data
+orm\  ASD_dataseg\  # ✅ 已落地：各 167 個 .nii.gz，共 285 MB
+│   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── ASD_preprocessed_v1\            # train/ test/ nii/ split.json（待產生）
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
@@ -469,22 +472,30 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 `voxelmorph/py/utils.py:63` 走 `npz[np_var]`（`np_var` 預設 `'vol'`），會正確取到 `vol` 不會拿到 `seg`。
 `train.py` 用預設值實跑 2 epoch 正常。**VoxelMorph 那邊不用改。**
 
-**還卡著的三件事（都需要使用者，不是程式問題）**：
-1. 🔴 **FreeSurfer 端「全資料夾混掃描」檢查尚未開始** —— 那批 .IMA 在 Ubuntu VM 上，
-   FreeSurfer 那個 session 沒有 VM 存取權，指令要使用者在 VM 執行。
-   風險：混了兩次掃描但總層數沒超過 256 的資料夾，`recon-all` 不會報錯，
-   會安靜跑出一顆「兩個人疊在一起」的腦。
-2. 🔴 **資料還沒送到 Windows** —— 在 `/mnt/hgfs/outside/`（VMware 共享資料夾），
-   對應的 Windows 路徑待使用者確認。約 1–1.5 GB。
-3. 🟠 **A013 / A0131 / A0132 是否同一人** —— 要問老師。
-   已用程式掃過全部 166 個 ID，**這種命名曖昧全批只有這一組**，沒有第二處。
+**✅ 已解決的**：
+- **混掃描全面檢查**：2026-08-23 完成，167 個資料夾、**異常 0**，
+  167 × 192 = 32,064 與實際檔案數完全閉合。閘門條件已滿足。
+- **最終清單**：167 顆，已複製一份到 `ASD/subjects_final.txt` 進版控。
+- **影像來源**：使用者選 `norm.mgz`（不是 `brain.mgz`），167 顆全體一致。
 
-**現成的清單**（FreeSurfer 端提供，⚠️ **標為暫定，非最終版**）：
+**還卡著的兩件事**：
+1. 🔴 **資料還沒搬到這台機器** —— 那 285 MB 在 **另一台電腦**上
+   （`/mnt/hgfs/outside` 是跑 FreeSurfer VM 那台的共享資料夾，本機沒有該路徑）。
+   使用者另打算把訓練搬到第三台機器，搬運方式待定。
+2. 🟠 **A013 / A0131 / A0132、A016_1 / A016_2 是否同一人** —— 要問老師。
+   已用程式掃過全部 167 個 ID，**這種命名曖昧全批只有這兩組**，沒有第三處。
+   ⚠️ 目前採「都是不同人」的**暫定假設**（使用者決定），若錯會造成 data leakage，
+   **要發表必須在方法學說明或先確認**。詳見 `ASD/ASD相關手冊.md` §3。
+
+**清單**：
 ```
-D:\MyHome\MRI\FreeSurfer\docs\ASD_可用清單_暫定.txt   （166 個）
-D:\MyHome\MRI\FreeSurfer\docs\ASD_全部資料夾清單.txt  （170 個，含壞掉的）
+D:\MyHome\MRI\FreeSurfer\docs\ASD_可用清單_FINAL.txt   ★ 最終版（167 個）
+D:\MyHome\MRI\FreeSurfer\docs\ASD_全部資料夾清單.txt   （170 個，含壞掉的）
 ```
-用暫定清單 `--dry-run` 的結果：166 個掃描 → 165 位受試者，train 149 人/150 掃描、test 16 人/16 掃描。
+⚠️ 舊的 `ASD_可用清單_暫定.txt`（166）**已被刪除**，不要再引用。
+
+用 FINAL 清單 + `--grouping none` 的實跑結果：
+**167 個掃描 → 167 位受試者，train 150 人/150 掃描、test 17 人/17 掃描，無人橫跨。**
 
 **⭐ Dice 評估腳本尚未撰寫。** 可直接用 `voxelmorph-code/data/labels.npz`
 （已實際載入確認：30 個 FreeSurfer 標籤 ID，`int64`）：

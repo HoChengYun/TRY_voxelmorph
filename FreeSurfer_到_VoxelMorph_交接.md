@@ -48,8 +48,8 @@ vol  : shape=(192, 224, 192)  dtype=float32  範圍 [0.0, 1.0]
 | `nu.mgz` | **N4 偏場校正後** | 同上 |
 | `T1.mgz` | 強度正規化後（白質≈110）| 同上 |
 | `brainmask.mgz` | **去顱骨後** | 同上 |
-| `norm.mgz` | 去顱骨 + atlas 正規化 | 同上 |
-| **`brain.mgz`** | 去顱骨 + aseg 正規化 ⭐ 建議用這個 | 同上 |
+| **`norm.mgz`** | 去顱骨 + atlas 正規化 ⭐ **實際採用這個** | 同上 |
+| `brain.mgz` | 去顱骨 + aseg 正規化（多一道，未採用）| 同上 |
 | **`aseg.mgz`** | **皮質下分割標籤（~40 結構）** ⭐ 你們缺的就是這個 | 同上 |
 | `transforms/talairach.xfm` | 仿射矩陣（→ **MNI305**）| — |
 
@@ -63,7 +63,7 @@ vol  : shape=(192, 224, 192)  dtype=float32  範圍 [0.0, 1.0]
 | 你們的步驟 | FreeSurfer 對應 | 能跳過嗎 |
 |---|---|---|
 | ① N4 bias correction | `nu.mgz`（N4，`AntsN4BiasFieldCorrectionFs`）| ✅ **已做過** |
-| ② 去顱骨 | `brainmask.mgz` / `brain.mgz`（watershed + atlas）| ✅ **已做過** → 用 `--no-brain-extract` |
+| ② 去顱骨 | `norm.mgz` / `brain.mgz` **都已遮罩過**（watershed + atlas）| ✅ **已做過** → 用 `--no-brain-extract` |
 | ③ Affine 對位到 atlas | ⚠️ 見下方「空間不一致」 | ❌ **不能跳** |
 | ④ 正規化到 [0,1] | FreeSurfer 是「白質=110 的 uchar」，不是 [0,1] | ❌ **要做** |
 | ⑤ 打包 npz | — | ❌ 要做 |
@@ -83,7 +83,7 @@ vol  : shape=(192, 224, 192)  dtype=float32  範圍 [0.0, 1.0]
 **兩者不是同一個空間。** 所以：
 
 > ❌ **不要**直接套用 `talairach.xfm` 就以為對齊到你們的 atlas 了。
-> ✅ **繼續用你們現有的 `ants.registration(...)`** 把 FreeSurfer 的 `brain.mgz` 對到你們的 atlas。
+> ✅ **繼續用你們現有的 `ants.registration(...)`** 把 FreeSurfer 的 `norm.mgz` 對到你們的 atlas。
 
 好處：你們的 atlas、shape (192,224,192)、正規化方式**全部不用改**，跟現有 IXI 資料完全相容，
 可以混著訓練或直接沿用既有模型。
@@ -164,16 +164,32 @@ else:
 ```bash
 export SUBJECTS_DIR=/home/cheng/workspace/subjects/ASD_result
 OUT=/home/cheng/workspace/fs_for_vxm
-mkdir -p $OUT/brain $OUT/aseg
+mkdir -p $OUT/norm $OUT/aseg
 
 for d in $SUBJECTS_DIR/*/; do
   s=$(basename "$d")
   grep -q "finished without error" "$d/scripts/recon-all.log" 2>/dev/null || continue
-  mri_convert "$d/mri/brain.mgz" "$OUT/brain/${s}.nii.gz"
+  mri_convert "$d/mri/norm.mgz" "$OUT/norm/${s}.nii.gz"
   mri_convert "$d/mri/aseg.mgz"  "$OUT/aseg/${s}.nii.gz"  -rt nearest
 done
 ```
 > 只轉「跑成功」的；`-rt nearest` 是保險（這裡沒有重取樣，其實不會內插）。
+
+### 為什麼是 `norm.mgz` 不是 `brain.mgz`（2026-08-23 決定）
+
+| 檔案 | 怎麼來的 |
+|---|---|
+| `norm.mgz` | `mri_ca_normalize` 的產物：用 **GCA 圖譜**當控制點做亮度正規化，再遮罩 |
+| `brain.mgz` | 再多做一次 `mri_normalize -aseg`，改用**該受試者自己的 aseg** 當控制點 |
+
+也就是 `brain` 比 `norm` 多一道、而且更貼身的正規化。
+FreeSurfer 端原本推薦 `brain`（跨受試者亮度更一致）；**使用者選 `norm`**
+（在 VoxelMorph 生態裡更常見，少一道處理、離原始更近）。
+
+> **兩者都是合理選擇，目前沒有文獻依據說哪個對配準訓練更好。**
+> 重點是**全體一致**——167 顆全是 `norm.mgz`，沒有混用。
+> 📌 要發表的話，方法學要寫明用的是 `norm.mgz`；
+> 若配準結果不理想，這是該回頭檢視的變因之一。
 > 影像也可以改用 `norm.mgz`（同樣去顱骨+正規化）——**兩者都可以，重點是全體一致**。
 
 ---
@@ -202,9 +218,9 @@ A0131  / A0132
 這讓命名更曖昧：`A0131` 可能是「A013 的第 1 次」，也可能是一個獨立受試者。
 **字串規則判斷不出來，不要用猜的規則寫死在 code 裡。**
 
-✅ VoxelMorph 端已對全部 166 個 ID 掃描過（偵測「只差結尾一個數字」與「某 ID 是另一 ID 的前綴」兩種型態），
+✅ VoxelMorph 端已對全部 167 個 ID 掃描過（偵測「只差結尾一個數字」與「某 ID 是另一 ID 的前綴」兩種型態），
 結論：**這種曖昧全批只有 `A013/A0131/A0132` 這一組，沒有第二處**。
-→ 所以要跟老師確認的只有這一件事，不需要逐一比對 166 個。
+→ 所以要跟老師確認的只有這一件事，不需要逐一比對 167 個。
 
 目前用命名規則能看到的疑似同組（**未經確認**）：
 - `A013`：A013, A0131, A0132　←（唯一曖昧處，待老師確認）
@@ -227,29 +243,38 @@ FreeSurfer 端已做過品質檢查，發現：
 
 > 完整診斷在 `D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md`。
 
-⚠️ **還有一項尚未查完**：可能還有其他資料夾也「混了兩次掃描」。
-A012 是因為疊成 384 層超過 FreeSurfer 的 256 上限才報錯露餡；
-**如果某顆混了但總層數沒超標，recon-all 不會報錯，會安靜地跑出一顆「兩個人疊在一起」的腦**。
-這種資料餵進訓練會讓模型學到不存在的解剖結構。
+### ✅ 混掃描全面檢查：2026-08-23 已完成，通過
 
-👉 **在正式訓練前，請先跟 FreeSurfer 端確認這項檢查已經跑完。**
+原本擔心的是：A012 是因為疊成 384 層超過 FreeSurfer 的 256 上限才報錯露餡；
+**若某顆混了但總層數沒超標，recon-all 不會報錯，會安靜跑出一顆「兩個人疊在一起」的腦**。
+
+檢查結果：**167 個資料夾、異常 0**，每個資料夾恰好 192 張 .IMA 且只含單一病人 ID，
+167 × 192 = **32,064** 與實際檔案總數完全一致（數字閉合）。
+同時反證了 A012 的修復成功、沒有其他資料夾混掃描、沒有缺切片的。
+
+> ⚠️ 殘餘風險：本次驗證的是「檔案數 + 病人 ID 一致性」，**未逐檔驗證檔案完整性**。
+> 但 167 顆全部通過 `recon-all -all`（需能完整讀取整個序列才可能成功），視為足夠強的旁證。
+
+> 📌 上表的 **A012 已於 2026-08-23 修復並重跑完成，已納入最終清單**（167 顆）。
+> A043 / T085 / T065 維持排除。
 
 ---
 
 ## 7b. 🔒 執行閘門（VoxelMorph 端已實作）
 
 批次前處理腳本預設**拒絕執行**（exit code 2），只允許 `--dry-run` 與 `--only <SUBJECT>`；
-必須加 `--list-is-final` 才會跑全批。原因就是第 7 節那項「混掃描檢查」尚未完成。
+必須加 `--list-is-final` 才會跑全批。
 
-**FreeSurfer 端交付最終清單時，請明講「這份是 final」**，對方才會解除閘門。
+🔓 **2026-08-23：閘門條件已滿足。** 混掃描檢查通過，FreeSurfer 端已交付標明 FINAL 的
+清單（`ASD_可用清單_FINAL.txt`，167 個）並明確授權解除。機制保留給之後的新資料集用。
 
 ---
 
 ## 8. 建議執行順序
 
-1. **等 FreeSurfer 端完成「混掃描」全面檢查** → 確定最終可用清單
-2. 用第 5 節的 bash 把 `brain.mgz` / `aseg.mgz` 轉成 `.nii.gz`
-3. **先拿 1 顆**跑 `preprocess_ixi.py --no-brain-extract --save-nii`，
+1. ~~等 FreeSurfer 端完成「混掃描」全面檢查~~ ✅ **已完成**，FINAL 清單 167 顆
+2. ~~用第 5 節的 bash 把 `norm.mgz` / `aseg.mgz` 轉成 `.nii.gz`~~ ✅ **已完成**（285 MB，但在**另一台機器**上，仍待跨機器搬運）
+3. **先拿 1 顆**跑 `ASD\preprocess_fs.py --only <SUBJECT> --save-nii`，
    用 `nii/` 的輸出在 ITK-SNAP／Freeview 確認：
    - 影像有對到 atlas 空間、shape = (192, 224, 192)
    - **標籤和影像完全疊合**（這是最重要的檢查）

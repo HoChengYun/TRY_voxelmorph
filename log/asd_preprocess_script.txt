@@ -1,0 +1,5 @@
+﻿# ASD 前處理指令記錄
+# 執行時間: 2026-08-23 18:30:05
+# 由 ASD\run_preprocess.ps1 產生
+
+C:\Users\h4524\claude_cheng\vxm_env\Scripts\python.exe C:\Users\h4524\claude_cheng\ASD\preprocess_fs.py --img-dir C:\Users\h4524\claude_cheng\ASD\ASD_data\norm --seg-dir C:\Users\h4524\claude_cheng\ASD\ASD_data\aseg --atlas C:\Users\h4524\claude_cheng\IXI\atlas_mni152_09c_v3.nii.gz --out-dir C:\Users\h4524\claude_cheng\ASD\ASD_preprocessed_v1 --subject-list C:\Users\h4524\claude_cheng\ASD\subjects_final.txt --grouping none --list-is-final

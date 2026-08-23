@@ -3,12 +3,12 @@ FreeSurfer recon-all 產物 -> VoxelMorph 訓練用 npz
 
 與 IXI/preprocess_ixi.py 的差異：
   * 不做 N4           —— FreeSurfer 的 nu.mgz 階段已做過（--n4 可強制開啟）
-  * 不做去顱骨         —— brain.mgz 已經去過（--brain-extract 可強制開啟）
+  * 不做去顱骨         —— norm.mgz / brain.mgz 都已去過（--brain-extract 可強制開啟）
   * 多搬一份 aseg 標籤  —— 用「與影像完全相同」的 Affine 變換 + 最近鄰內插
   * 切分以「受試者」為單位 —— 避免同一人的多次掃描橫跨 train/test 造成 data leakage
 
 輸入目錄結構（由 FreeSurfer 端 mri_convert 產生）：
-    <brain-dir>/<subject>.nii.gz    來自 mri/brain.mgz
+    <img-dir>/<subject>.nii.gz      來自 mri/norm.mgz（或 brain.mgz，全體一致即可）
     <seg-dir>/<subject>.nii.gz      來自 mri/aseg.mgz
 
 輸出：
@@ -19,16 +19,16 @@ FreeSurfer recon-all 產物 -> VoxelMorph 訓練用 npz
 
 用法：
     # 先看歸戶與切分結果，不動任何影像
-    python fs_pipeline\\preprocess_fs.py --brain-dir ... --seg-dir ... ^
+    python ASD\\preprocess_fs.py --img-dir ... --seg-dir ... ^
         --atlas IXI\\atlas_mni152_09c_v3.nii.gz --out-dir ... --dry-run
 
     # 先驗證 1 顆（產生 nii 供 ITK-SNAP/Freeview 目視確認標籤與影像疊合）
-    python fs_pipeline\\preprocess_fs.py --brain-dir ... --seg-dir ... ^
+    python ASD\\preprocess_fs.py --img-dir ... --seg-dir ... ^
         --atlas IXI\\atlas_mni152_09c_v3.nii.gz --out-dir fs_check ^
         --only A001 --save-nii
 
     # 批次（需要 --list-is-final）
-    python fs_pipeline\\preprocess_fs.py --brain-dir ... --seg-dir ... ^
+    python ASD\\preprocess_fs.py --img-dir ... --seg-dir ... ^
         --atlas IXI\\atlas_mni152_09c_v3.nii.gz --out-dir fs_preprocessed_v1 ^
         --subject-list ... --list-is-final --save-nii
 """
@@ -42,18 +42,27 @@ import random
 import argparse
 import numpy as np
 
-# FreeSurfer 端已確認不可用的受試者（來源：D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md）
-# 這 4 顆本來就不在「跑完 recon-all 的 167 顆」裡（A012/A043 未完成、T085 失敗、
-# T065 身分待確認已從暫定清單扣掉），這裡再列一次只是保險。
-DEFAULT_EXCLUDE = [
-    'A043',   # 影像雜訊過高、灰白對比不足（白質只認出約 5%）
-    'T085',   # 只有 120/192 張切片
-    'A012',   # 資料夾混了兩次掃描，修好前不要用
-    'T065',   # 資料夾名 T065 但 DICOM 病人 ID 是 T056，身分待確認
-]
+# 曾經被判定有問題的受試者（來源：D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md）
+#
+# ⚠️ 這只是「沒有給 --subject-list 時」的安全網，不是權威。
+#    有給 --subject-list 時，**清單才是權威**，本表不會拿去砍清單裡的人
+#    —— 因為狀態會變。實例：A012 一度因「資料夾混了兩次掃描」被排除，
+#    2026-08-23 修復後重跑完成，已列入 FINAL 清單。若當時本表還無腦生效，
+#    167 會安靜地變成 166，而且不會有任何錯誤訊息。
+DEFAULT_EXCLUDE = {
+    'A043': '影像雜訊過高、灰白對比不足（白質只認出約 5%）',
+    'T085': '只有 120/192 張切片（缺 0001–0072）',
+    'T065': '資料夾名 T065 但 DICOM 病人 ID 是 T056，身分待確認',
+    # 'A012': 已於 2026-08-23 修復（分離誤放的 0801 那組後重跑），不再排除
+}
 
 p = argparse.ArgumentParser()
-p.add_argument('--brain-dir', required=True, help='brain.mgz 轉出的 .nii.gz 資料夾')
+# 影像來源用中性名稱：FreeSurfer 端可能給 norm.mgz 或 brain.mgz，兩者都是
+# 去顱骨後的 uchar（白質錨在 110），對本腳本沒有差別。舊名保留為別名。
+p.add_argument('--img-dir', '--norm-dir', '--brain-dir', dest='img_dir', required=True,
+               metavar='DIR',
+               help='影像 .nii.gz 資料夾（norm.mgz 或 brain.mgz 轉出的都可以）。'
+                    '別名：--norm-dir / --brain-dir')
 p.add_argument('--seg-dir',   default=None,  help='aseg.mgz 轉出的 .nii.gz 資料夾（不給則只存 vol）')
 p.add_argument('--atlas',     required=True, help='對位目標 .nii.gz（帶 header）')
 p.add_argument('--out-dir',   required=True)
@@ -64,11 +73,19 @@ p.add_argument('--subject-list', default=None,
 p.add_argument('--list-is-final', action='store_true', default=False,
                help='宣告 --subject-list 是「混掃描全面檢查跑完後」的最終版。'
                     '沒有這個旗標時本腳本只做開發驗證，會拒絕批次跑。')
-p.add_argument('--exclude', default=','.join(DEFAULT_EXCLUDE),
-               help=f'排除清單，逗號分隔（預設：{",".join(DEFAULT_EXCLUDE)}）')
+p.add_argument('--exclude', default=None,
+               help='排除清單，逗號分隔。明寫時一律生效。'
+                    f'不給時：沒有 --subject-list 才套用內建安全網（{",".join(DEFAULT_EXCLUDE)}）；'
+                    '有 --subject-list 時以清單為準，內建表只會提示不會砍人。')
 p.add_argument('--group-map', default=None,
                help='受試者歸戶對照表 TSV/CSV：<subject_id><TAB><person_id>。'
-                    '沒列到的 ID 用預設規則（去掉結尾的 _<數字>）。')
+                    '明列的一律優先，沒列到的才走 --grouping 的規則。')
+p.add_argument('--grouping', default='auto', choices=['auto', 'none'],
+               help='沒被 --group-map 明列的 ID 怎麼歸戶。'
+                    'auto（預設）＝去掉結尾的 _<數字>（A016_1 與 A016_2 視為同一人）；'
+                    'none ＝每個掃描各自成一人，完全不合併。'
+                    '選 none 等於假設「沒有任何一組是同一人的重複掃描」，'
+                    '假設若錯會造成 data leakage，請在方法學中說明。')
 
 p.add_argument('--test-frac', type=float, default=0.10)
 p.add_argument('--seed', type=int, default=42)
@@ -76,7 +93,7 @@ p.add_argument('--seed', type=int, default=42)
 p.add_argument('--n4', action='store_true', default=False,
                help='強制做 N4（預設關閉：FreeSurfer 的 nu.mgz 階段已做過）')
 p.add_argument('--brain-extract', action='store_true', default=False,
-               help='強制去顱骨（預設關閉：brain.mgz 已去過）')
+               help='強制去顱骨（預設關閉：norm.mgz / brain.mgz 都已去過）')
 p.add_argument('--interpolator', default='nearestNeighbor',
                choices=['nearestNeighbor', 'genericLabel'],
                help='標籤內插方式。絕對不可用 linear。')
@@ -132,7 +149,9 @@ def find_ambiguous(subject_ids):
 
     for s in subject_ids:
         if re.match(r'^.{4,}\d$', s):
-            groups.setdefault(s[:-1], set()).add(s)
+            stem = s[:-1].rstrip('_-')        # A016_1 -> A016（不要留下 A016_）
+            if stem:
+                groups.setdefault(stem, set()).add(s)
 
     for stem in list(groups):
         if stem in ids:                       # 前綴本身也是一個受試者
@@ -141,22 +160,22 @@ def find_ambiguous(subject_ids):
     return {k: sorted(v) for k, v in groups.items() if len(v) > 1}
 
 
-brain_dir = os.path.normpath(args.brain_dir)
+img_dir = os.path.normpath(args.img_dir)
 seg_dir = os.path.normpath(args.seg_dir) if args.seg_dir else None
 
-if not os.path.isdir(brain_dir):
-    sys.exit(f"[X] 找不到 --brain-dir：{brain_dir}")
+if not os.path.isdir(img_dir):
+    sys.exit(f"[X] 找不到 --img-dir：{img_dir}")
 if seg_dir and not os.path.isdir(seg_dir):
     sys.exit(f"[X] 找不到 --seg-dir：{seg_dir}")
 
 subjects = sorted(
     os.path.basename(f)[:-len('.nii.gz')]
-    for f in glob.glob(os.path.join(brain_dir, '*.nii.gz'))
+    for f in glob.glob(os.path.join(img_dir, '*.nii.gz'))
 )
 if not subjects:
-    sys.exit(f"[X] {brain_dir} 裡沒有 .nii.gz")
+    sys.exit(f"[X] {img_dir} 裡沒有 .nii.gz")
 
-print(f"掃到 {len(subjects)} 個檔案：{brain_dir}")
+print(f"掃到 {len(subjects)} 個檔案：{img_dir}")
 
 # ── 白名單 ───────────────────────────────────────────────────────────
 if args.subject_list:
@@ -165,7 +184,7 @@ if args.subject_list:
                  if ln.strip() and not ln.strip().startswith('#')}
     missing = sorted(allow - set(subjects))
     if missing:
-        print(f"[!] 白名單裡有 {len(missing)} 個 ID 在 --brain-dir 找不到："
+        print(f"[!] 白名單裡有 {len(missing)} 個 ID 在 --img-dir 找不到："
               f"{missing[:10]}{' ...' if len(missing) > 10 else ''}")
     before = len(subjects)
     subjects = [s for s in subjects if s in allow]
@@ -174,16 +193,21 @@ else:
     print("[!] 沒有給 --subject-list：將使用資料夾裡的全部檔案。")
 
 # ── 資料品質閘門 ─────────────────────────────────────────────────────
-# FreeSurfer 端的「全資料夾混掃描檢查」尚未完成。混了兩次掃描但總層數沒超過
-# 256 的資料夾，recon-all 不會報錯，會安靜跑出一顆「兩個人疊在一起」的腦，
-# 餵進訓練會讓模型學到不存在的解剖結構。所以批次跑需要明確宣告清單是最終版。
+# 批次跑需要明確宣告「這份清單是資料品質檢查跑完後的最終版」。
+#
+# 為什麼要這個機制：混了兩次掃描但總層數沒超過 256 的資料夾，recon-all
+# 不會報錯，會安靜跑出一顆「兩個人疊在一起」的腦，餵進訓練會讓模型學到
+# 不存在的解剖結構。這種錯誤事後幾乎看不出來，所以要在跑之前擋。
+#
+# ASD 這批：2026-08-23 檢查完成（167 個資料夾、異常 0、167×192=32,064 閉合），
+# 可以加 --list-is-final。機制保留給之後的新資料集用。
 if not args.list_is_final and not (args.dry_run or args.only):
     print()
     print("=" * 68)
     print("  [X] 拒絕批次執行：受試者清單尚未確認為最終版")
     print("=" * 68)
-    print("  FreeSurfer 端的「全資料夾混掃描檢查」尚未完成。在那之前，清單裡")
-    print("  可能仍混有『兩次掃描疊在一起』的受試者——recon-all 不會報錯。")
+    print("  資料品質檢查（例如「資料夾是否混了兩次掃描」）若尚未完成，清單裡")
+    print("  可能仍混有『兩個人疊在一起』的受試者——recon-all 不會報錯。")
     print()
     print("  現在可以做的：")
     print("    --dry-run          看歸戶與切分結果")
@@ -194,11 +218,29 @@ if not args.list_is_final and not (args.dry_run or args.only):
     sys.exit(2)
 
 # ── 排除清單 ─────────────────────────────────────────────────────────
-excl = {s.strip() for s in args.exclude.split(',') if s.strip()}
-hit = sorted(set(subjects) & excl)
-if hit:
-    print(f"    排除 {len(hit)} 個：{hit}")
-    subjects = [s for s in subjects if s not in excl]
+# 權威順序：明寫的 --exclude > --subject-list > 內建安全網
+if args.exclude is not None:
+    excl = {s.strip() for s in args.exclude.split(',') if s.strip()}
+    src = '--exclude（明寫）'
+elif args.subject_list:
+    excl = set()          # 清單就是權威，內建表不砍人
+    src = None
+    noted = sorted(set(subjects) & set(DEFAULT_EXCLUDE))
+    if noted:
+        print(f"\n[i] 清單裡有 {len(noted)} 個曾被判定有問題的受試者，"
+              f"依 --subject-list 為準予以保留：")
+        for s in noted:
+            print(f"      {s}：{DEFAULT_EXCLUDE[s]}")
+        print("    若確認仍不可用，請明寫 --exclude 覆寫。")
+else:
+    excl = set(DEFAULT_EXCLUDE)
+    src = '內建安全網（未提供 --subject-list）'
+
+if excl:
+    hit = sorted(set(subjects) & excl)
+    if hit:
+        print(f"    排除 {len(hit)} 個（來源：{src}）：{hit}")
+        subjects = [s for s in subjects if s not in excl]
 
 # ── 缺 seg 的檢查 ────────────────────────────────────────────────────
 if seg_dir:
@@ -210,28 +252,43 @@ if seg_dir:
 
 # ── 歸戶 ─────────────────────────────────────────────────────────────
 gmap = load_group_map(args.group_map)
-person_of = {s: gmap.get(s, default_person_id(s)) for s in subjects}
+fallback = default_person_id if args.grouping == 'auto' else (lambda s: s)
+person_of = {s: gmap.get(s, fallback(s)) for s in subjects}
 persons = {}
 for s, pid in person_of.items():
     persons.setdefault(pid, []).append(s)
 
 multi = {k: sorted(v) for k, v in persons.items() if len(v) > 1}
-print(f"\n歸戶：{len(subjects)} 個掃描 -> {len(persons)} 位受試者"
-      f"（--group-map：{args.group_map or '未提供，使用預設規則'}）")
+print(f"\n歸戶：{len(subjects)} 個掃描 -> {len(persons)} 位受試者")
+print(f"  --grouping  : {args.grouping}"
+      + ('（去掉結尾 _<數字>）' if args.grouping == 'auto' else '（每個掃描各自成一人，不合併）'))
+print(f"  --group-map : {args.group_map or '未提供'}"
+      + (f'（明列 {len(gmap)} 筆）' if gmap else ''))
 if multi:
     print(f"  多次掃描 {len(multi)} 位（整組進同一個 split）：")
     for k, v in sorted(multi.items()):
         print(f"    {k}: {v}")
 
+# 疑似同組但目前被當成不同人 —— 一律提醒，不論成因是規則沒抓到還是刻意不合併
 amb = find_ambiguous(subjects)
+if args.grouping == 'auto':
+    # auto 模式下再補上「底線後綴」型態（find_ambiguous 抓不到）
+    for s in subjects:
+        m = _SUFFIX_RE.match(s)
+        if m:
+            amb.setdefault(m.group(1), []).append(s)
+    amb = {k: sorted(set(v)) for k, v in amb.items() if len(set(v)) > 1}
 amb = {k: v for k, v in amb.items()
        if len({person_of[s] for s in v}) > 1}   # 已歸在一起的不必再警告
 if amb:
-    print("\n[!] 以下 ID 疑似同一人的多次掃描，但目前被當成不同人：")
+    n_scan = sum(len(v) for v in amb.values())
+    print(f"\n[!] 以下 {len(amb)} 組（共 {n_scan} 個掃描）疑似同一人，但目前被當成不同人：")
     for k, v in sorted(amb.items()):
         print(f"      {v}")
-    print("    預設規則只合併 `_1`/`_2` 這種底線後綴，不會猜數字直接黏在後面的情況。")
-    print("    若確認為同一人，請寫成 --group-map 檔案（一行一組，TAB 分隔）：")
+    print("    ⚠️ 假設若錯，同一人的掃描可能一個進 train、一個進 test，"
+          "造成 data leakage，Dice 會虛高。")
+    print("    這個假設必須在方法學中說明，或先向資料提供者確認。")
+    print("    確認為同一人後，寫成 --group-map 檔案重跑切分即可（不用改程式）：")
     for k, v in sorted(amb.items()):
         for s in v:
             print(f"        {s}\t{k}")
@@ -294,7 +351,17 @@ with open(os.path.join(args.out_dir, 'split.json'), 'w', encoding='utf-8') as f:
         'test_frac': args.test_frac,
         'list_is_final': args.list_is_final,
         'subject_list': args.subject_list,
+        'img_dir': img_dir,
+        'seg_dir': seg_dir,
+        # 這份切分是在什麼歸戶假設下產生的 —— 之後回頭看才知道能不能比較
+        'grouping': args.grouping,
+        'grouping_note': ('每個掃描各自成一人，完全不合併（假設沒有任何一組是'
+                          '同一人的重複掃描）' if args.grouping == 'none'
+                          else '去掉結尾 _<數字> 後視為同一人'),
         'group_map': args.group_map,
+        'ambiguous_kept_separate': {k: v for k, v in sorted(amb.items())},
+        'n_scans': len(subjects),
+        'n_persons': len(persons),
         'excluded': sorted(excl),
         'person_of': person_of,
         'split_of': split_of,
@@ -314,7 +381,7 @@ for i, subj in enumerate(subjects, 1):
 
     print(f"[{i:3d}/{n}] 處理：{subj}  ({split})")
     try:
-        img = ants.image_read(os.path.join(brain_dir, subj + '.nii.gz'))
+        img = ants.image_read(os.path.join(img_dir, subj + '.nii.gz'))
         print(f"        原始：shape={img.shape}  "
               f"spacing={tuple(round(s, 3) for s in img.spacing)}")
 

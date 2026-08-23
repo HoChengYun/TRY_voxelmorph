@@ -9,6 +9,7 @@
 !/ASD/*.txt
 /*.pptx
 !*.py
+!*.ps1
 !*.md
 !.gitkeep
 __pycache__/
