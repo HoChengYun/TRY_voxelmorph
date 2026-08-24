@@ -4,6 +4,11 @@
 /oasis/*
 /IXI/**/*
 !/IXI/**/
+# atlas 本體與其 seg 進版控：
+#   seg 只有 0.25 MB，但重現要 2.5 小時 recon-all + VM 存取權
+#   atlas 6 MB，讓其他機器 clone 就有，避免用錯版本
+!/IXI/atlas_mni152_09c_v3.npz
+!/IXI/atlas_mni152_09c_v3_seg.npz
 /ASD/**/*
 !/ASD/**/
 !/ASD/*.txt

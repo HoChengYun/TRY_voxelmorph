@@ -153,7 +153,7 @@ IXI-T1 原始 .nii.gz (581)
 
 | 版本 | 日期 | `make_atlas.py --method` | spacing | 說明 |
 |------|------|--------------------------|---------|------|
-| v1 (`IXI_preprocessed`) | 2026-03 | 早期 `scipy.ndimage.zoom` | 非 1mm | 舊版，🔴 **atlas 檔案已刪除，不可重現** |
+| v1 (`IXI_preprocessed`) | 2026-03 | 早期 `scipy.ndimage.zoom` | 非 1mm | 舊版，🔴 **不可完整重現**（見下）|
 | v2 (`IXI_preprocessed_v2`) | 2026-04-27 | `resample` | ≈(1.005, 1.022, 1.005) mm | **exp4–exp8 全部用這版** |
 | **v3 (`IXI_preprocessed_v3`)** | 2026-05-19 | **`crop`** | **精確 1mm** | **現行**，裁掉背景而非縮放 |
 
@@ -163,8 +163,17 @@ IXI-T1 原始 .nii.gz (581)
 🔴 **鐵則：訓練用的 `--atlas` 版本必須跟 `datadir` 的資料版本一致。**
 混用會出現 `Sizes of tensors must match` 或（更糟）安靜地訓練出對不準的模型。
 
-⚠️ **v1 已不可重現**：`IXI/atlas_mni152_09c_v1.*` 不存在（只剩 v2 / v3），
-且當初用的是早期 `scipy.ndimage.zoom`。`IXI_preprocessed/` 那批資料留著也重跑不出來。
+⚠️ **v1 不可完整重現**（2026-08-23 更正）：舊版本文寫「atlas 檔案已刪除」——**其實還在**，
+在 `IXI/mni_icbm152_nlin_asym_09c_nifti/v1/` 底下：
+
+```
+atlas_mni152_09c_v1.npz          (193,229,193)  原始尺寸
+atlas_mni152_09c_resize_v1.npz   (192,224,192)  resize 後
+```
+
+**但只有 `.npz`，沒有 `.nii.gz`。** `preprocess_ixi.py` 的 ANTs 配準需要帶 header 的
+`.nii.gz` 做空間初始化，所以拿這兩個 npz 仍然重現不了 v1 的前處理。
+結論不變（不要用 v1），但理由是「缺 header」而不是「檔案不見了」。
 
 ---
 
