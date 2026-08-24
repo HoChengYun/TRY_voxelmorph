@@ -75,6 +75,32 @@ args = ap.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
+# ── 參數合理性檢查 ───────────────────────────────────────────────────
+# --model 要檔案、--model-dir 要資料夾。給錯的話 torch.load 會丟出
+# 「PermissionError: Permission denied」，那個訊息完全看不出真正的原因。
+if args.model:
+    mp = os.path.normpath(args.model)
+    if os.path.isdir(mp):
+        sys.exit('[X] --model 需要單一 .pt 檔，但 %s 是資料夾。\n'
+                 '    要掃過整個資料夾請改用 --model-dir：\n'
+                 '        python ASD\\test_dice.py --model-dir %s --step 10'
+                 % (mp, args.model.rstrip('\\/')))
+    if not os.path.exists(mp):
+        sys.exit('[X] 找不到 %s' % mp)
+    if not mp.endswith('.pt'):
+        sys.exit('[X] --model 應該指向 .pt 檔，收到的是 %s' % mp)
+
+if args.model_dir:
+    md = os.path.normpath(args.model_dir)
+    if os.path.isfile(md):
+        sys.exit('[X] --model-dir 需要資料夾，但 %s 是檔案。\n'
+                 '    評估單一模型請改用 --model。' % md)
+    if not os.path.isdir(md):
+        sys.exit('[X] 找不到資料夾 %s' % md)
+
+if args.step != 1 and not args.model_dir:
+    print('[!] --step 只在搭配 --model-dir 時有作用，本次會被忽略。')
+
 import torch
 import voxelmorph as vxm
 
