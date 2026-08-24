@@ -1,0 +1,7 @@
+# asd_exp1 訓練指令記錄
+# 執行時間: 2026-08-23 22:13:37
+# 機器: AI
+# 資料: ASD_preprocessed_v1 (train 150 / test 17, grouping=none, 167 subjects)
+# 由 ASD/run_train.py 產生
+
+D:\chengyun\TRY_voxelmorph\vxm_env\Scripts\python.exe D:\chengyun\TRY_voxelmorph\voxelmorph-code\scripts\torch\train.py D:\chengyun\TRY_voxelmorph\ASD\ASD_preprocessed_v1\train --atlas D:\chengyun\TRY_voxelmorph\IXI\atlas_mni152_09c_v3.npz --model-dir D:\chengyun\TRY_voxelmorph\models\asd_exp1 --epochs 250 --steps-per-epoch 100 --gpu 0 --image-loss ncc --lambda 1.0
