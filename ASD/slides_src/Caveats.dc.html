@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #141A1D; font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A9294; font-weight: 600;">What We Cannot Claim</div>
+  <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 34px; font-weight: 700; color: #E8E6E0; margin-top: 8px;">誠實邊界與待確認</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
+    <div>
+      <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; letter-spacing: 0.14em; color: #8A9294; font-weight: 600;">要寫進方法學的限制</div>
+      <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 15px;">
+        <div style="display: flex; gap: 11px; align-items: flex-start;"><span style="display:inline-block;width:9px;height:9px;border:1.5px solid #A34F1B;margin-top:6px;flex:none;"></span><div style="font-size: 14px; line-height: 1.65; color: #E8E6E0;"><b>系統性天花板</b>：MNI152 是 152 顆腦非線性平均，結構邊界比個體模糊，即使配準完美 Dice 也達不到 1.0。絕對值會低於論文，方法間的相對比較仍有效。</div></div><div style="display: flex; gap: 11px; align-items: flex-start;"><span style="display:inline-block;width:9px;height:9px;border:1.5px solid #A34F1B;margin-top:6px;flex:none;"></span><div style="font-size: 14px; line-height: 1.65; color: #E8E6E0;"><b>沒有 validation set</b>：epoch 是依 test 曲線挑的，報出的數字會樂觀偏高。論文的做法是另外切一份 validation。</div></div><div style="display: flex; gap: 11px; align-items: flex-start;"><span style="display:inline-block;width:9px;height:9px;border:1.5px solid #A34F1B;margin-top:6px;flex:none;"></span><div style="font-size: 14px; line-height: 1.65; color: #E8E6E0;"><b>基準線較高</b>：我們的 Affine only 是 0.676，論文是 0.584，所以模型的可進步空間較小。要看的是「比基準線高多少」，不是絕對值。</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; letter-spacing: 0.14em; color: #8A9294; font-weight: 600;">需要老師確認</div>
+      <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 18px;">
+        <div style="border: 1px solid #2A3237; padding: 18px; background: #1A2125;">
+          <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">A013 / A0131 / A0132 是同一人嗎？</div>
+          <div style="font-size: 13.5px; color: #8A9294; margin-top: 8px; line-height: 1.65;">
+            目前採「三個不同的人」的暫定假設。這是全批唯一的命名曖昧，確認後改一份設定檔就能重跑切分，不用改程式。
+          </div>
+        </div>
+        <div style="border: 1px solid #2A3237; padding: 18px; background: #1A2125;">
+          <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">這批的年齡分布？</div>
+          <div style="font-size: 13.5px; color: #8A9294; margin-top: 8px; line-height: 1.65;">
+            eTIV 中位數 1.29 L，比健康成人低約 20%，且厚度異常者全部偏厚 —— 這批可能包含兒童。
+            會影響能否與 IXI（20–86 歲成人）對照。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">16</div>
+
+</div>
+</x-dc>
+</body>
+</html>

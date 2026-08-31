@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">How VoxelMorph Works　2 / 3</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">損失函數：沒有標準答案也能訓練</div>
+  <div style="margin-top: 20px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px 14px; color: #141A1D; line-height: 1.7; white-space: pre;">L = L_sim( f , m∘φ )  +  λ · L_smooth( φ )        ← 論文 Eq. 4
+     └─ warp 完之後跟 fixed 像不像      └─ 形變場平不平滑</div></div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 24px;">
+    <div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">L_sim　影像相似度</div>
+      <div style="margin-top: 12px; font-size: 14px; color: #141A1D; line-height: 1.72;">
+        兩種選擇：<br><br>
+        <b>局部 CC</b>（論文 Eq. 6）—— 在每個 voxel 周圍 <b>9³</b> 的窗格裡算相關係數的平方，再取負。
+        對亮度差異魯棒。<br><br>
+        <b>MSE</b> —— 逐 voxel 平方差。適用於亮度分布相近的影像。
+      </div>
+    </div>
+    <div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">L_smooth　形變場平滑度</div>
+      <div style="margin-top: 12px; font-size: 14px; color: #141A1D; line-height: 1.72;">
+        位移場空間梯度的 L2（論文 Eq. 7）：<br><br>
+        <code style="font-family: Consolas, 'Courier New', monospace; font-size: 15px;">Σ ‖∇u(p)‖²</code><br><br>
+        沒有它的話，網路會把影像扭到完全一樣，但形變場亂七八糟、不符合解剖。
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: 26px; border-top: 1px solid #D9D9D2; padding-top: 18px;"><div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; align-items: flex-start;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 14px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>訓練完全不需要 ground truth 形變場</b> —— 損失只看「warp 完像不像」，而這個相似度對形變場可微。</div></div><div style="display: flex; align-items: flex-start;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 14px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>λ 就是這兩項的平衡</b>。它的合適尺度取決於用哪個 L_sim —— 這正是下一頁要講的。</div></div></div></div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">15</div>
+
+</div>
+</x-dc>
+</body>
+</html>

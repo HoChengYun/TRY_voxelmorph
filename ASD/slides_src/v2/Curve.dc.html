@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Results</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">Dice 曲線與基準線</div>
+  <div style="display: grid; grid-template-columns: 1fr 330px; gap: 38px; margin-top: 22px;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+  <div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px; display: flex; justify-content: center;">
+    <img src="dice_curve.png" alt="dice curve" style="max-height: 392px; max-width: 100%; object-fit: contain; display: block;">
+  </div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">epoch 0 的 Dice 等於基準線 0.676014 —— 兩個用完全不同程式路徑算出的數字一致，證明評估鏈沒有錯。</div>
+</div>
+    <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 4px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.6760</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">基準線：只有 Affine，模型無貢獻</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.7811</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">模型最佳，比基準線 +0.105</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.0000%</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">折疊率，全部 26 個檢查點皆為零</div>
+</div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 14px; font-size: 12.5px; color: #5F6A6B; line-height: 1.65;">
+        17 顆測試的標準誤是 0.0051，所以<b>「最佳 epoch = 190」其實是雜訊</b> ——
+        epoch 90 之後任何一個都一樣好。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">18</div>
+
+</div>
+</x-dc>
+</body>
+</html>

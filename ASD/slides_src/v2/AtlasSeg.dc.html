@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Atlas Segmentation</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">atlas 的 aseg：自行產生</div>
+  <div style="display: grid; grid-template-columns: 1fr 320px; gap: 40px; margin-top: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+  <div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px; display: flex; justify-content: center;">
+    <img src="atlas_seg.png" alt="atlas aseg overlay" style="max-height: 396px; max-width: 100%; object-fit: contain; display: block;">
+  </div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">FreeSurfer 7.4.1，與 166 顆受試者同一版本。耗時 2 小時 21 分。</div>
+</div>
+    <div style="display: flex; flex-direction: column; gap: 20px; padding-top: 6px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">30 / 30</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">評估用的結構全部都在，缺少 0 個</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">5 / 5</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">切到 atlas 空間後的驗證項目全數通過</div>
+</div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 16px;">
+        <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">品質對照</div>
+        <div style="font-size: 13px; color: #5F6A6B; line-height: 1.75; margin-top: 10px;">
+          表面破洞 14 / 12，我們 166 顆的中位數是 12 / 10 —— 幾乎就在中位數上。
+          原本擔心平均模板邊界模糊會讓拓撲重建失敗，結果沒有。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">13</div>
+
+</div>
+</x-dc>
+</body>
+</html>

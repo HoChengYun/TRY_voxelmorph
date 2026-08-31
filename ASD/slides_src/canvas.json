@@ -1,0 +1,120 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Agenda.dc.html",
+      "x": 1440,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Pipeline.dc.html",
+      "x": 2880,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "DataQC.dc.html",
+      "x": 4320,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Export.dc.html",
+      "x": 0,
+      "y": 940,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Preprocess.dc.html",
+      "x": 1440,
+      "y": 940,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "VerifySeg.dc.html",
+      "x": 2880,
+      "y": 940,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Split.dc.html",
+      "x": 4320,
+      "y": 940,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "AtlasGap.dc.html",
+      "x": 0,
+      "y": 1880,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "ZeroPad.dc.html",
+      "x": 1440,
+      "y": 1880,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "AtlasSeg.dc.html",
+      "x": 2880,
+      "y": 1880,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Training.dc.html",
+      "x": 4320,
+      "y": 1880,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Curve.dc.html",
+      "x": 0,
+      "y": 2820,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Contours.dc.html",
+      "x": 1440,
+      "y": 2820,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "PerStruct.dc.html",
+      "x": 2880,
+      "y": 2820,
+      "w": 1280,
+      "h": 720
+    },
+    {
+      "file": "Caveats.dc.html",
+      "x": 4320,
+      "y": 2820,
+      "w": 1280,
+      "h": 720
+    }
+  ],
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
+}

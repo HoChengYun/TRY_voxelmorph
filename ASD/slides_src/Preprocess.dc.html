@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Preprocessing</div>
+  <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">標籤搬運的三個鐵則</div>
+  <div style="display: grid; grid-template-columns: 1fr 430px; gap: 44px; margin-top: 26px;">
+    <div>
+      <div style="font-size: 15px; color: #141A1D; line-height: 1.75;">
+        ANTs Affine 把受試者對到 MNI152 atlas，<b>同一組變換</b>再用最近鄰把 aseg 標籤搬過去。
+      </div>
+      <div style="margin-top: 22px;"><div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty;">必須用<b>與影像完全相同</b>的變換 —— 不能各自對位一次</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty;">內插必須用<b>最近鄰</b> —— 用 linear 會在標籤 17 和 10 之間插出 13.5 這種不存在的值</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty;">標籤<b>不正規化、不轉 float</b> —— 保持整數</div></div></div></div>
+      <div style="margin-top: 24px;"><div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 13px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px 14px; color: #141A1D; line-height: 1.7; white-space: pre;">reg = ants.registration(fixed=atlas, moving=img,
+                        type_of_transform=&#39;Affine&#39;)
+seg_reg = ants.apply_transforms(
+    fixed=atlas, moving=seg,
+    transformlist=reg[&#39;fwdtransforms&#39;],   # 重用影像的變換
+    interpolator=&#39;nearestNeighbor&#39;)      # 標籤必須最近鄰</div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 20px; padding-top: 2px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0 / 8,257,536</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">影像與標籤逐 voxel 比對，不一致的數量</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #A34F1B; line-height: 1;">1,536,912</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">反證：改用 linear 會捏造出原標籤集裡沒有的值</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">批次 167 顆的失敗數與標籤消失數</div>
+</div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">06</div>
+
+</div>
+</x-dc>
+</body>
+</html>

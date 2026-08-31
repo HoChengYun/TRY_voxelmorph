@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Atlas Preparation</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">MNI152 怎麼變成訓練用的 atlas</div>
+  <div style="display: grid; grid-template-columns: 1fr 400px; gap: 42px; margin-top: 24px;">
+    <div>
+      <div style="font-size: 14.5px; color: #141A1D; line-height: 1.7;">
+        下載 <b>ICBM 2009c Nonlinear Asymmetric</b>（Fonov et al., 2009）——152 位受試者反覆迭代非線性平均，
+        <code style="font-family: Consolas, 'Courier New', monospace">(193, 229, 193)</code>、精確 1mm、RAS。
+      </div>
+      <div style="margin-top: 20px;"><div style="display: flex; flex-direction: column;"><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding-bottom: 10px; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">步驟</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">做什麼</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">實測</div></div><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">① 去顱骨</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">套 MNI 官方附的二值腦罩（ANTs 只做相乘，沒有判斷）</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">非零 8,529,878 → 1,886,574</div></div><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">② clip</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">1–99 百分位，去掉極端值</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">p1 = 26.09　p99 = 91.47</div></div><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">③ 正規化</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">min-max 到 [0, 1]</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">—</div></div><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">④ 裁切</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">(193,229,193) → (192,224,192)</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;"><span style="color:#0E7C7B">切掉部分最大值 0.0000</span></div></div><div style="display: grid; grid-template-columns: 82px 1fr 190px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">⑤ 存檔</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">.nii.gz 帶 header 給 ANTs／.npz 給 train.py</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">—</div></div></div></div>
+      <div style="margin-top: 20px;"><div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; align-items: flex-start;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 14px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>三個軸切掉的部分最大值都是 0</b> —— 全是背景，一個腦組織 voxel 都沒動到。</div></div><div style="display: flex; align-items: flex-start;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 14px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0; min-height: 4.9em;">用 <code style="font-family:Consolas, 'Courier New', monospace;font-size:13.5px">crop</code> 而不是 resample：<b>spacing 維持精確 1mm</b>，voxel 值零損失。resample 會把體素拉長成 ≈1.005mm。</div></div></div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 2px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">重現時與現存 atlas 的逐 voxel 差異</div></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">96.0 → 134.0</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">軸 1 的 origin 隨裁切位移（切掉前面 2 個 voxel）</div></div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 16px; font-size: 13px; color: #5F6A6B; line-height: 1.68;">
+        <b style="color: #141A1D">為什麼要改尺寸</b><br>
+        U-Net 有 4 層下採樣，三個維度都要能被 16 整除。<br>
+        193÷16 = 12.06 ✗　229÷16 = 14.31 ✗<br>
+        192÷16 = 12 ✓　　224÷16 = 14 ✓
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">06</div>
+
+</div>
+</x-dc>
+</body>
+</html>

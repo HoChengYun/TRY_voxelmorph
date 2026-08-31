@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Zero Interpolation</div>
+  <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">讓整條轉換鏈零內插</div>
+  <div style="display: grid; grid-template-columns: 1fr 400px; gap: 44px; margin-top: 24px;">
+    <div>
+      <div style="font-size: 14.5px; color: #141A1D; line-height: 1.72;">
+        <code style="font-family: 'IBM Plex Mono', 'Courier New', monospace">recon-all</code> 會把輸入轉成 256³ 並保留影像中心。
+        MNI152 的三個邊長都是<b>奇數</b>，中心落在半整數體素上 —— 跟目標的 128.0 差半格，<b>會觸發內插</b>。
+      </div>
+      <div style="margin-top: 20px;"><div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 13px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px 14px; color: #141A1D; line-height: 1.7; white-space: pre;">軸 0　193 → 中心 96.5 　目標 128.0　偏移 −31.5　半整數
+軸 1　229 → 中心 114.5　目標 128.0　偏移 −13.5　半整數
+軸 2　193 → 中心 96.5 　目標 128.0　偏移 −31.5　半整數</div></div>
+      <div style="margin-top: 20px; font-size: 14.5px; color: #141A1D; line-height: 1.72;">
+        先補零成 256³ 之後三軸中心都是 128.0，<b>偏移為零</b>。
+        FreeSurfer 的 log 顯示它仍然跑了三線性內插 —— 但在整數座標上，三線性回傳的就是原值。
+      </div>
+      <div style="margin-top: 20px;"><div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 13px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px 14px; color: #141A1D; line-height: 1.7; white-space: pre;">256³ ──[31:224, 13:242, 31:224]──> (193,229,193)
+     ──[0:192,   2:226,  0:192 ]──> atlas 空間
+兩段都是整數切片，voxel 值一個都沒被動過</div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 22px; padding-top: 4px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.0032</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">共用遮罩的強度加權質心位移（voxel）</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.0001</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">相位相關次像素估計，整數峰值在 (0,0,0)</div>
+</div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.999977</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">轉回後與原圖的相關係數</div>
+</div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 16px; font-size: 13px; color: #5F6A6B; line-height: 1.65;">
+        對照：若補零沒生效，這裡會是 <b style="color: #A34F1B">0.5 voxel</b>。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">10</div>
+
+</div>
+</x-dc>
+</body>
+</html>

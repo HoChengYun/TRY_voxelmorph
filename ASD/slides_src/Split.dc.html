@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Data Split</div>
+  <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">切分與 data leakage 風險</div>
+  <div style="display: grid; grid-template-columns: 1fr 400px; gap: 44px; margin-top: 26px;">
+    <div>
+      <div style="font-size: 15px; color: #141A1D; line-height: 1.75;">
+        同一個人的多次掃描若一個進 train、一個進 test，模型等於看過答案，Dice 會虛高。
+        所以切分以<b>受試者</b>為單位，不是檔案層級 shuffle。
+      </div>
+      <div style="margin-top: 24px;"><div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: transparent; border: 1.5px solid #A34F1B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty;"><b>A013 / A0131 / A0132 是不是同一人？</b> 命名規則無法判斷 —— A0131 可能是「A013 的第 1 次」，也可能是獨立受試者，而且 A013 本身也存在。</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty;">已用程式掃過全部 167 個 ID，<b>這種曖昧全批只有這一組</b>，沒有第二處。</div></div></div></div>
+      <div style="margin-top: 24px;"><div style="display: flex; flex-direction: column; gap: 4px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">149 / 17</div>
+  <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">train / test，無受試者橫跨兩邊</div>
+</div></div>
+    </div>
+    <div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 20px;">
+      <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">實際落點</div>
+      <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 13px; color: #141A1D; line-height: 2.0; margin-top: 12px;">
+        A013　　→ train<br>
+        A0131　 → <span style="color: #A34F1B; font-weight: 600;">test</span><br>
+        A0132　 → train
+      </div>
+      <div style="font-size: 13px; color: #5F6A6B; margin-top: 16px; line-height: 1.65; border-top: 1px solid #D9D9D2; padding-top: 14px;">
+        若三者是同一人，這顆 test 的 Dice 會虛高。<br><br>
+        <b style="color: #0E7C7B">但實測 A0131 是 17 顆裡最低的（0.740）</b>，
+        排除它之後平均只差 +0.0026 —— 遠小於標準誤 0.0051。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">08</div>
+
+</div>
+</x-dc>
+</body>
+</html>

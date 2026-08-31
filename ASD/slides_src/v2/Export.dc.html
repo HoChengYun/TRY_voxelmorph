@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">FreeSurfer Export</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">匯出哪一個影像：norm 還是 brain</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 28px;">
+    <div style="background: #EFEFEB; border: 1px solid #0E7C7B; padding: 22px;">
+      <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 15px; font-weight: 600; color: #141A1D;">norm.mgz　<span style="color: #0E7C7B; font-size: 12px;">採用</span></div>
+      <div style="font-size: 14px; color: #141A1D; margin-top: 12px; line-height: 1.7;">
+        <code style="font-family: Consolas, 'Courier New', monospace">mri_ca_normalize</code> 的產物：<br>用 GCA 圖譜當控制點做亮度正規化，再遮罩。
+      </div>
+    </div>
+    <div style="background: #FAFAF8; border: 1px solid #D9D9D2; padding: 22px;">
+      <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 15px; font-weight: 600; color: #5F6A6B;">brain.mgz　<span style="color: #5F6A6B; font-size: 12px;">未採用</span></div>
+      <div style="font-size: 14px; color: #5F6A6B; margin-top: 12px; line-height: 1.7;">
+        再多做一次 <code style="font-family: Consolas, 'Courier New', monospace">mri_normalize -aseg</code>，<br>改用該受試者自己的 aseg 當控制點。
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: 30px;"><div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>兩者都是合理選擇</b>，目前沒有文獻依據說哪個對配準訓練更好。brain 多一道、更貼身的正規化；norm 少一道、離原始更近。</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>關鍵是全體一致</b> —— 167 顆全部是 <code style="font-family:Consolas, 'Courier New', monospace;font-size:13.5px">norm.mgz</code>，沒有混用。</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: transparent; border: 1.5px solid #A34F1B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>方法學要寫明用的是 norm.mgz。</b> 若日後配準結果不理想，這是該回頭檢視的變因之一。</div></div></div></div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">05</div>
+
+</div>
+</x-dc>
+</body>
+</html>

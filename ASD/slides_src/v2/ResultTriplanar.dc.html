@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Results</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">三平面視圖：配準後 vs atlas</div>
+  <div style="display: grid; grid-template-columns: 1fr 300px; gap: 36px; margin-top: 22px;">
+    <div style="display: flex; flex-direction: column; gap: 10px;"><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px; display: flex; justify-content: center;"><img src="triplanar.png" alt="triplanar view" style="max-height: 404px; max-width: 100%; object-fit: contain; display: block;"></div><div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">受試者 T023，asd_exp1 epoch 190。</div></div>
+    <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 4px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.9750</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">NCC（全域相關，含背景）</div></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.9198</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">SSIM（結構相似度）</div></div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 14px; font-size: 13px; color: #5F6A6B; line-height: 1.68;">
+        四格由左至右：受試者原影像、atlas、配準後、差異圖。
+        差異圖越暗表示對得越好。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">19</div>
+
+</div>
+</x-dc>
+</body>
+</html>

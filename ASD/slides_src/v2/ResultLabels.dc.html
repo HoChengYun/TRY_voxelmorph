@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Results</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">標籤重疊：Dice 實際在算什麼</div>
+  <div style="margin-top: 18px;"><div style="display: flex; flex-direction: column; gap: 10px;"><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px; display: flex; justify-content: center;"><img src="labels.png" alt="label overlap" style="max-height: 452px; max-width: 100%; object-fit: contain; display: block;"></div><div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;"><b style="color: #c62828">紅</b> = 只有 atlas 有（漏掉了）　<b style="color: #2e7d32">綠</b> = 只有受試者有（多出來了）　<b>黃</b> = 兩者都有（對上了）。Dice 就是在算黃色佔的比例。上排只有 Affine，邊緣一圈明顯的紅綠；下排幾乎全黃，只剩皮質腦溝還有殘留 ——那正是個體差異最大、配準最難的地方。</div></div></div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">21</div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Overview</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">整體流程</div>
+  <div style="display: flex; gap: 6px; margin-top: 30px; height: 176px;"><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">01</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">recon-all</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">167 顆<br>9 天 17 小時</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">FreeSurfer</div>
+</div><div style="align-self: center; color: #D9D9D2; font-size: 18px; padding: 0 2px;">→</div><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">02</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">匯出</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">norm.mgz<br>aseg.mgz</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">285 MB</div>
+</div><div style="align-self: center; color: #D9D9D2; font-size: 18px; padding: 0 2px;">→</div><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">03</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">前處理</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">Affine 對到<br>MNI152</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">ANTs</div>
+</div><div style="align-self: center; color: #D9D9D2; font-size: 18px; padding: 0 2px;">→</div><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">04</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">切分</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">train 149<br>test 17</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">受試者層級</div>
+</div><div style="align-self: center; color: #D9D9D2; font-size: 18px; padding: 0 2px;">→</div><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">05</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">訓練</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">ncc, λ=1.0<br>250 epochs</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">VoxelMorph</div>
+</div><div style="align-self: center; color: #D9D9D2; font-size: 18px; padding: 0 2px;">→</div><div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 15px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; color: #0E7C7B; font-weight: 600;">06</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 17px; font-weight: 700; color: #141A1D;">評估</div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">Dice<br>30 個結構</div>
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: #5F6A6B; margin-top: auto; padding-top: 6px;">vs atlas aseg</div>
+</div></div>
+  <div style="margin-top: 34px;">
+    <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.16em; color: #A34F1B; font-weight: 600; text-transform: uppercase;">每一段都有一個「會安靜出錯」的地方</div>
+    <div style="margin-top: 16px;"><div style="display: flex; flex-direction: column; gap: 11px;"><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>混掃描</b>：資料夾若混了兩次掃描但層數沒超標，<code style="font-family:Consolas, 'Courier New', monospace;font-size:13.5px">recon-all</code> 不會報錯 → 已全面掃描，異常 0</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>標籤搬運</b>：內插法用錯會插出不存在的標籤值，不會報錯 → 已逐 voxel 驗證</div></div><div style="display: flex; align-items: flex-start; gap: 0;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 15px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;"><b>座標系轉換</b>：位移在 Dice 上只會像「配準不好」，不會報錯 → 已量到 0.003 voxel</div></div></div></div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">03</div>
+
+</div>
+</x-dc>
+</body>
+</html>

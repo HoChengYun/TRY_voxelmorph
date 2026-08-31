@@ -12,6 +12,8 @@
 /ASD/**/*
 !/ASD/**/
 !/ASD/*.txt
+!/ASD/slides_src/**/*.dc.html
+!/ASD/slides_src/canvas.json
 /*.pptx
 !*.py
 !*.ps1

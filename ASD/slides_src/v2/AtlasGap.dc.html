@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">The Missing Piece</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">atlas 的標籤從哪來</div>
+  <div style="font-size: 15px; color: #141A1D; line-height: 1.75; margin-top: 20px; max-width: 940px;">
+    Dice 要把受試者的標籤搬到 atlas 空間，再跟 <b>atlas 自己的標籤</b>比。
+    但我們的 MNI152 atlas 是自製的，<b>只有影像沒有標籤</b>。
+  </div>
+  <div style="margin-top: 26px;"><div style="display: flex; flex-direction: column;"><div style="display: grid; grid-template-columns: 190px 1fr 250px; gap: 10px 18px; align-items: start; padding-bottom: 10px; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">候選來源</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">內容</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">為什麼不能用</div></div><div style="display: grid; grid-template-columns: 190px 1fr 250px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">MNI 官方發布包</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">gm / wm / csf 組織機率圖（連續值）+ 三張二值遮罩</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;"><span style="color:#A34F1B">沒有解剖結構標籤</span></div></div><div style="display: grid; grid-template-columns: 190px 1fr 250px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">CerebrA</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">Mindboggle-101 配準 + 人工修，皮質與皮質下標記</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">定義在 symmetric 空間；標記協定與 aseg 不同</div></div><div style="display: grid; grid-template-columns: 190px 1fr 250px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">Hammers / LPBA40 / AAL</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">30–40 位受試者手工描繪，配準平均成機率圖</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">標記協定不同 → 差異會混進 Dice</div></div><div style="display: grid; grid-template-columns: 190px 1fr 250px; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">G-Node 公開資料</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">別人對同一模板跑過 recon-all</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;"><span style="color:#A34F1B">未標示 FreeSurfer 版本</span></div></div></div></div>
+  <div style="margin-top: 26px; border-top: 1px solid #D9D9D2; padding-top: 20px; display: flex; gap: 14px; align-items: flex-start;">
+    <span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span>
+    <div style="font-size: 14.5px; color: #141A1D; line-height: 1.7;">
+      <b>結論：自己跑 FreeSurfer，跟 167 顆同一套方法。</b>
+      這也跟論文一致 —— TMI 2019 §V-A-1 明寫受試者與 atlas 都是 FreeSurfer 分割，沒有用現成的標記圖譜。
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">11</div>
+
+</div>
+</x-dc>
+</body>
+</html>

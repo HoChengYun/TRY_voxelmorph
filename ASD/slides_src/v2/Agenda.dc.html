@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #141A1D; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A9294; font-weight: 600;">Agenda</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 34px; font-weight: 700; color: #E8E6E0; margin-top: 8px;">本次報告重點</div>
+  <div style="margin-top: 22px;"><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">01</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">資料從哪來、怎麼把關</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">170 個資料夾 → 167 顆可用，每一顆被排除都有依據</div></div></div><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">02</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">atlas 與線性對位</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">MNI152 怎麼變成 atlas，Affine 到底做了哪些動作</div></div></div><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">03</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">標籤怎麼搬到 atlas 空間</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">影像與標籤必須共用同一個變換，已逐 voxel 驗證</div></div></div><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">04</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">VoxelMorph 的原理</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">架構、損失函數、微分同胚積分</div></div></div><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">05</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">訓練與 Dice 結果</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">λ=1.0 是論文建議值，本專案第一次用對尺度</div></div></div><div style="display: grid; grid-template-columns: 46px 1fr; gap: 20px; align-items: start; padding: 14px 0; border-bottom: 1px solid #2A3237;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; color: #0E7C7B; font-weight: 600; padding-top: 2px;">06</div><div><div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 19px; font-weight: 700; color: #E8E6E0; line-height: 1.35;">誠實邊界與待確認事項</div><div style="font-size: 13px; color: #8A9294; margin-top: 4px; line-height: 1.55;">有兩件事需要老師確認</div></div></div></div>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+<div style="position: absolute; left: 56px; top: 40px; right: 56px;">
+
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">How VoxelMorph Works　3 / 3</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 35px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 6px;">「折疊」是什麼，怎麼避免</div>
+
+  <div style="font-size: 14.5px; color: #141A1D; line-height: 1.65; margin-top: 11px; max-width: 1010px;">
+    形變場要把受試者的每個位置搬到 atlas 的對應位置。
+    <b>折疊</b>＝兩塊組織被搬到同一個地方，或前後順序被翻轉 —— 解剖上不可能發生的變形。
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 15px;">
+
+    <div style="border: 1px solid #A34F1B; background: #EFEFEB; padding: 13px 16px;">
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em; color: #A34F1B; font-weight: 600;">位移場　一步到位</div>
+      <div style="font-size: 13.5px; color: #141A1D; line-height: 1.58; margin-top: 7px;">
+        直接說「這個點搬到那裡」。<b>各點各自搬，互不相干</b> ——
+        所以兩條路徑可能交叉，兩個點可能落到同一處。
+      </div>
+      <div style="margin-top: 9px;"><svg viewBox="0 0 260 100" style="width: 100%; height: auto; display: block;"><line x1="10" y1="20" x2="250" y2="20" stroke="#D9D9D2" stroke-width="1"/><line x1="10" y1="82" x2="250" y2="82" stroke="#D9D9D2" stroke-width="1"/><circle cx="30" cy="20" r="3.5" fill="#5F6A6B"/><line x1="30" y1="26" x2="26" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="26" cy="82" r="3.5" fill="#A34F1B"/><circle cx="70" cy="20" r="3.5" fill="#5F6A6B"/><line x1="70" y1="26" x2="66" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="66" cy="82" r="3.5" fill="#A34F1B"/><circle cx="110" cy="20" r="3.5" fill="#5F6A6B"/><line x1="110" y1="26" x2="152" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="152" cy="82" r="3.5" fill="#A34F1B"/><circle cx="150" cy="20" r="3.5" fill="#5F6A6B"/><line x1="150" y1="26" x2="104" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="104" cy="82" r="3.5" fill="#A34F1B"/><circle cx="190" cy="20" r="3.5" fill="#5F6A6B"/><line x1="190" y1="26" x2="196" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="196" cy="82" r="3.5" fill="#A34F1B"/><circle cx="230" cy="20" r="3.5" fill="#5F6A6B"/><line x1="230" y1="26" x2="236" y2="76" stroke="#A34F1B" stroke-width="1.6" opacity="0.85"/><circle cx="236" cy="82" r="3.5" fill="#A34F1B"/></svg></div>
+      <div style="font-size: 12.5px; color: #A34F1B; line-height: 1.5; margin-top: 4px;">
+        中間兩個點的順序被翻轉了 —— 這就是折疊。
+      </div>
+    </div>
+
+    <div style="border: 1px solid #0E7C7B; background: #EFEFEB; padding: 13px 16px;">
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em; color: #0E7C7B; font-weight: 600;">速度場　分成很多小步</div>
+      <div style="font-size: 13.5px; color: #141A1D; line-height: 1.58; margin-top: 7px;">
+        改成說「這個點往哪個方向流」，像水流一樣。
+        <b>順著流走，每一步都極小</b> —— 小到不可能翻過旁邊的點。
+      </div>
+      <div style="margin-top: 9px;"><svg viewBox="0 0 260 100" style="width: 100%; height: auto; display: block;"><line x1="10" y1="20" x2="250" y2="20" stroke="#D9D9D2" stroke-width="1"/><line x1="10" y1="82" x2="250" y2="82" stroke="#D9D9D2" stroke-width="1"/><circle cx="30" cy="20" r="3.5" fill="#5F6A6B"/><line x1="30" y1="26" x2="24" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="24" cy="82" r="3.5" fill="#0E7C7B"/><circle cx="70" cy="20" r="3.5" fill="#5F6A6B"/><line x1="70" y1="26" x2="62" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="62" cy="82" r="3.5" fill="#0E7C7B"/><circle cx="110" cy="20" r="3.5" fill="#5F6A6B"/><line x1="110" y1="26" x2="104" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="104" cy="82" r="3.5" fill="#0E7C7B"/><circle cx="150" cy="20" r="3.5" fill="#5F6A6B"/><line x1="150" y1="26" x2="152" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="152" cy="82" r="3.5" fill="#0E7C7B"/><circle cx="190" cy="20" r="3.5" fill="#5F6A6B"/><line x1="190" y1="26" x2="196" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="196" cy="82" r="3.5" fill="#0E7C7B"/><circle cx="230" cy="20" r="3.5" fill="#5F6A6B"/><line x1="230" y1="26" x2="238" y2="76" stroke="#0E7C7B" stroke-width="1.6" opacity="0.85"/><circle cx="238" cy="82" r="3.5" fill="#0E7C7B"/></svg></div>
+      <div style="font-size: 12.5px; color: #0E7C7B; line-height: 1.5; margin-top: 4px;">
+        順序始終保持 —— 不會折疊。
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 430px; gap: 38px; margin-top: 18px; border-top: 1px solid #D9D9D2; padding-top: 16px;">
+    <div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">怎麼「分成很多小步」——scaling and squaring</div>
+      <div style="font-size: 14px; color: #141A1D; line-height: 1.68; margin-top: 8px;">
+        <code style="font-family: Consolas, 'Courier New', monospace">int_steps=7</code> 的意思是分成 <b>2⁷ = 128 步</b>。
+        但不用真的算 128 次 —— 先把整個速度場縮小 128 倍（每一步都極小），
+        然後<b>自我複合 7 次</b>，每複合一次步數就翻倍：1 → 2 → 4 → … → 128。
+      </div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12.5px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 10px 12px; color: #141A1D; line-height: 1.62; white-space: pre; margin-top: 10px;">vec = vec / 128            # 縮小成極小的一步
+for _ in range(7):         # 複合 7 次，步數翻 7 倍
+    vec = vec + warp(vec, vec)</code></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-family: Consolas, 'Courier New', monospace; font-size: 34px; font-weight: 600; color: #0E7C7B; line-height: 1;">0.0000%</div>
+        <div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">asd_exp1 全部 26 個檢查點的折疊率</div>
+      </div>
+      <div style="border: 1px solid #D9D9D2; background: #EFEFEB; padding: 12px 14px;">
+        <div style="font-size: 12.5px; color: #141A1D; line-height: 1.62;">
+          <b style="color: #A34F1B">要講清楚的落差：</b>
+          論文 Table I 的主結果是<b>非</b>微分同胚版本（<code style="font-family: Consolas, 'Courier New', monospace">int_steps=0</code>，純位移場）。
+          repo 預設的 7 來自後續的機率式微分同胚版本 —— 所以「跑 repo 預設」跟「複現論文表格」不是同一件事。
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">16</div>
+</div>
+</x-dc>
+</body>
+</html>

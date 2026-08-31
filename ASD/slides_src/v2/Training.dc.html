@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Training Setup</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">λ 的尺度取決於 image-loss</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 26px;">
+    <div>
+      <div style="font-size: 15px; color: #141A1D; line-height: 1.75;">
+        同一個 λ 在 MSE 和 NCC 之間<b>意義完全不同</b>，因為兩者損失量級差兩個數量級。
+        論文 Fig. 7 分兩張圖畫，x 軸刻度不一樣。
+      </div>
+      <div style="margin-top: 22px;"><div style="display: flex; flex-direction: column;"><div style="display: grid; grid-template-columns: 96px 90px 108px 1fr; gap: 10px 18px; align-items: start; padding-bottom: 10px; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">image-loss</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">損失量級</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">論文最佳 λ</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">train.py 預設</div></div><div style="display: grid; grid-template-columns: 96px 90px 108px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">MSE</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">~0.005</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">0.01 – 0.02</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">0.01　<span style="color:#0E7C7B">落在最佳區</span></div></div><div style="display: grid; grid-template-columns: 96px 90px 108px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">NCC</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">~1</div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;"><b>≈ 1 – 2</b></div><div style="font-size: 14px; line-height: 1.55; color: #141A1D;">0.01　<span style="color:#A34F1B">小了兩個數量級</span></div></div></div></div>
+    </div>
+    <div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; color: #5F6A6B; font-weight: 600;">先前 IXI 實驗的平滑項佔比</div>
+      <div style="margin-top: 12px;"><div style="display: flex; flex-direction: column;"><div style="display: grid; grid-template-columns: 110px 66px 1fr; gap: 10px 18px; align-items: start; padding-bottom: 10px; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">實驗</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">λ</div><div style="font-size: 11.5px; letter-spacing: 0.08em; color: #5F6A6B; font-weight: 700; text-transform: uppercase; font-family: Consolas, 'Courier New', monospace;">平滑佔比</div></div><div style="display: grid; grid-template-columns: 110px 66px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">exp4</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">0.005</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">1.17%</div></div><div style="display: grid; grid-template-columns: 110px 66px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">exp5</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">0.05</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">3.26%</div></div><div style="display: grid; grid-template-columns: 110px 66px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">exp7</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">0.01</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">1.27%</div></div><div style="display: grid; grid-template-columns: 110px 66px 1fr; gap: 10px 18px; align-items: start; padding: 11px 0; border-bottom: 1px solid #D9D9D2;"><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">exp6（MSE）</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;">0.01</div><div style="font-size: 13px; line-height: 1.55; color: #141A1D;"><span style="color:#0E7C7B">24.53%</span></div></div></div></div>
+      <div style="margin-top: 18px; font-size: 13.5px; color: #5F6A6B; line-height: 1.7;">
+        <b style="color: #A34F1B">所有 NCC 實驗的正則化都形同虛設。</b>
+        asd_exp1 是本專案第一次把 λ 放到論文建議的尺度。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">17</div>
+
+</div>
+</x-dc>
+</body>
+</html>

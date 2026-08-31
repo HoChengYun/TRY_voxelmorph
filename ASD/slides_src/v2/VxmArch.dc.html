@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">How VoxelMorph Works　1 / 3</div>
+  <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">架構：U-Net 直接輸出形變場</div>
+  <div style="display: grid; grid-template-columns: 1fr 420px; gap: 42px; margin-top: 22px;">
+    <div>
+      <div style="font-size: 14.5px; color: #141A1D; line-height: 1.7;">
+        傳統配準（ANTs SyN）對<b>每一對</b>影像都跑一次迭代優化，一對要幾十分鐘。
+        VoxelMorph 改成訓練一個 U-Net 直接輸出形變場 —— 論文稱為 <i>amortized optimization</i>：
+        把每對各自優化的成本，攤提到一次性的訓練裡。
+      </div>
+      <div style="margin-top: 20px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 12px; background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px 14px; color: #141A1D; line-height: 1.7; white-space: pre;">輸入　moving + fixed 串成 2 channel
+　↓
+U-Net　encoder [16, 32, 32, 32]
+　　　　decoder [32, 32, 32, 32, 32, 16, 16]
+　↓
+輸出　3 channel = 每個 voxel 的位移向量 u(p)
+　↓
+形變場　φ = Id + u
+　↓
+SpatialTransformer：到 moving 的 p + u(p) 取值</div></div>
+      <div style="margin-top: 20px;"><div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; align-items: flex-start;"><span style="display: inline-block; width: 9px; height: 9px; background: #0E7C7B; border: 1.5px solid #0E7C7B; margin-right: 9px; flex: none; margin-top: 6px;"></span><div style="font-size: 14px; line-height: 1.62; color: #141A1D; text-wrap: pretty; flex: 1; min-width: 0;">取樣位置通常不是整數座標 → 要內插。<b>影像用線性、標籤必須用最近鄰。</b></div></div></div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 2px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #0E7C7B; line-height: 1;">< 1 秒</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">訓練完之後對新影像推論的時間</div></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-family: Consolas, 'Courier New', monospace; font-size: 44px; font-weight: 600; color: #A34F1B; line-height: 1;">數十分鐘</div><div style="font-size: 13px; color: #5F6A6B; line-height: 1.4;">傳統方法對每一對影像的迭代優化</div></div>
+      <div style="border-top: 1px solid #D9D9D2; padding-top: 16px; font-size: 13px; color: #5F6A6B; line-height: 1.7;">
+        <b style="color: #141A1D">關鍵：取樣這一步可微分</b><br>
+        SpatialTransformer 用 <code style="font-family: Consolas, 'Courier New', monospace">grid_sample</code> 取值，
+        誤差能反傳回 U-Net —— <b>所以沒有 ground truth 形變場也能訓練</b>。
+        這是整篇論文的技術核心。
+      </div>
+    </div>
+  </div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">14</div>
+
+</div>
+</x-dc>
+</body>
+</html>

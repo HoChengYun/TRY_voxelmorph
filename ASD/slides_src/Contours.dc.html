@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: #0E7C7B; text-decoration: none; }
+    a:hover { color: #A34F1B; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 720px; background: #FAFAF8; font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; position: relative; overflow: hidden;">
+
+<div style="position: absolute; left: 56px; top: 48px; right: 56px;">
+  <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5F6A6B; font-weight: 600;">Results</div>
+  <div style="font-family: 'Noto Serif TC', 'Songti TC', serif; font-size: 40px; font-weight: 700; color: #141A1D; line-height: 1.22; margin-top: 10px; text-wrap: pretty;">結構輪廓：配準前 vs 配準後</div>
+  <div style="margin-top: 20px;"><div style="display: flex; flex-direction: column; gap: 10px;">
+  <div style="background: #EFEFEB; border: 1px solid #D9D9D2; padding: 12px; display: flex; justify-content: center;">
+    <img src="contours.png" alt="structure contours before and after" style="max-height: 448px; max-width: 100%; object-fit: contain; display: block;">
+  </div>
+  <div style="font-size: 12.5px; color: #5F6A6B; line-height: 1.5;">實線 = atlas 輪廓，虛線 = 受試者。上排只有 Affine，虛線明顯錯開；下排加上 VoxelMorph 之後幾乎重合。 受試者 T023，Dice 0.6894 → 0.7931。</div>
+</div></div>
+</div>
+<div style="position: absolute; right: 56px; bottom: 34px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5F6A6B;">14</div>
+
+</div>
+</x-dc>
+</body>
+</html>
