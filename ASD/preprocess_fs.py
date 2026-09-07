@@ -80,6 +80,9 @@ p.add_argument('--exclude', default=None,
 p.add_argument('--group-map', default=None,
                help='受試者歸戶對照表 TSV/CSV：<subject_id><TAB><person_id>。'
                     '明列的一律優先，沒列到的才走 --grouping 的規則。')
+p.add_argument('--allow-suffix-names', action='store_true',
+               help='略過「同一顆受試者的多種產物在同一目錄」的偵測。'
+                    '只有在你確定檔名的後綴真的是不同受試者時才用')
 p.add_argument('--show-weak-groups', action='store_true',
                help='把「只差末位數字」的低度懷疑組逐組列出（預設只給一行計數，'
                     '因為補零流水號如 VNT001/VNT002 會大量誤觸）')
@@ -193,6 +196,33 @@ if not subjects:
     sys.exit(f"[X] {img_dir} 裡沒有 .nii.gz")
 
 print(f"掃到 {len(subjects)} 個檔案：{img_dir}")
+
+# 🔴 受試者 ID 直接來自檔名，所以「一個受試者有多個檔案放在同一個目錄」會被拆成多顆。
+#    實例（2026-09-08 實測）：tigerbx 的輸出是 <subject>_tbet / _tbetmask / _aseg / _dgm
+#    四個檔案同一層。把 --img-dir 和 --seg-dir 都指過去的話，2 顆會變成 8 個「受試者」，
+#    而且因為 seg_dir 同一個目錄、每個都找得到同名檔，連「缺對應 seg」都不會警告
+#    —— 等於拿分割圖當訓練影像、自己配自己，一路安靜跑完。
+_suffixes = {}
+for s in subjects:
+    if '_' in s:
+        _suffixes.setdefault(s.rsplit('_', 1)[1], []).append(s)
+_multi = {k: v for k, v in _suffixes.items() if len(v) > 1}
+if len(_multi) > 1 and sum(len(v) for v in _multi.values()) > len(subjects) * 0.5:
+    print()
+    print("[X] 檔名看起來是「同一顆受試者的多種產物放在同一個目錄」：")
+    for k in sorted(_multi)[:6]:
+        print(f"      _{k}  ×{len(_multi[k])}   例如 {_multi[k][0]}")
+    print("    受試者 ID 是直接取檔名的，這樣會把每一種產物都當成一顆獨立的腦。")
+    print("    請先把影像與標籤分到不同目錄、檔名只留受試者 ID，例如：")
+    print("        <目標>/img/<subject>.nii.gz")
+    print("        <目標>/seg/<subject>.nii.gz")
+    print("    確定要照現況跑，加 --allow-suffix-names。")
+    if not args.allow_suffix_names:
+        sys.exit(2)
+    print("    已加 --allow-suffix-names，繼續。")
+
+if seg_dir and os.path.normpath(seg_dir) == os.path.normpath(img_dir):
+    print("[!] --img-dir 與 --seg-dir 是同一個目錄 —— 影像與標籤會取到同一個檔案。")
 
 # ── 白名單 ───────────────────────────────────────────────────────────
 if args.subject_list:
