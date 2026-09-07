@@ -23,3 +23,6 @@ __pycache__/
 /meeting報告/
 /M11402202_HW1/
 /*.zip
+
+# 資料集（原始 FreeSurfer 產物 + 前處理 npz），數 GB，不進版控
+/data/

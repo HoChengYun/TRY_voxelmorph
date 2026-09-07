@@ -30,11 +30,16 @@ ap.add_argument('--model', required=True)
 ap.add_argument('--subject', default=None, help='受試者 ID 或 npz 路徑；不給則取 test 第一顆')
 ap.add_argument('--atlas', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))
 ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))
-ap.add_argument('--test-dir', default=os.path.join(ROOT, 'ASD', 'ASD_preprocessed_v1', 'test'))
+ap.add_argument('--dataset', default='ASD', help='→ data/<名稱>_preprocessed_v1/test')
+ap.add_argument('--test-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/test')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
 ap.add_argument('--out-dir', default=None)
 ap.add_argument('--gpu', default='0')
 args = ap.parse_args()
+
+# --test-dir 沒給就照 --dataset 推：data/<名稱>_preprocessed_v1/test
+if args.test_dir is None:
+    args.test_dir = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1', 'test')
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 import torch

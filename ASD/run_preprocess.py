@@ -28,19 +28,28 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--dry-run', action='store_true', help='只印歸戶與切分，不動影像')
 ap.add_argument('--yes', action='store_true', help='跳過確認')
 ap.add_argument('--save-nii', action='store_true', help='額外輸出 .nii.gz（約 +1.4 GB）')
-ap.add_argument('--out-dir', default=None, help='預設 ASD/ASD_preprocessed_v1')
+ap.add_argument('--dataset', default='ASD',
+                help='資料集名稱。原始資料在 data/<名稱>_data/{norm,aseg}，'
+                     '輸出到 data/<名稱>_preprocessed_v1')
+ap.add_argument('--out-dir', default=None, help='預設 data/<資料集>_preprocessed_v1')
+ap.add_argument('--subject-list', default=None,
+                help='預設 ASD/<資料集>_subjects_final.txt；ASD 用 ASD/subjects_final.txt')
 args = ap.parse_args()
 
+DS = args.dataset
 PY = sys.executable
 SCRIPT = os.path.join(ROOT, 'ASD', 'preprocess_fs.py')
-IMG_DIR = os.path.join(ROOT, 'ASD', 'ASD_data', 'norm')
-SEG_DIR = os.path.join(ROOT, 'ASD', 'ASD_data', 'aseg')
+DATA_ROOT = os.path.join(ROOT, 'data', DS + '_data')
+IMG_DIR = os.path.join(DATA_ROOT, 'norm')
+SEG_DIR = os.path.join(DATA_ROOT, 'aseg')
 ATLAS = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.nii.gz')
-OUT_DIR = args.out_dir or os.path.join(ROOT, 'ASD', 'ASD_preprocessed_v1')
-SUBJ_LIST = os.path.join(ROOT, 'ASD', 'subjects_final.txt')
+OUT_DIR = args.out_dir or os.path.join(ROOT, 'data', DS + '_preprocessed_v1')
+# ASD 的清單沿用原檔名（已進版控、文件到處引用）；其他資料集用 <名稱>_subjects_final.txt
+SUBJ_LIST = args.subject_list or os.path.join(
+    ROOT, 'ASD', 'subjects_final.txt' if DS == 'ASD' else DS + '_subjects_final.txt')
 LOG_DIR = os.path.join(ROOT, 'log')
-LOG_FILE = os.path.join(LOG_DIR, 'asd_preprocess.txt')
-CMD_FILE = os.path.join(LOG_DIR, 'asd_preprocess_script.txt')
+LOG_FILE = os.path.join(LOG_DIR, '%s_preprocess.txt' % DS.lower())
+CMD_FILE = os.path.join(LOG_DIR, '%s_preprocess_script.txt' % DS.lower())
 VERIFY = os.path.join(ROOT, 'ASD', 'verify_one_subject.py')
 
 BAR = '=' * 69

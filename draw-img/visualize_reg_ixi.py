@@ -40,7 +40,7 @@ from skimage.metrics import structural_similarity as ssim_fn
 parser = argparse.ArgumentParser()
 parser.add_argument('--model',    required=True)
 parser.add_argument('--atlas',    required=True)
-parser.add_argument('--subject',  default=None,  help='指定單張 npz，不指定則從 test-dir 隨機選')
+parser.add_argument('--subject',  default=None,  help='npz 路徑，或受試者 ID（需搭 --test-dir）；不指定則從 test-dir 隨機選')
 parser.add_argument('--test-dir', default=None)
 parser.add_argument('--out-dir',  required=True)
 parser.add_argument('--gpu',      default='0')
@@ -66,6 +66,19 @@ model.eval()
 # ── 選擇受試者 ────────────────────────────────────────────────────────
 if args.subject is not None:
     subject_path = args.subject
+    # --subject 也接受純受試者 ID（例如 A061），到 --test-dir 底下找同名 npz。
+    # 不然只給 ID 會一路掉進 load_volfile，噴 'unknown filetype for A061'，看不出原因。
+    if not os.path.exists(subject_path):
+        if args.test_dir is None:
+            parser.error('找不到 %s；若要用受試者 ID，必須同時給 --test-dir' % subject_path)
+        for ext in ('.npz', '.nii.gz', '.nii'):
+            cand = os.path.join(args.test_dir, subject_path + ext)
+            if os.path.exists(cand):
+                subject_path = cand
+                break
+        else:
+            parser.error('在 %s 底下找不到受試者 %s（試過 .npz/.nii.gz/.nii）'
+                         % (args.test_dir, args.subject))
 else:
     import random
     files = [os.path.join(args.test_dir, f)

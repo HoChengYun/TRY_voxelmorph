@@ -32,8 +32,9 @@
 atlas 為 **MNI152 ICBM 2009c Asymmetric**（自製，非官方 OASIS atlas）。
 
 **當前狀態**：前處理／訓練／評估／視覺化都已跑通，完成 8 組實驗（exp1–exp8）。
-ASD（老師提供）那條線的**前處理已跑完**（167 顆 → train 150 / test 17），
-訓練在**另一台機器**上跑（見「待辦 1」與 `ASD/ASD相關手冊.md`）。
+ASD（老師提供）那條線**整條打通了**：前處理 → 訓練（asd_exp1，B 台）→ **Dice 評估** → 視覺化。
+**asd_exp1：Dice 0.7811、折疊率 0.0000%、基準線 0.6760。**
+細節見 `ASD/ASD相關手冊.md` §9.1（結果）、§12（atlas 的 aseg）、§13（評估與視覺化）。
 
 ⚠️ **本專案不含 TransMorph**。TransMorph 在 `D:\MyHome\MRI\TransMorph\`，有自己的 `CLAUDE.md`。
 根目錄的 `TransMorph_Report.docx` 只是報告備份，與本專案程式碼無關。
@@ -77,18 +78,28 @@ C:\Users\h4524\claude_cheng\
 │       ├── batch_test_ixi.py           # ⭐ 掃全部 .pt，畫 epoch 曲線
 │       ├── batch_test_oasis.py         register.py
 │       └── train\train_NCCPatchSize.py # 可調 --ncc-win 的訓練變體（⚠️ 目前尚未用它跑過任何實驗）
-├── ASD\                                # ⭐ ASD 資料集（老師提供）＋ FreeSurfer 標籤接入
-│   ├── ASD相關手冊.md                  # ⭐ ASD 這條線的完整操作手冊，先讀這個
+├── ASD\                                # ⭐ FreeSurfer 這條線的程式與筆記（**不放資料**）
+│   ├── ASD相關手冊.md                  # ⭐ 這條線的完整操作手冊，先讀這個
 │   ├── preprocess_fs.py                # FreeSurfer 產物 → npz（含 seg）
 │   ├── verify_seg_transform.py         # 驗證 affine 共用 + 最近鄰內插（已實測 6/6 通過）
 │   ├── verify_one_subject.py           # 單顆量化驗證（含左右翻轉檢查）
-│   ├── subjects_final.txt              # ✅ FINAL 清單（167 個 ID）
+│   ├── verify_conform_roundtrip.py     # 量 conform 來回的位移（0.0032 voxel）
+│   ├── make_padded_atlas_input.py      # atlas 補零成 256³，讓 recon-all 零內插
+│   ├── make_atlas_seg.py               # atlas aseg 切回訓練空間
+│   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（硬連結），給混合訓練
+│   ├── test_dice.py                    # ⭐ Dice 評估
+│   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
+│   ├── run_preprocess.py               # 前處理包裝（--dataset）
+│   ├── run_train.py                    # 訓練包裝（--dataset / --check-only / --resume）
+│   ├── subjects_final.txt              # ✅ ASD 的 FINAL 清單（167 個 ID）
 │   ├── groups.txt                      # 歸戶對照（目前不需要，見手冊 §3）
-│   ├── ASD_data\norm\  ASD_data\aseg\  # ✅ 已落地：各 167 個 .nii.gz，共 285 MB
 │   ├── fs_check\                       # --only 單顆驗證輸出
-│   ├── run_preprocess.py               # 前處理包裝（檢查→預覽→執行→抽驗）
-│   ├── run_train.py                    # 訓練包裝（--check-only / --resume）
-│   └── ASD_preprocessed_v1\            # ✅ train 150 / test 17 + split.json（1.28 GB）
+│   └── slides_src\                     # meeting 簡報原始碼（25 頁 .dc.html）
+├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
+│   ├── ASD_data\norm\  ASD_data\aseg\  # 原始 FreeSurfer 產物，各 167 個，285 MB
+│   ├── ASD_preprocessed_v1\            # ✅ train 149 / test 17 + split.json（1.28 GB）
+│   ├── <名稱>_data\{norm,aseg}\        # 新資料集照這個命名，就能被 --dataset 找到
+│   └── mixed_preprocessed_v1\          # make_mixed_set.py 併出來的，混合訓練用
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
 │   ├── mni_icbm152_nlin_asym_09c_nifti\ # 下載的 MNI152 2009c
@@ -292,7 +303,7 @@ python draw-img\visualize_reg_ixi.py `
 | **SSIM** | 越高越好 | 結構相似度，比 NCC 接近人眼感知 |
 | **%\|J\|≤0** | 越低越好 | Jacobian 非正比例＝形變場**折疊**。⚠️ 判準見下 |
 | **Smoothness** | 適中 | 位移場梯度能量。太低＝幾乎沒形變；太高＝形變過激 |
-| ~~Dice~~ | — | 🔴 **目前做不到**，npz 沒有 `seg`。見「待辦 1」 |
+| **Dice** | 越高越好 | ✅ **ASD 這批可以報了**（npz 有 `seg`）。用 `ASD/test_dice.py`，30 個結構。<br>🔴 IXI 那批仍然不行，npz 沒有 `seg` |
 
 ### ⚠️ 報表的 NCC 是會飽和的弱指標
 
@@ -456,7 +467,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 
 ## 待辦
 
-### 1. 🟢 接入 FreeSurfer 標籤（前處理已完成）→ 🔴 Dice 評估仍待寫
+### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
 > 🔴 **程式已經寫好了，不要重寫。**
 > **完整操作細節在 `ASD/ASD相關手冊.md`**，先讀那份；程式是 `ASD/` 底下這兩支。
@@ -490,9 +501,9 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 - **影像來源**：使用者選 `norm.mgz`（不是 `brain.mgz`），167 顆全體一致。
 
 **✅ 前處理已完成（2026-08-23）**：
-資料已落地 `ASD/ASD_data/norm`＋`aseg`（各 167 個，285 MB），
-批次前處理跑完 **0 失敗、0 個標籤消失**，輸出 `ASD/ASD_preprocessed_v1/`
-（train 150 / test 17，**1.28 GB**）。
+資料已落地 `data/ASD_data/norm`＋`aseg`（各 167 個，285 MB），
+批次前處理跑完 **0 失敗、0 個標籤消失**，輸出 `data/ASD_preprocessed_v1/`
+（切分當下 train 150 / test 17；**A016_1 於 QC 後移出 → 實際訓練 149 / 17**，**1.28 GB**）。
 
 **還卡著的一件事**：
 🟠 **A013 / A0131 / A0132、A016_1 / A016_2 是否同一人** —— 要問老師。
@@ -511,8 +522,12 @@ D:\MyHome\MRI\FreeSurfer\docs\ASD_全部資料夾清單.txt   （170 個，含�
 
 用 FINAL 清單 + `--grouping none` 的實跑結果：
 **167 個掃描 → 167 位受試者，train 150 人/150 掃描、test 17 人/17 掃描，無人橫跨。**
+之後 A016_1 於 QC 移出訓練集，**實際訓練是 149 / 17**。
 
-**⭐ Dice 評估腳本尚未撰寫。** 可直接用 `voxelmorph-code/data/labels.npz`
+**✅ Dice 評估腳本已完成：`ASD/test_dice.py`**（三種模式：`--baseline` / `--model` / `--model-dir`）。
+視覺化是 `ASD/visualize_dice.py`。用法見 `ASD/ASD相關手冊.md` §13。
+
+用的是 `voxelmorph-code/data/labels.npz`
 （已實際載入確認：30 個 FreeSurfer 標籤 ID，`int64`）：
 ```
 [2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 24,

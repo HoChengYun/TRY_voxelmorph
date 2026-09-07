@@ -34,7 +34,9 @@ ap.add_argument('--lambda', dest='weight', type=float, default=1.0)
 ap.add_argument('--epochs', type=int, default=250)
 ap.add_argument('--steps-per-epoch', type=int, default=100)
 ap.add_argument('--gpu', default='0')
-ap.add_argument('--data-dir', default=None, help='預設 ASD/ASD_preprocessed_v1/train')
+ap.add_argument('--dataset', default='ASD',
+                help='資料集名稱 → data/<名稱>_preprocessed_v1。混合訓練用 --dataset mixed')
+ap.add_argument('--data-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/train')
 ap.add_argument('--atlas', default=None, help='預設 IXI/atlas_mni152_09c_v3.npz')
 ap.add_argument('--resume', action='store_true', help='從最後一個 .pt 續跑')
 ap.add_argument('--check-only', action='store_true', help='只做起跑前檢查')
@@ -43,8 +45,9 @@ args = ap.parse_args()
 
 PY = sys.executable                    # 就是目前這個 venv 的 python
 TRAIN = os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py')
-DATA = args.data_dir or os.path.join(ROOT, 'ASD', 'ASD_preprocessed_v1', 'train')
-TEST = os.path.join(ROOT, 'ASD', 'ASD_preprocessed_v1', 'test')
+PREP = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1')
+DATA = args.data_dir or os.path.join(PREP, 'train')
+TEST = os.path.join(PREP, 'test')
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
 MODEL_DIR = os.path.join(ROOT, 'models', args.exp_name)
 LOG_DIR = os.path.join(ROOT, 'log')
@@ -173,7 +176,11 @@ with open(CMD_FILE, 'w', encoding='utf-8') as f:
     f.write('# %s 訓練指令記錄\n' % args.exp_name)
     f.write('# 執行時間: %s\n' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     f.write('# 機器: %s\n' % platform.node())
-    f.write('# 資料: ASD_preprocessed_v1 (train 150 / test 17, grouping=none, 167 subjects)\n')
+    # 🔴 這行以前寫死「train 150」，事後查不出當初到底跑了幾顆。改成執行時實數。
+    n_tr = len(glob.glob(os.path.join(DATA, '*.npz')))
+    n_te = len(glob.glob(os.path.join(TEST, '*.npz')))
+    f.write('# 資料: %s (train %d / test %d, grouping=none)\n'
+            % (os.path.basename(os.path.dirname(DATA)), n_tr, n_te))
     f.write('# 由 ASD/run_train.py 產生\n\n')
     f.write(' '.join('"%s"' % c if ' ' in c else c for c in cmd) + '\n')
 
