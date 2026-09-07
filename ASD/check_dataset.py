@@ -107,6 +107,33 @@ for ds in args.datasets:
     print('  %s   %d 個 npz' % (ds, len(files)))
     print('=' * 66)
 
+    # 混合集：跟 mixed_manifest.json 對帳（它沒有 subjects.txt）
+    # 🔴 2026-09-08 補：原本只查來源三包，漏掉 mixed。實際踩到 —— 三包複製完整，
+    #    但 mixed 少了 67 個檔案，train.py 照跑不報錯，只是少看四分之一的資料。
+    mman = os.path.join(prep, 'mixed_manifest.json')
+    if os.path.exists(mman):
+        want = json.load(open(mman, encoding='utf-8'))['members']
+        got = {os.path.basename(f) for f in files}
+        miss = sorted(set(want) - got)
+        extra = sorted(got - set(want))
+        if miss or extra:
+            print('  [X] 與 mixed_manifest.json 不符：缺 %d 個，多 %d 個' % (len(miss), len(extra)))
+            by_ds = {}
+            for k in miss:
+                by_ds.setdefault(want[k]['dataset'] + '/' + want[k]['split'], []).append(k)
+            for k in sorted(by_ds):
+                v = by_ds[k]
+                print('      缺 %-12s %3d 個：%s%s'
+                      % (k, len(v), ', '.join(x[:-4] for x in v[:5]),
+                         ' ...' if len(v) > 5 else ''))
+            if extra:
+                print('      多：%s' % ', '.join(extra[:5]))
+            print('      -> 重建：python ASD\\make_mixed_set.py --sources %s --force'
+                  % ' '.join(sorted({want[k]['dataset'] for k in want})))
+            total_bad += len(miss) + len(extra)
+        else:
+            print('  [v] 與 mixed_manifest.json 一致（%d 個）' % len(want))
+
     # 與 subjects.txt 對帳
     slist = os.path.join(ROOT, 'data', ds + '_data', 'fs_stats', 'subjects.txt')
     if os.path.exists(slist):
@@ -119,7 +146,7 @@ for ds in args.datasets:
             print('  [X] 與 subjects.txt 不一致：缺 %s  多 %s'
                   % (sorted(ids - got)[:5] or '無', sorted(got - ids)[:5] or '無'))
             total_bad += 1
-    else:
+    elif not os.path.exists(mman):
         print('  [!] 沒有 subjects.txt，跳過對帳（fs_stats/ 忘了複製？）')
 
     man_path = os.path.join(prep, MANIFEST)
