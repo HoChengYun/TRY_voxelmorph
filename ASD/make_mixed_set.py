@@ -4,8 +4,11 @@
 `train.py` 是 `glob(datadir/*.npz)`，只吃**單一扁平資料夾**，
 所以混合訓練必須先把各資料集的 npz 放到同一個目錄。
 
-用硬連結而不是複製 —— 1.3 GB 的資料集併三份就是 4 GB，沒有意義。
-硬連結要求來源與目的在**同一個磁碟區**（NTFS 支援）；跨磁碟時自動退回複製。
+🔴 預設是**實體複製**，不是硬連結（2026-09-08 使用者決定）。
+硬連結雖然省空間，但 Windows 檔案總管完全看不出一個資料夾裡是連結還是實體檔案
+—— 沒有圖示、沒有欄位，只能靠 `fsutil hardlink list` 查。
+省 2.2 GB 換一個看不見的機關不划算，尤其這份資料要在機器之間搬。
+真的要省空間再加 `--hardlink`（同磁碟區才有效，跨磁碟會自動退回複製）。
 
 各來源自己的 train/test 切分**原封不動保留**：train 併 train、test 併 test。
 所以只要每個資料集自己的切分是受試者層級的，合併後仍然沒有 leakage。
@@ -31,6 +34,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--sources', nargs='+', required=True,
                 help='資料集名稱，對應 data/<名稱>_preprocessed_v1')
 ap.add_argument('--out', default='mixed', help='輸出到 data/<out>_preprocessed_v1')
+ap.add_argument('--hardlink', action='store_true',
+                help='用硬連結取代複製以省空間。⚠️ 檔案總管看不出哪些是連結，'
+                     '而且來源重跑前處理後 mixed 不會跟著更新也不會報錯')
 ap.add_argument('--prefix', action='store_true',
                 help='檔名前面加 <資料集>_ ；預設只在偵測到撞名時才需要')
 ap.add_argument('--force', action='store_true', help='輸出目錄已存在就清掉重建')
@@ -97,11 +103,15 @@ for split in ('train', 'test'):
             manifest['members'][out_name] = {'dataset': name, 'split': split}
             if args.dry_run:
                 continue
-            try:
-                os.link(p, dst)          # 硬連結：不佔額外空間
-                n_link += 1
-            except OSError:
-                shutil.copy2(p, dst)     # 跨磁碟時退回複製
+            if args.hardlink:
+                try:
+                    os.link(p, dst)      # 硬連結：不佔額外空間，但看不出來
+                    n_link += 1
+                except OSError:
+                    shutil.copy2(p, dst)  # 跨磁碟或不支援時退回複製
+                    n_copy += 1
+            else:
+                shutil.copy2(p, dst)     # 預設：實體複製，所見即所得
                 n_copy += 1
 
 print()
@@ -119,7 +129,9 @@ te = len(glob.glob(os.path.join(OUT, 'test', '*.npz')))
 exp_tr = sum(s[2] for s in srcs)
 exp_te = sum(s[3] for s in srcs)
 
-print('  硬連結 %d 個，複製 %d 個' % (n_link, n_copy))
+print('  複製 %d 個，硬連結 %d 個' % (n_copy, n_link))
+if n_link:
+    print('  ⚠️ 有 %d 個是硬連結 —— 檔案總管看不出來，來源重跑前處理後這裡不會跟著更新' % n_link)
 print('  %s' % OUT)
 print('    train %d（預期 %d）%s' % (tr, exp_tr, '' if tr == exp_tr else '  [X] 對不上！'))
 print('    test  %d（預期 %d）%s' % (te, exp_te, '' if te == exp_te else '  [X] 對不上！'))
