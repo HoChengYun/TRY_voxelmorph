@@ -1,0 +1,6 @@
+# VNT 前處理指令記錄
+# 執行時間: 2026-09-07 23:47:53
+# 機器: DiscoLaptop
+# 由 ASD/run_preprocess.py 產生
+
+C:\Users\h4524\claude_cheng\vxm_env\Scripts\python.exe C:\Users\h4524\claude_cheng\ASD\preprocess_fs.py --img-dir C:\Users\h4524\claude_cheng\data\VNT_data\fs_for_vxm\norm --seg-dir C:\Users\h4524\claude_cheng\data\VNT_data\fs_for_vxm\aseg --atlas C:\Users\h4524\claude_cheng\IXI\atlas_mni152_09c_v3.nii.gz --out-dir C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1 --subject-list C:\Users\h4524\claude_cheng\data\VNT_data\fs_stats\subjects.txt --grouping none --list-is-final

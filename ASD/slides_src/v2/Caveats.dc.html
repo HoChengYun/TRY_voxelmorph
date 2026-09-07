@@ -27,19 +27,18 @@
       </div>
     </div>
     <div>
-      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.14em; color: #8A9294; font-weight: 600;">需要老師確認</div>
+      <div style="font-family: Consolas, 'Courier New', monospace; font-size: 11px; letter-spacing: 0.14em; color: #8A9294; font-weight: 600;">查完 DICOM 檔頭之後</div>
       <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 18px;">
         <div style="border: 1px solid #2A3237; padding: 18px; background: #1A2125;">
-          <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">A013 / A0131 / A0132 是同一人嗎？</div>
+          <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">✅ 身分問題已解決</div>
           <div style="font-size: 13.5px; color: #8A9294; margin-top: 8px; line-height: 1.65;">
-            目前採「三個不同的人」的暫定假設。這是全批唯一的命名曖昧，確認後改一份設定檔就能重跑切分，不用改程式。
+            A013 是成年男性，A0131 / A0132 是同一位學齡前男童的兩個時間點 —— 年齡相差約 18 歲。另查出 YT13 與 A0131 連 StudyTime 都相同 —— 同一次掃描被匯出成兩個 ID。重複的兩顆已排除，切分不再有 leakage。
           </div>
         </div>
         <div style="border: 1px solid #2A3237; padding: 18px; background: #1A2125;">
-          <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">這批的年齡分布？</div>
+          <div style="font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 16px; font-weight: 700; color: #0E7C7B;">⚠️ eTIV 偏低仍未解</div>
           <div style="font-size: 13.5px; color: #8A9294; margin-top: 8px; line-height: 1.65;">
-            eTIV 中位數 1.29 L，比健康成人低約 20%，且厚度異常者全部偏厚 —— 這批可能包含兒童。
-            會影響能否與 IXI（20–86 歲成人）對照。
+            年齡查清楚了：5–40 歲，中位數 22，未滿 12 歲只有 5 人（2.9%）——<b style="color:#A34F1B">「可能包含兒童」的推論不成立</b>。但同機同協定的 DGM 組年齡中位數 23 歲、eTIV 卻高 20%，所以低 eTIV 不是年齡造成的，原因未明。
           </div>
         </div>
       </div>

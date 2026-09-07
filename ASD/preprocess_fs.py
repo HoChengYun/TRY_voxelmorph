@@ -80,6 +80,9 @@ p.add_argument('--exclude', default=None,
 p.add_argument('--group-map', default=None,
                help='受試者歸戶對照表 TSV/CSV：<subject_id><TAB><person_id>。'
                     '明列的一律優先，沒列到的才走 --grouping 的規則。')
+p.add_argument('--show-weak-groups', action='store_true',
+               help='把「只差末位數字」的低度懷疑組逐組列出（預設只給一行計數，'
+                    '因為補零流水號如 VNT001/VNT002 會大量誤觸）')
 p.add_argument('--grouping', default='auto', choices=['auto', 'none'],
                help='沒被 --group-map 明列的 ID 怎麼歸戶。'
                     'auto（預設）＝去掉結尾的 _<數字>（A016_1 與 A016_2 視為同一人）；'
@@ -140,24 +143,38 @@ def load_group_map(path):
 def find_ambiguous(subject_ids):
     """
     找出「可能是同一人但字串規則不敢合併」的組合，交給人判斷。
-    兩種型態：
-      (1) 只差結尾一個數字      A0131 / A0132
-      (2) 某 ID 是別的 ID 的前綴  A013 是 A0131 / A0132 的前綴
+
+    只回報有**額外佐證**的組，兩種：
+      (1) 去掉末位後的字根本身也是一個受試者   A013 是 A0131 / A0132 的字根
+      (2) 末位數字前面有分隔符                 A016_1 / A016_2
+
+    🔴 2026-09-07 收緊過。原本只要「ID ≥5 字元且結尾是數字」就歸組，
+       結果 VNT001~VNT009 全部變成字根 VNT00 被當成同一人 —— VNT 那包
+       68 顆全被歸進 7 組誤報。補零流水號本來就長這樣，那不是證據。
+       誤報會訓練人忽略警告，比不報還糟。
     """
     ids = set(subject_ids)
-    groups = {}
+    strong, weak = {}, {}
 
     for s in subject_ids:
-        if re.match(r'^.{4,}\d$', s):
-            stem = s[:-1].rstrip('_-')        # A016_1 -> A016（不要留下 A016_）
-            if stem:
-                groups.setdefault(stem, set()).add(s)
+        if not re.match(r'^.{4,}\d$', s):
+            continue
+        body = s[:-1]
+        stem = body.rstrip('_-')              # A016_1 -> A016（不要留下 A016_）
+        if not stem:
+            continue
+        # 有分隔符，或字根本身就是一個受試者 -> 強訊號
+        if body != stem or stem in ids:
+            strong.setdefault(stem, set()).add(s)
+        else:
+            weak.setdefault(stem, set()).add(s)
 
-    for stem in list(groups):
-        if stem in ids:                       # 前綴本身也是一個受試者
-            groups[stem].add(stem)
+    for stem in list(strong):
+        if stem in ids:                       # 字根本身也是一個受試者
+            strong[stem].add(stem)
 
-    return {k: sorted(v) for k, v in groups.items() if len(v) > 1}
+    return ({k: sorted(v) for k, v in strong.items() if len(v) > 1},
+            {k: sorted(v) for k, v in weak.items() if len(v) > 1})
 
 
 img_dir = os.path.normpath(args.img_dir)
@@ -270,7 +287,7 @@ if multi:
         print(f"    {k}: {v}")
 
 # 疑似同組但目前被當成不同人 —— 一律提醒，不論成因是規則沒抓到還是刻意不合併
-amb = find_ambiguous(subjects)
+amb, weak = find_ambiguous(subjects)
 if args.grouping == 'auto':
     # auto 模式下再補上「底線後綴」型態（find_ambiguous 抓不到）
     for s in subjects:
@@ -280,6 +297,8 @@ if args.grouping == 'auto':
     amb = {k: sorted(set(v)) for k, v in amb.items() if len(set(v)) > 1}
 amb = {k: v for k, v in amb.items()
        if len({person_of[s] for s in v}) > 1}   # 已歸在一起的不必再警告
+weak = {k: v for k, v in weak.items()
+        if len({person_of[s] for s in v}) > 1}
 if amb:
     n_scan = sum(len(v) for v in amb.values())
     print(f"\n[!] 以下 {len(amb)} 組（共 {n_scan} 個掃描）疑似同一人，但目前被當成不同人：")
@@ -292,6 +311,17 @@ if amb:
     for k, v in sorted(amb.items()):
         for s in v:
             print(f"        {s}\t{k}")
+
+if weak:
+    # 只差末位數字、但字根不是受試者也沒有分隔符 —— 補零流水號長這樣，多半是誤報。
+    # 只給一行計數，不列清單，免得淹掉上面真正該看的。
+    n_scan = sum(len(v) for v in weak.values())
+    print(f"\n[i] 另有 {len(weak)} 組（{n_scan} 個掃描）只是「末位數字不同」"
+          f"（如 {sorted(weak.values())[0][0]} / {sorted(weak.values())[0][1]}）。")
+    print("    補零流水號本來就長這樣，通常不是同一人。要逐組看的話：--show-weak-groups")
+    if args.show_weak_groups:
+        for k, v in sorted(weak.items()):
+            print(f"      {v}")
 
 # ── 以「人」為單位切分 ───────────────────────────────────────────────
 rng = random.Random(args.seed)
@@ -367,12 +397,27 @@ with open(os.path.join(args.out_dir, 'split.json'), 'w', encoding='utf-8') as f:
         'split_of': split_of,
     }, f, indent=2, ensure_ascii=False)
 
-ok = skip = fail = 0
+ok = skip = fail = moved = 0
 n = len(subjects)
 
 for i, subj in enumerate(subjects, 1):
     split = split_of[subj]
     dst = os.path.join(args.out_dir, split, subj + '.npz')
+
+    # 切分改變時（例如補了 --group-map），同一顆的舊檔還躺在另一個資料夾裡。
+    # 直接搬過來，不要重跑 —— ANTs 配準有隨機取樣，重跑會得到跟原本略微不同的結果，
+    # 那會讓同一份資料集裡的檔案來自兩次不同的處理。
+    other = 'test' if split == 'train' else 'train'
+    src_old = os.path.join(args.out_dir, other, subj + '.npz')
+    if os.path.exists(src_old) and not os.path.exists(dst):
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        os.replace(src_old, dst)
+        moved += 1
+        print(f"[{i:3d}/{n}] 切分改變，{other} -> {split}：{subj}")
+        continue
+    if os.path.exists(src_old) and os.path.exists(dst):
+        os.remove(src_old)      # 兩邊都有 -> 舊的那份是殘留
+        print(f"[{i:3d}/{n}] 清掉 {other}/ 的殘留：{subj}")
 
     if args.skip_done and os.path.exists(dst):
         skip += 1
@@ -470,5 +515,5 @@ for i, subj in enumerate(subjects, 1):
     print()
 
 print("=" * 55)
-print(f"完成！ 成功={ok} 略過={skip} 失敗={fail}")
+print(f"完成！ 成功={ok} 略過={skip} 切分改變而搬移={moved} 失敗={fail}")
 print(f"輸出：{args.out_dir}  （切分記錄：split.json）")

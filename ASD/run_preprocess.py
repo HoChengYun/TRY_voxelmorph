@@ -1,14 +1,18 @@
 """
-ASD 前處理包裝：FreeSurfer 產物 -> VoxelMorph 訓練用 npz
+前處理包裝：FreeSurfer 產物 -> VoxelMorph 訓練用 npz
 
 用法（在專案根目錄，venv 啟動後）：
-    python ASD\\run_preprocess.py               # 正常跑（會先顯示切分並要你確認）
-    python ASD\\run_preprocess.py --dry-run     # 只看切分，不動影像
-    python ASD\\run_preprocess.py --yes         # 跳過確認，直接開跑
-    python ASD\\run_preprocess.py --save-nii    # 額外輸出每顆的 .nii.gz（多佔約 1.4 GB）
+    python ASD\\run_preprocess.py --dataset ASD   # 正常跑（會先顯示切分並要你確認）
+    python ASD\\run_preprocess.py --dataset DGM --dry-run   # 只看切分，不動影像
+    python ASD\\run_preprocess.py --dataset VNT --yes       # 跳過確認，直接開跑
+    python ASD\\run_preprocess.py --save-nii      # 額外輸出每顆的 .nii.gz
+
+資料位置：data/<資料集>_data/fs_for_vxm/{norm,aseg}
+清單：    data/<資料集>_data/fs_stats/subjects.txt（FreeSurfer 端隨資料附的）
+輸出：    data/<資料集>_preprocessed_v1/{train,test}
 
 中斷了直接重跑即可 —— preprocess_fs.py 預設 --skip-done，已完成的會略過。
-預計耗時：167 顆 x 約 25 秒 = 70~90 分鐘（主要花在 ANTs Affine 配準）。
+預計耗時：每顆約 25 秒（主要花在 ANTs Affine 配準）。
 
 專案根目錄由本檔位置自動推出；用的 python 就是執行本檔的那一個。
 """
@@ -32,6 +36,9 @@ ap.add_argument('--dataset', default='ASD',
                 help='資料集名稱。原始資料在 data/<名稱>_data/{norm,aseg}，'
                      '輸出到 data/<名稱>_preprocessed_v1')
 ap.add_argument('--out-dir', default=None, help='預設 data/<資料集>_preprocessed_v1')
+ap.add_argument('--group-map', default=None,
+                help='歸戶對照表 TSV（受試者<TAB>人）。預設抓 ASD/<資料集>_groups.txt，'
+                     '有的話就用 —— 同一人的多次掃描必須整組在同一個 split')
 ap.add_argument('--subject-list', default=None,
                 help='預設 ASD/<資料集>_subjects_final.txt；ASD 用 ASD/subjects_final.txt')
 args = ap.parse_args()
@@ -40,13 +47,28 @@ DS = args.dataset
 PY = sys.executable
 SCRIPT = os.path.join(ROOT, 'ASD', 'preprocess_fs.py')
 DATA_ROOT = os.path.join(ROOT, 'data', DS + '_data')
-IMG_DIR = os.path.join(DATA_ROOT, 'norm')
-SEG_DIR = os.path.join(DATA_ROOT, 'aseg')
+
+# FreeSurfer 端 2026-09-07 起改成多包一層 fs_for_vxm/ 並附 fs_stats/subjects.txt。
+# 舊版是 <名稱>_data/{norm,aseg}，兩種都認，避免舊資料夾突然跑不動。
+_NEW = os.path.join(DATA_ROOT, 'fs_for_vxm')
+_BASE = _NEW if os.path.isdir(_NEW) else DATA_ROOT
+IMG_DIR = os.path.join(_BASE, 'norm')
+SEG_DIR = os.path.join(_BASE, 'aseg')
+
 ATLAS = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.nii.gz')
 OUT_DIR = args.out_dir or os.path.join(ROOT, 'data', DS + '_preprocessed_v1')
-# ASD 的清單沿用原檔名（已進版控、文件到處引用）；其他資料集用 <名稱>_subjects_final.txt
-SUBJ_LIST = args.subject_list or os.path.join(
-    ROOT, 'ASD', 'subjects_final.txt' if DS == 'ASD' else DS + '_subjects_final.txt')
+
+# 清單優先用 FreeSurfer 端隨資料附的 fs_stats/subjects.txt —— 那份跟影像檔是一起驗過的。
+# 找不到才退回 ASD/ 底下的手動清單。
+_CANDS = [os.path.join(DATA_ROOT, 'fs_stats', 'subjects.txt'),
+          os.path.join(ROOT, 'ASD', DS + '_subjects_final.txt')]
+if DS == 'ASD':
+    _CANDS.append(os.path.join(ROOT, 'ASD', 'subjects_final.txt'))
+SUBJ_LIST = args.subject_list or next((p for p in _CANDS if os.path.exists(p)), _CANDS[0])
+
+# 歸戶對照表：沒明給就找 ASD/<資料集>_groups.txt，存在才用
+_GM = args.group_map or os.path.join(ROOT, 'ASD', DS + '_groups.txt')
+GROUP_MAP = _GM if os.path.exists(_GM) else None
 LOG_DIR = os.path.join(ROOT, 'log')
 LOG_FILE = os.path.join(LOG_DIR, '%s_preprocess.txt' % DS.lower())
 CMD_FILE = os.path.join(LOG_DIR, '%s_preprocess_script.txt' % DS.lower())
@@ -55,7 +77,7 @@ VERIFY = os.path.join(ROOT, 'ASD', 'verify_one_subject.py')
 BAR = '=' * 69
 print()
 print(BAR)
-print('  ASD 前處理')
+print('  %s 前處理' % DS)
 print(BAR)
 print()
 
@@ -72,22 +94,29 @@ for p in (SCRIPT, ATLAS, SUBJ_LIST):
         print('      [X] 找不到：%s' % p)
         ok = False
 
+n_subj = 0
+ids = set()
+if os.path.exists(SUBJ_LIST):
+    with open(SUBJ_LIST, encoding='utf-8-sig') as f:
+        ids = {l.strip() for l in f if l.strip() and not l.strip().startswith('#')}
+    n_subj = len(ids)
+    print('      [v] 受試者清單：%d 個 ID  (%s)' % (n_subj, os.path.relpath(SUBJ_LIST, ROOT)))
+
+# 清單是唯一事實來源 —— 以前這裡寫死「預期 167 個」，換資料集就會誤報。
 for d in (IMG_DIR, SEG_DIR):
     if os.path.isdir(d):
         fs = glob.glob(os.path.join(d, '*.nii.gz'))
         mb = sum(os.path.getsize(f) for f in fs) / 1048576
         print('      [v] %s  (%d 個, %d MB)' % (d, len(fs), round(mb)))
-        if len(fs) != 167:
-            print('      [!] 預期 167 個，實際 %d 個' % len(fs))
+        if ids:
+            have = {os.path.basename(p)[:-7] for p in fs}
+            miss = sorted(ids - have)
+            if miss:
+                print('      [X] 清單有但檔案缺 %d 個：%s' % (len(miss), ', '.join(miss[:6])))
+                ok = False
     else:
         print('      [X] 找不到：%s' % d)
         ok = False
-
-n_subj = 0
-if os.path.exists(SUBJ_LIST):
-    with open(SUBJ_LIST, encoding='utf-8-sig') as f:
-        n_subj = len([l for l in f if l.strip() and not l.strip().startswith('#')])
-    print('      [v] 受試者清單：%d 個 ID' % n_subj)
 
 # 資料不該進 git
 probe = glob.glob(os.path.join(IMG_DIR, '*.nii.gz'))
@@ -107,8 +136,10 @@ if not ok:
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # ── 共用參數 ─────────────────────────────────────────────────────────
-#   --grouping none = 每個掃描各自成一人（使用者 2026-08-23 的決定）
-#                     A013/A0131/A0132 與 A016_1/A016_2 都當不同人
+#   --grouping none = 每個掃描各自成一人。
+#     2026-09-07 起這是安全的：身分問題已由 FreeSurfer 端查 DICOM 檔頭解決，
+#     同一人的重複掃描（A0132、YT13）與非受試者（A016_2 品管掃描）已在
+#     fs_stats/subjects.txt 這份清單裡先排掉，清單內不再有同一人的兩筆。
 #   --list-is-final = 混掃描檢查已通過，解除批次閘門
 COMMON = [PY, SCRIPT,
           '--img-dir', IMG_DIR,
@@ -117,6 +148,9 @@ COMMON = [PY, SCRIPT,
           '--out-dir', OUT_DIR,
           '--subject-list', SUBJ_LIST,
           '--grouping', 'none']
+if GROUP_MAP:
+    COMMON += ['--group-map', GROUP_MAP]
+    print('      [v] 歸戶對照表：%s' % os.path.relpath(GROUP_MAP, ROOT))
 
 env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1')
 
@@ -138,7 +172,8 @@ if args.dry_run:
 if not args.yes:
     print()
     print('-' * 69)
-    print('  即將處理 %d 顆，預計 70~90 分鐘。' % n_subj)
+    print('  即將處理 %d 顆，每顆約 25 秒 -> 預計 %d~%d 分鐘。'
+          % (n_subj, n_subj*22//60, n_subj*32//60))
     print('  輸出到：%s' % OUT_DIR)
     print('  記錄檔：%s' % LOG_FILE)
     print('  （中斷後直接重跑即可續跑，已完成的會略過）')
@@ -153,7 +188,7 @@ if args.save_nii:
     cmd.append('--save-nii')
 
 with open(CMD_FILE, 'w', encoding='utf-8') as f:
-    f.write('# ASD 前處理指令記錄\n')
+    f.write('# %s 前處理指令記錄\n' % DS)
     f.write('# 執行時間: %s\n' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     f.write('# 機器: %s\n' % platform.node())
     f.write('# 由 ASD/run_preprocess.py 產生\n\n')
@@ -226,6 +261,10 @@ print(BAR)
 print('  完成 — 下一步：訓練')
 print(BAR)
 print()
-print('    python ASD\\run_train.py --check-only     # 先檢查')
-print('    python ASD\\run_train.py                  # 正式跑')
+print('    python ASD\\run_train.py --dataset %s --check-only   # 先檢查' % DS)
+print('    python ASD\\run_train.py --dataset %s                # 單獨訓練這一包' % DS)
+print()
+print('  要三包混合訓練的話：')
+print('    python ASD\\make_mixed_set.py --sources ASD DGM VNT')
+print('    python ASD\\run_train.py --dataset mixed --exp-name mix_exp1')
 print()

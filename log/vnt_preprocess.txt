@@ -1,0 +1,565 @@
+掃到 68 個檔案：C:\Users\h4524\claude_cheng\data\VNT_data\fs_for_vxm\norm
+    套用白名單：68 -> 68
+
+歸戶：68 個掃描 -> 68 位受試者
+  --grouping  : none（每個掃描各自成一人，不合併）
+  --group-map : 未提供
+
+[i] 另有 7 組（68 個掃描）只是「末位數字不同」（如 VNT001 / VNT002）。
+    補零流水號本來就長這樣，通常不是同一人。要逐組看的話：--show-weak-groups
+
+切分（受試者層級，seed=42，test_frac=0.1）：
+  train   61 人 /  61 個掃描
+  test     7 人 /   7 個掃描
+  [v] 沒有受試者橫跨 train/test
+
+Atlas：C:\Users\h4524\claude_cheng\IXI\atlas_mni152_09c_v3.nii.gz
+  shape=(192, 224, 192)  spacing=(1.0, 1.0, 1.0)
+
+[  1/68] 處理：VNT001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  2/68] 處理：VNT002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  3/68] 處理：VNT003  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT003.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  4/68] 處理：VNT004  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT004.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  5/68] 處理：VNT005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  6/68] 處理：VNT006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  7/68] 處理：VNT007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  8/68] 處理：VNT008  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  9/68] 處理：VNT009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 10/68] 處理：VNT010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 11/68] 處理：VNT011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 12/68] 處理：VNT012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 13/68] 處理：VNT013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 14/68] 處理：VNT014  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT014.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 15/68] 處理：VNT015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 16/68] 處理：VNT016  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 17/68] 處理：VNT017  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT017.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 18/68] 處理：VNT018  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT018.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 19/68] 處理：VNT019  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT019.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 20/68] 處理：VNT020  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT020.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 21/68] 處理：VNT021  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT021.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 22/68] 處理：VNT022  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT022.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 23/68] 處理：VNT023  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT023.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 24/68] 處理：VNT024  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT024.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 25/68] 處理：VNT025  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT025.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 26/68] 處理：VNT026  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT026.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 27/68] 處理：VNT027  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT027.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 28/68] 處理：VNT028  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT028.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 29/68] 處理：VNT029  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT029.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 30/68] 處理：VNT030  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT030.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 31/68] 處理：VNT031  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT031.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 32/68] 處理：VNT032  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT032.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 33/68] 處理：VNT033  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT033.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 34/68] 處理：VNT034  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT034.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 35/68] 處理：VNT035  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT035.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 36/68] 處理：VNT036  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT036.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 37/68] 處理：VNT037  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT037.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 38/68] 處理：VNT038  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT038.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 39/68] 處理：VNT039  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT039.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 40/68] 處理：VNT040  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT040.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 41/68] 處理：VNT041  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT041.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 42/68] 處理：VNT042  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT042.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 43/68] 處理：VNT043  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT043.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 44/68] 處理：VNT044  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT044.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 45/68] 處理：VNT045  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT045.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 46/68] 處理：VNT046  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT046.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 47/68] 處理：VNT047  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT047.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 48/68] 處理：VNT048  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT048.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 49/68] 處理：VNT049  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT049.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 50/68] 處理：VNT050  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT050.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 51/68] 處理：VNT051  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT051.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 52/68] 處理：VNT052  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT052.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 53/68] 處理：VNT053  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT053.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 54/68] 處理：VNT054  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT054.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 55/68] 處理：VNT055  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT055.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 56/68] 處理：VNT056  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT056.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 57/68] 處理：VNT057  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT057.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 58/68] 處理：VNT058  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT058.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 59/68] 處理：VNT059  (test)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\test\VNT059.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 60/68] 處理：VNT060  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT060.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 61/68] 處理：VNT061  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT061.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 62/68] 處理：VNT062  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT062.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 63/68] 處理：VNT063  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT063.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 64/68] 處理：VNT064  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT064.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 65/68] 處理：VNT065  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT065.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 66/68] 處理：VNT066  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT066.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 67/68] 處理：VNT067  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT067.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 68/68] 處理：VNT068  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1\train\VNT068.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+=======================================================
+完成！ 成功=68 略過=0 失敗=0
+輸出：C:\Users\h4524\claude_cheng\data\VNT_preprocessed_v1  （切分記錄：split.json）
