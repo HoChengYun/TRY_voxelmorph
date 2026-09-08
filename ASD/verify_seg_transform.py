@@ -29,6 +29,14 @@ import argparse
 import numpy as np
 import ants
 
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--img', required=True, help='任一張 T1 .nii.gz')
 ap.add_argument('--atlas', required=True)

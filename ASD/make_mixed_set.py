@@ -27,6 +27,14 @@ import json
 import shutil
 import argparse
 
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 

@@ -113,6 +113,14 @@ if args.step != 1 and not args.model_dir:
 import torch
 import voxelmorph as vxm
 
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if device == 'cpu':
     print('[!] 沒有 GPU，會很慢')

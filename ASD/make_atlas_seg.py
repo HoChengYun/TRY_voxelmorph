@@ -23,6 +23,14 @@ import sys
 import numpy as np
 import nibabel as nib
 
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'ASD', 'atlas_out', 'atlas_aseg.nii.gz')
 ATLAS_NPZ = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')

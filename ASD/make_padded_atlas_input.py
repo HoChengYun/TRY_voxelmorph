@@ -33,6 +33,15 @@ conform 只剩下 RAS->LIA 的軸重排（純排列與翻轉，對等向立方�
 import os
 import numpy as np
 import nibabel as nib
+import sys
+
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 
 SRC = os.path.join('IXI', 'mni_icbm152_nlin_asym_09c_nifti',
                    'mni_icbm152_t1_tal_nlin_asym_09c.nii')

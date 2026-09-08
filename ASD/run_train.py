@@ -172,6 +172,14 @@ if initial_epoch > 0:
 
 # 專案慣例：每次跑都要留指令記錄，之後才查得出當初的參數
 import platform
+
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 with open(CMD_FILE, 'w', encoding='utf-8') as f:
     f.write('# %s 訓練指令記錄\n' % args.exp_name)
     f.write('# 執行時間: %s\n' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))

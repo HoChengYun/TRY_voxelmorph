@@ -42,6 +42,14 @@ import random
 import argparse
 import numpy as np
 
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # 曾經被判定有問題的受試者（來源：D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md）
 #
 # ⚠️ 這只是「沒有給 --subject-list 時」的安全網，不是權威。

@@ -213,6 +213,14 @@ for c, (i, t) in enumerate(cuts):
                           rotation=90, va='center', ha='center',
                           fontsize=12, fontweight='bold')
 from matplotlib.lines import Line2D
+
+# Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
+# 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 handles = [Line2D([0], [0], color=c, lw=2, label=n) for _, _, n, c in KEY]
 handles += [Line2D([0], [0], color='k', lw=2, label='atlas (solid)'),
             Line2D([0], [0], color='k', lw=1.2, ls='dashed', label='subject (dashed)')]
