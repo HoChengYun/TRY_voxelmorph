@@ -70,6 +70,10 @@ ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_0
 ap.add_argument('--dataset', default='ASD', help='→ data/<名稱>_preprocessed_v1/test')
 ap.add_argument('--test-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/test')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
+ap.add_argument('--exp-name', default=None,
+                help='--baseline 時把結果寫到 models/<實驗名>/。基準線只跟「test 集 + atlas」'
+                     '有關、跟模型無關，但放進實驗資料夾能讓每個實驗自成一體，'
+                     '之後翻舊實驗不用另外找對照。不給則寫到 models/<資料集>_baseline/')
 ap.add_argument('--out-csv', default=None)
 ap.add_argument('--gpu', default='0')
 args = ap.parse_args()
@@ -262,8 +266,12 @@ if args.baseline:
         print()
 
     import csv
-    out = args.out_csv or os.path.join(os.path.dirname(args.test_dir.rstrip('\\/')),
-                                       'dice_baseline.csv')
+    # 🔴 2026-09-08 改：原本寫到 data/<資料集>_preprocessed_v1/ 底下。
+    #    data/ 應該只放資料，衍生結果全部進 models/ —— 同一份資料集會被很多實驗用到，
+    #    把結果混進去之後很難分辨哪個檔案是輸入、哪個是產出。
+    out = args.out_csv or os.path.join(
+        ROOT, 'models', args.exp_name or (args.dataset + '_baseline'), 'dice_baseline.csv')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
         w.writerow(['file', 'dice_mean'] + ['label_%d' % l for l in LABELS])
