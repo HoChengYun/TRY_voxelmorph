@@ -43,6 +43,10 @@ ap.add_argument('--save-nii', action='store_true', help='額外輸出 .nii.gz（
 ap.add_argument('--dataset', default='ASD',
                 help='資料集名稱。原始資料在 data/<名稱>_data/{norm,aseg}，'
                      '輸出到 data/<名稱>_preprocessed_v1')
+ap.add_argument('--n4', action='store_true',
+                help='做 N4 偏場校正。FreeSurfer 的 norm.mgz 已經過 nu 校正所以不用；'
+                     'tigerbx 的 _tbet 是原始強度（實測白質 CoV 15.9%）要開，'
+                     '否則兩個 arm 的差異會混進偏場而不只是分割品質')
 ap.add_argument('--out-dir', default=None, help='預設 data/<資料集>_preprocessed_v1')
 ap.add_argument('--group-map', default=None,
                 help='歸戶對照表 TSV（受試者<TAB>人）。預設抓 ASD/<資料集>_groups.txt，'
@@ -56,19 +60,33 @@ PY = sys.executable
 SCRIPT = os.path.join(ROOT, 'ASD', 'preprocess_fs.py')
 DATA_ROOT = os.path.join(ROOT, 'data', DS + '_data')
 
-# FreeSurfer 端 2026-09-07 起改成多包一層 fs_for_vxm/ 並附 fs_stats/subjects.txt。
-# 舊版是 <名稱>_data/{norm,aseg}，兩種都認，避免舊資料夾突然跑不動。
-_NEW = os.path.join(DATA_ROOT, 'fs_for_vxm')
-_BASE = _NEW if os.path.isdir(_NEW) else DATA_ROOT
-IMG_DIR = os.path.join(_BASE, 'norm')
-SEG_DIR = os.path.join(_BASE, 'aseg')
+# 資料夾長相會因為來源而異，全部試過去，第一個「影像與標籤都在」的就用。
+#   FreeSurfer 端 2026-09-07 起：data/<名稱>_data/fs_for_vxm/{norm,aseg}
+#   更早的版本    ：data/<名稱>_data/{norm,aseg}
+#   tigerbx 端    ：data/<名稱>/{img,seg}
+# 與其要求對方配合我們的命名，不如這邊多認幾種 —— 交接時少一個出錯的環節。
+_BASES = [os.path.join(DATA_ROOT, 'fs_for_vxm'),
+          DATA_ROOT,
+          os.path.join(ROOT, 'data', DS)]
+_PAIRS = [('norm', 'aseg'), ('img', 'seg')]
+IMG_DIR = SEG_DIR = None
+for _b in _BASES:
+    for _i, _s in _PAIRS:
+        if os.path.isdir(os.path.join(_b, _i)) and os.path.isdir(os.path.join(_b, _s)):
+            IMG_DIR, SEG_DIR = os.path.join(_b, _i), os.path.join(_b, _s)
+            break
+    if IMG_DIR:
+        break
+if IMG_DIR is None:                       # 讓後面的起跑前檢查印出人看得懂的錯誤
+    IMG_DIR = os.path.join(DATA_ROOT, 'fs_for_vxm', 'norm')
+    SEG_DIR = os.path.join(DATA_ROOT, 'fs_for_vxm', 'aseg')
 
 ATLAS = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.nii.gz')
 OUT_DIR = args.out_dir or os.path.join(ROOT, 'data', DS + '_preprocessed_v1')
 
-# 清單優先用 FreeSurfer 端隨資料附的 fs_stats/subjects.txt —— 那份跟影像檔是一起驗過的。
-# 找不到才退回 ASD/ 底下的手動清單。
+# 清單優先用資料端隨附的 subjects.txt —— 那份跟影像檔是一起驗過的。
 _CANDS = [os.path.join(DATA_ROOT, 'fs_stats', 'subjects.txt'),
+          os.path.join(ROOT, 'data', DS, 'subjects.txt'),
           os.path.join(ROOT, 'ASD', DS + '_subjects_final.txt')]
 if DS == 'ASD':
     _CANDS.append(os.path.join(ROOT, 'ASD', 'subjects_final.txt'))
@@ -192,6 +210,8 @@ if not args.yes:
 
 # ── 正式跑 ───────────────────────────────────────────────────────────
 cmd = COMMON + ['--list-is-final']
+if args.n4:
+    cmd.append('--n4')
 if args.save_nii:
     cmd.append('--save-nii')
 

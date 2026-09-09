@@ -101,6 +101,11 @@ p.add_argument('--grouping', default='auto', choices=['auto', 'none'],
                     '選 none 等於假設「沒有任何一組是同一人的重複掃描」，'
                     '假設若錯會造成 data leakage，請在方法學中說明。')
 
+p.add_argument('--split-from', default=None,
+               help='沿用別批的 train/test 切分，不重新隨機。'
+                    '吃 make_mixed_set.py 的 mixed_manifest.json 或本腳本的 split.json。'
+                    '做「同一群人、不同標籤來源」的對照時必須用 —— 否則兩個 arm 各自隨機切，'
+                    'test 會是不同的人，Dice 差多少就無法歸因')
 p.add_argument('--test-frac', type=float, default=0.10)
 p.add_argument('--seed', type=int, default=42)
 
@@ -362,17 +367,49 @@ if weak:
             print(f"      {v}")
 
 # ── 以「人」為單位切分 ───────────────────────────────────────────────
-rng = random.Random(args.seed)
-person_ids = sorted(persons.keys())
-rng.shuffle(person_ids)
-n_test = max(1, int(round(len(person_ids) * args.test_frac)))
-test_persons = set(person_ids[:n_test])
+if args.split_from:
+    # 沿用別批的切分。做「同一群人、不同標籤來源」的對照時必須這樣做：
+    # 各自隨機切的話，兩個 arm 的 test 會是不同的人，Dice 差多少就同時混了
+    # 「標籤不同」和「測試對象不同」兩個變因，無法歸因。
+    ref = json.load(open(args.split_from, encoding='utf-8'))
+    if 'members' in ref:                       # make_mixed_set.py 的 mixed_manifest.json
+        ref_split = {k[:-4] if k.endswith('.npz') else k: v['split']
+                     for k, v in ref['members'].items()}
+    elif 'split_of' in ref:                    # preprocess_fs.py 自己的 split.json
+        ref_split = dict(ref['split_of'])
+    else:
+        sys.exit(f"[X] --split-from 認不得這個檔的格式：{args.split_from}\n"
+                 f"    需要 mixed_manifest.json（有 members）或 split.json（有 split_of）")
 
-split_of = {}
-for pid, ss in persons.items():
-    tag = 'test' if pid in test_persons else 'train'
-    for s in ss:
-        split_of[s] = tag
+    missing = sorted(set(subjects) - set(ref_split))
+    if missing:
+        sys.exit(f"[X] 參考切分裡沒有這 {len(missing)} 位：{missing[:8]}\n"
+                 f"    兩批的受試者必須完全相同才能沿用切分。")
+
+    split_of = {s: ref_split[s] for s in subjects}
+
+    # 沿用來的切分也必須是受試者層級的 —— 來源若有 leakage，這裡會照抄
+    bad = [pid for pid, ss in persons.items() if len({split_of[s] for s in ss}) > 1]
+    if bad:
+        sys.exit(f"[X] 沿用的切分讓這些人橫跨 train/test：{bad}\n"
+                 f"    來源的切分與本批的 --group-map 不相容，請確認。")
+
+    test_persons = {pid for pid, ss in persons.items() if split_of[ss[0]] == 'test'}
+    n_test = len(test_persons)
+    print(f"\n[i] 切分沿用 {os.path.relpath(args.split_from, os.path.dirname(os.path.abspath(__file__)))}"
+          f" —— 不重新隨機")
+else:
+    rng = random.Random(args.seed)
+    person_ids = sorted(persons.keys())
+    rng.shuffle(person_ids)
+    n_test = max(1, int(round(len(person_ids) * args.test_frac)))
+    test_persons = set(person_ids[:n_test])
+
+    split_of = {}
+    for pid, ss in persons.items():
+        tag = 'test' if pid in test_persons else 'train'
+        for s in ss:
+            split_of[s] = tag
 
 n_tr = sum(1 for v in split_of.values() if v == 'train')
 n_te = sum(1 for v in split_of.values() if v == 'test')
