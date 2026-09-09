@@ -31,12 +31,27 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
+import argparse
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'ASD', 'atlas_out', 'atlas_aseg.nii.gz')
+
+# 2026-09-09 參數化：tigerbx arm 需要一份自己的 atlas 分割。
+# Dice 是「受試者標籤 warp 到 atlas 空間，跟 atlas 自己的標籤比」，
+# 兩端的標籤來源必須是同一套方法 —— 否則量到的是跨方法差異（實測核心結構
+# FreeSurfer vs tigerbx 只有 0.886），那個扣分跟配準品質無關。
+ap = argparse.ArgumentParser()
+ap.add_argument('--src', default=os.path.join(ROOT, 'ASD', 'atlas_out', 'atlas_aseg.nii.gz'),
+                help='256³ 的 atlas 分割（對 mni152_09c_t1_padded256.nii.gz 跑出來的）')
+ap.add_argument('--out', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'),
+                help='輸出的 npz，key 為 seg')
+ap.add_argument('--png', default=None, help='目視用疊圖；預設放在 --out 旁邊')
+args = ap.parse_args()
+
+SRC = os.path.normpath(args.src)
 ATLAS_NPZ = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
 LABELS = os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz')
-DST = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz')
-PNG = os.path.join(ROOT, 'ASD', 'atlas_out', 'atlas_seg_check.png')
+DST = os.path.normpath(args.out)
+PNG = args.png or os.path.splitext(DST)[0] + '_check.png'
 
 PAD_SLICE = (slice(31, 224), slice(13, 242), slice(31, 224))   # 去補零
 CROP_SLICE = (slice(0, 192), slice(2, 226), slice(0, 192))     # atlas_v3 的裁切
