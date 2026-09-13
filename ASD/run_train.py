@@ -2,11 +2,14 @@
 ASD 訓練包裝：VoxelMorph scan-to-atlas
 
 用法（在專案根目錄，venv 啟動後）：
-    python ASD\\run_train.py                       # 預設 ncc + lambda 1.0, 250 epochs
-    python ASD\\run_train.py --check-only          # 只做起跑前檢查，不訓練
-    python ASD\\run_train.py --resume              # 從最後一個 .pt 續跑
-    python ASD\\run_train.py --exp-name asd_exp2 --image-loss mse --lambda 0.01
-    python ASD\\run_train.py --epochs 100          # 先跑短的看看
+    python ASD\\run_train.py --train-dir data\\mixed_preprocessed_v1\\train --exp-name mix_exp2 --check-only
+    python ASD\\run_train.py --train-dir data\\mixed_preprocessed_v1\\train --exp-name mix_exp2
+    python ASD\\run_train.py --train-dir data\\mixed_preprocessed_v1\\train --exp-name mix_exp2 --resume
+    python ASD\\run_train.py --train-dir data\\ASD_preprocessed_v1\\train --exp-name asd_exp2 --image-loss mse --lambda 0.01
+
+--train-dir 與 --exp-name 都必填（2026-09-13 改）：原本的 --dataset ASD 看不出用的是哪一版資料，
+--exp-name 預設 asd_exp1 則可能一不小心蓋到舊實驗。
+預設 ncc + lambda 1.0、250 epochs。test 取 --train-dir 旁邊的 test/，只用來做起跑前檢查。
 
 專案根目錄由本檔位置自動推出，換一台機器 clone 到別的路徑也不用改。
 用的 python 就是執行本檔的那一個（sys.executable），所以只要 venv 有啟動就一定對。
@@ -28,15 +31,15 @@ from datetime import datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--exp-name', default='asd_exp1')
+ap.add_argument('--exp-name', required=True,
+                help='輸出到 models/<實驗名>/，指令記錄存 log/<實驗名>_script.txt')
 ap.add_argument('--image-loss', default='ncc', choices=['ncc', 'mse'])
 ap.add_argument('--lambda', dest='weight', type=float, default=1.0)
 ap.add_argument('--epochs', type=int, default=250)
 ap.add_argument('--steps-per-epoch', type=int, default=100)
 ap.add_argument('--gpu', default='0')
-ap.add_argument('--dataset', default='ASD',
-                help='資料集名稱 → data/<名稱>_preprocessed_v1。混合訓練用 --dataset mixed')
-ap.add_argument('--data-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/train')
+ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
+                help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
 ap.add_argument('--atlas', default=None, help='預設 IXI/atlas_mni152_09c_v3.npz')
 ap.add_argument('--resume', action='store_true', help='從最後一個 .pt 續跑')
 ap.add_argument('--check-only', action='store_true', help='只做起跑前檢查')
@@ -45,9 +48,8 @@ args = ap.parse_args()
 
 PY = sys.executable                    # 就是目前這個 venv 的 python
 TRAIN = os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py')
-PREP = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1')
-DATA = args.data_dir or os.path.join(PREP, 'train')
-TEST = os.path.join(PREP, 'test')
+DATA = os.path.abspath(args.train_dir)
+TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
 MODEL_DIR = os.path.join(ROOT, 'models', args.exp_name)
 LOG_DIR = os.path.join(ROOT, 'log')

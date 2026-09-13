@@ -13,17 +13,22 @@
 各來源自己的 train/test 切分**原封不動保留**：train 併 train、test 併 test。
 所以只要每個資料集自己的切分是受試者層級的，合併後仍然沒有 leakage。
 
-用法
-    python ASD\\make_mixed_set.py --sources ASD NEWDATA
-    python ASD\\make_mixed_set.py --sources ASD NEWDATA --out mixed --force
+用法（來源與輸出都直接給路徑，2026-09-13 改）
+    python ASD\\make_mixed_set.py --sources data\\ASD_preprocessed_v1 data\\DGM_preprocessed_v1 ^
+        data\\VNT_preprocessed_v1 --out data\\mixed_preprocessed_v1
+    加 --force 會清掉已存在的輸出重建；--dry-run 只看會做什麼
 
     # 之後訓練
-    python ASD\\run_train.py --dataset mixed --exp-name mix_exp1
+    python ASD\\run_train.py --train-dir data\\mixed_preprocessed_v1\\train --exp-name mix_exp1
+
+資料集名稱（寫進 mixed_manifest.json、撞名時加的前綴）取來源資料夾名去掉
+_preprocessed_vN，例如 data\\DGM_preprocessed_v1 -> DGM。
 """
 import os
 import sys
 import glob
 import json
+import re
 import shutil
 import argparse
 
@@ -40,8 +45,8 @@ DATA = os.path.join(ROOT, 'data')
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--sources', nargs='+', required=True,
-                help='資料集名稱，對應 data/<名稱>_preprocessed_v1')
-ap.add_argument('--out', default='mixed', help='輸出到 data/<out>_preprocessed_v1')
+                help='各資料集的前處理資料夾，例如 data\\ASD_preprocessed_v1')
+ap.add_argument('--out', required=True, help='輸出資料夾，例如 data\\mixed_preprocessed_v1')
 ap.add_argument('--hardlink', action='store_true',
                 help='用硬連結取代複製以省空間。⚠️ 檔案總管看不出哪些是連結，'
                      '而且來源重跑前處理後 mixed 不會跟著更新也不會報錯')
@@ -51,20 +56,31 @@ ap.add_argument('--force', action='store_true', help='輸出目錄已存在就�
 ap.add_argument('--dry-run', action='store_true', help='只印會做什麼')
 args = ap.parse_args()
 
-OUT = os.path.join(DATA, args.out + '_preprocessed_v1')
+OUT = os.path.abspath(args.out)
+
+
+def ds_name(d):
+    """data/DGM_preprocessed_v1 -> DGM。只拿來標記來源，不拿來組路徑。"""
+    return re.sub(r'_preprocessed_v\d+$', '', os.path.basename(d.rstrip('\\/')))
+
 
 # ── 檢查來源 ──────────────────────────────────────────────────────────
 srcs = []
-for name in args.sources:
-    d = os.path.join(DATA, name + '_preprocessed_v1')
+for src in args.sources:
+    d = os.path.abspath(src)
+    name = ds_name(d)
     if not os.path.isdir(d):
-        sys.exit('[X] 找不到 %s\n    先跑：python ASD\\run_preprocess.py --dataset %s' % (d, name))
+        sys.exit('[X] 找不到 %s\n    先用 ASD\\run_preprocess.py 產生它' % d)
     n_tr = len(glob.glob(os.path.join(d, 'train', '*.npz')))
     n_te = len(glob.glob(os.path.join(d, 'test', '*.npz')))
     if n_tr == 0 and n_te == 0:
         sys.exit('[X] %s 底下沒有 npz' % d)
     srcs.append((name, d, n_tr, n_te))
     print('  [v] %-12s train %3d / test %3d' % (name, n_tr, n_te))
+
+_names = [s[0] for s in srcs]
+if len(set(_names)) != len(_names):
+    sys.exit('\n[X] 來源的資料集名稱重複：%s\n    同一個資料集的兩個版本不要混在一起。' % _names)
 
 if len(srcs) < 2:
     print('\n[!] 只給了一個來源，合併沒有意義。')
@@ -94,10 +110,13 @@ if os.path.exists(OUT):
         sys.exit('\n[X] %s 已存在。加 --force 清掉重建。' % OUT)
     if not args.dry_run:
         shutil.rmtree(OUT)
-    print('\n  已清掉舊的 %s' % OUT)
+        print('\n  已清掉舊的 %s' % OUT)
+    else:
+        print('\n  [dry-run] 會清掉舊的 %s' % OUT)
 
 n_link = n_copy = 0
-manifest = {'sources': args.sources, 'prefix': use_prefix, 'members': {}}
+manifest = {'sources': _names, 'source_dirs': list(args.sources),
+            'prefix': use_prefix, 'members': {}}
 
 for split in ('train', 'test'):
     dst_dir = os.path.join(OUT, split)
@@ -147,4 +166,5 @@ print('    mixed_manifest.json —— 記錄每個檔案來自哪個資料集')
 if tr != exp_tr or te != exp_te:
     sys.exit(1)
 print()
-print('  接著跑：python ASD\\run_train.py --dataset %s --exp-name <實驗名>' % args.out)
+print('  接著跑：python ASD\\run_train.py --train-dir %s --exp-name <實驗名>'
+      % os.path.join(args.out, 'train'))

@@ -40,9 +40,12 @@ Dice = 2|A∩B| / (|A|+|B|)。30 個標籤就是 30 次 matmul，BLAS 幾秒鐘�
 不影響排序 —— 要精確值用 --full 對特定配對重算。
 
 用法
-    python ASD\\find_duplicate_scans.py --dataset DGM
-    python ASD\\find_duplicate_scans.py --dataset VNT --top 30
-    python ASD\\find_duplicate_scans.py --dataset DGM --pairs D038:DGM002 D018:DGM001 --full
+    python ASD\\find_duplicate_scans.py --prep-dir data\\DGM_preprocessed_v1
+    python ASD\\find_duplicate_scans.py --prep-dir data\\VNT_preprocessed_v1 --top 30
+    python ASD\\find_duplicate_scans.py --prep-dir data\\DGM_preprocessed_v1 --pairs D038:DGM002 D018:DGM001 --full
+
+--prep-dir 直接給前處理資料夾（底下有 train/ test/）。2026-09-13 起不再用 --dataset 組路徑，
+因為 --dataset DGM 看不出用的是哪一版。
 """
 import os
 import sys
@@ -68,7 +71,8 @@ SUSPICIOUS = 0.7473     # 不同人的實測最大值；超過它才值得人工
 # 沒有「同一人不同時間點」的門檻 —— 那個區間與不同人完全重疊，見檔頭
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--dataset', default='ASD', help='data/<名稱>_preprocessed_v1')
+ap.add_argument('--prep-dir', required=True,
+                help='前處理資料夾（底下有 train/ test/），例如 data\\DGM_preprocessed_v1')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
 ap.add_argument('--top', type=int, default=15, help='列出最像的前 N 對')
 ap.add_argument('--stride', type=int, default=2, help='降取樣倍率（--full 等於 1）')
@@ -78,13 +82,12 @@ ap.add_argument('--pairs', nargs='*', default=None,
 args = ap.parse_args()
 
 stride = 1 if args.full else args.stride
-PREP = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1')
+PREP = os.path.abspath(args.prep_dir)
 
 files = sorted(glob.glob(os.path.join(PREP, 'train', '*.npz'))
                + glob.glob(os.path.join(PREP, 'test', '*.npz')))
 if not files:
-    sys.exit('[X] %s 底下沒有 npz —— 先跑 run_preprocess.py --dataset %s'
-             % (PREP, args.dataset))
+    sys.exit('[X] %s 底下沒有 npz —— 先用 run_preprocess.py 產生它' % PREP)
 
 names = [os.path.basename(f)[:-4] for f in files]
 split = {os.path.basename(f)[:-4]: os.path.basename(os.path.dirname(f)) for f in files}
@@ -105,7 +108,7 @@ if args.pairs:
     names = keep
 
 print('資料集 %s：%d 顆，降取樣 %dx，%d 個標籤'
-      % (args.dataset, len(names), stride, len(LAB)))
+      % (PREP, len(names), stride, len(LAB)))
 
 # ── 讀進來，一次一個標籤做成矩陣 ──────────────────────────────────────
 segs = []

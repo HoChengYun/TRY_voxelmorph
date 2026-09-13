@@ -98,10 +98,10 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（預設實體複製），給混合訓練
 │   ├── check_dataset.py                # 搬到別台機器後驗資料（sha256 manifest + 內容檢查）
 │   ├── find_duplicate_scans.py         # atlas 空間的標籤 Dice 找重複掃描（手冊 §15.2）
-│   ├── test_dice.py                    # ⭐ Dice 評估（--dataset / --exp-name / --atlas-seg）
+│   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
-│   ├── run_preprocess.py               # 前處理包裝（--dataset / --n4 / --group-map）
-│   ├── run_train.py                    # 訓練包裝（--dataset / --check-only / --resume）
+│   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
+│   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── DGM_groups.txt                  # DGM 歸戶表（D015/D037、D038/DGM002 同一人；已去識別化）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
@@ -478,6 +478,8 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
   （exp5–exp8 已清理，各只留最佳 epoch 的 `.pt` + `epoch_curve.csv/png`。）
 - 這是 **Windows 原生環境**，路徑用 `\`，指令用 PowerShell 語法（換行用反引號 `` ` ``）。
 - **動 git 之前先問使用者。** 文件與 ASD 程式都已進版控（2026-09 起工作樹是乾淨的）。
+- **ASD 腳本一律直接給資料路徑**（2026-09-13 起沒有 `--dataset`）：例如 `--test-dir data\mixed_preprocessed_v1\test`。
+  `--dataset ASD` 看不出是哪一版，有了 v2 之後還會安靜地拿 v1 去跑。對照表見 `ASD/ASD相關手冊.md` §14 開頭。
 - 🔴 **GitHub repo 是公開的：不得出現個資**（出生日期／身高／體重／精確掃描日期）。
   `data/` 整個被 `.gitignore` 擋掉；歸戶表（如 `ASD/DGM_groups.txt`）只寫判定依據的種類。
 

@@ -2,14 +2,21 @@
 前處理包裝：FreeSurfer 產物 -> VoxelMorph 訓練用 npz
 
 用法（在專案根目錄，venv 啟動後）：
-    python ASD\\run_preprocess.py --dataset ASD   # 正常跑（會先顯示切分並要你確認）
-    python ASD\\run_preprocess.py --dataset DGM --dry-run   # 只看切分，不動影像
-    python ASD\\run_preprocess.py --dataset VNT --yes       # 跳過確認，直接開跑
-    python ASD\\run_preprocess.py --save-nii      # 額外輸出每顆的 .nii.gz
+    python ASD\\run_preprocess.py --src-dir data\\DGM_data --out-dir data\\DGM_preprocessed_v1 --dry-run   # 只看切分
+    python ASD\\run_preprocess.py --src-dir data\\DGM_data --out-dir data\\DGM_preprocessed_v1             # 正常跑（會先要你確認）
+    python ASD\\run_preprocess.py --src-dir data\\VNT_data --out-dir data\\VNT_preprocessed_v1 --yes       # 跳過確認
+    加 --save-nii 額外輸出每顆的 .nii.gz
 
-資料位置：data/<資料集>_data/fs_for_vxm/{norm,aseg}
-清單：    data/<資料集>_data/fs_stats/subjects.txt（FreeSurfer 端隨資料附的）
-輸出：    data/<資料集>_preprocessed_v1/{train,test}
+--src-dir 與 --out-dir 都必填（2026-09-13 改）：原本的 --dataset DGM 會自己組出
+data/DGM_preprocessed_v1，指令上看不出輸出的是哪一版。
+
+--src-dir 底下認得這幾種長相（第一個「影像與標籤都在」的就用）：
+    fs_for_vxm/{norm,aseg}    FreeSurfer 端 2026-09-07 起的交付格式
+    {norm,aseg}               更早的版本
+    {img,seg}                 tigerbx 端
+清單：    <src-dir>/fs_stats/subjects.txt（隨資料附的），或用 --subject-list 指定
+歸戶表：  資料集名稱取 --src-dir 的資料夾名去掉 _data（DGM_data -> DGM），
+          有 ASD/<名稱>_groups.txt 就自動套用；也可以用 --group-map 指定
 
 中斷了直接重跑即可 —— preprocess_fs.py 預設 --skip-done，已完成的會略過。
 預計耗時：每顆約 25 秒（主要花在 ANTs Affine 配準）。
@@ -40,34 +47,35 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--dry-run', action='store_true', help='只印歸戶與切分，不動影像')
 ap.add_argument('--yes', action='store_true', help='跳過確認')
 ap.add_argument('--save-nii', action='store_true', help='額外輸出 .nii.gz（約 +1.4 GB）')
-ap.add_argument('--dataset', default='ASD',
-                help='資料集名稱。原始資料在 data/<名稱>_data/{norm,aseg}，'
-                     '輸出到 data/<名稱>_preprocessed_v1')
+ap.add_argument('--src-dir', required=True,
+                help='原始資料夾，例如 data\\DGM_data（底下有 fs_for_vxm/{norm,aseg} 等）')
 ap.add_argument('--n4', action='store_true',
                 help='做 N4 偏場校正。FreeSurfer 的 norm.mgz 已經過 nu 校正所以不用；'
                      'tigerbx 的 _tbet 是原始強度（實測白質 CoV 15.9%）要開，'
                      '否則兩個 arm 的差異會混進偏場而不只是分割品質')
-ap.add_argument('--out-dir', default=None, help='預設 data/<資料集>_preprocessed_v1')
+ap.add_argument('--out-dir', required=True, help='輸出資料夾，例如 data\\DGM_preprocessed_v1')
 ap.add_argument('--group-map', default=None,
-                help='歸戶對照表 TSV（受試者<TAB>人）。預設抓 ASD/<資料集>_groups.txt，'
+                help='歸戶對照表 TSV（受試者<TAB>人）。預設抓 ASD/<名稱>_groups.txt，'
                      '有的話就用 —— 同一人的多次掃描必須整組在同一個 split')
 ap.add_argument('--subject-list', default=None,
-                help='預設 ASD/<資料集>_subjects_final.txt；ASD 用 ASD/subjects_final.txt')
+                help='預設 <src-dir>/fs_stats/subjects.txt')
 args = ap.parse_args()
 
-DS = args.dataset
+DATA_ROOT = os.path.abspath(args.src_dir)
+if not os.path.isdir(DATA_ROOT):
+    sys.exit('[X] 找不到 --src-dir：%s' % DATA_ROOT)
+# 名稱只用在歸戶表與記錄檔的檔名，不拿來組資料路徑
+DS = os.path.basename(DATA_ROOT.rstrip('\\/'))
+DS = DS[:-5] if DS.endswith('_data') else DS
 PY = sys.executable
 SCRIPT = os.path.join(ROOT, 'ASD', 'preprocess_fs.py')
-DATA_ROOT = os.path.join(ROOT, 'data', DS + '_data')
 
 # 資料夾長相會因為來源而異，全部試過去，第一個「影像與標籤都在」的就用。
-#   FreeSurfer 端 2026-09-07 起：data/<名稱>_data/fs_for_vxm/{norm,aseg}
-#   更早的版本    ：data/<名稱>_data/{norm,aseg}
-#   tigerbx 端    ：data/<名稱>/{img,seg}
+#   FreeSurfer 端 2026-09-07 起：<src-dir>/fs_for_vxm/{norm,aseg}
+#   更早的版本    ：<src-dir>/{norm,aseg}
+#   tigerbx 端    ：<src-dir>/{img,seg}
 # 與其要求對方配合我們的命名，不如這邊多認幾種 —— 交接時少一個出錯的環節。
-_BASES = [os.path.join(DATA_ROOT, 'fs_for_vxm'),
-          DATA_ROOT,
-          os.path.join(ROOT, 'data', DS)]
+_BASES = [os.path.join(DATA_ROOT, 'fs_for_vxm'), DATA_ROOT]
 _PAIRS = [('norm', 'aseg'), ('img', 'seg')]
 IMG_DIR = SEG_DIR = None
 for _b in _BASES:
@@ -82,14 +90,12 @@ if IMG_DIR is None:                       # 讓後面的起跑前檢查印出人
     SEG_DIR = os.path.join(DATA_ROOT, 'fs_for_vxm', 'aseg')
 
 ATLAS = os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.nii.gz')
-OUT_DIR = args.out_dir or os.path.join(ROOT, 'data', DS + '_preprocessed_v1')
+OUT_DIR = os.path.abspath(args.out_dir)
 
-# 清單優先用資料端隨附的 subjects.txt —— 那份跟影像檔是一起驗過的。
+# 清單用資料端隨附的 subjects.txt —— 那份跟影像檔是一起驗過的。
+# （以前 ASD 會退回 ASD/subjects_final.txt，那是 08-23 的舊清單，已拿掉）
 _CANDS = [os.path.join(DATA_ROOT, 'fs_stats', 'subjects.txt'),
-          os.path.join(ROOT, 'data', DS, 'subjects.txt'),
-          os.path.join(ROOT, 'ASD', DS + '_subjects_final.txt')]
-if DS == 'ASD':
-    _CANDS.append(os.path.join(ROOT, 'ASD', 'subjects_final.txt'))
+          os.path.join(DATA_ROOT, 'subjects.txt')]
 SUBJ_LIST = args.subject_list or next((p for p in _CANDS if os.path.exists(p)), _CANDS[0])
 
 # 歸戶對照表：沒明給就找 ASD/<資料集>_groups.txt，存在才用
@@ -111,6 +117,8 @@ print()
 print('[1/4] 起跑前檢查')
 print('      專案根目錄 : %s' % ROOT)
 print('      python     : %s' % PY)
+print('      原始資料   : %s' % DATA_ROOT)
+print('      輸出       : %s' % OUT_DIR)
 
 ok = True
 for p in (SCRIPT, ATLAS, SUBJ_LIST):
@@ -289,10 +297,10 @@ print(BAR)
 print('  完成 — 下一步：訓練')
 print(BAR)
 print()
-print('    python ASD\\run_train.py --dataset %s --check-only   # 先檢查' % DS)
-print('    python ASD\\run_train.py --dataset %s                # 單獨訓練這一包' % DS)
+print('    python ASD\\run_train.py --train-dir %s --exp-name <實驗名> --check-only'
+      % os.path.join(args.out_dir, 'train'))
 print()
-print('  要三包混合訓練的話：')
-print('    python ASD\\make_mixed_set.py --sources ASD DGM VNT')
-print('    python ASD\\run_train.py --dataset mixed --exp-name mix_exp1')
+print('  要跟其他包混合訓練的話：')
+print('    python ASD\\make_mixed_set.py --sources %s <其他包的前處理資料夾> --out <輸出資料夾>'
+      % args.out_dir)
 print()

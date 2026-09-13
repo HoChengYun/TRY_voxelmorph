@@ -267,8 +267,8 @@ ASD/
 `--list-is-final`）、跑起跑前檢查、顯示切分讓你確認、跑完抽驗 3 顆：
 
 ```
-python ASD\run_preprocess.py --dry-run    # 只看切分
-python ASD\run_preprocess.py              # 正式跑（會問你確認）
+python ASD\run_preprocess.py --src-dir data\ASD_data --out-dir data\ASD_preprocessed_v1 --dry-run   # 只看切分
+python ASD\run_preprocess.py --src-dir data\ASD_data --out-dir data\ASD_preprocessed_v1             # 正式跑（會問你確認）
 ```
 
 底下是它實際呼叫的指令，需要自訂參數時可以直接用。
@@ -419,9 +419,9 @@ python ASD\verify_seg_transform.py `
 ### 7.3 在 B 台怎麼跑
 
 ```
-python ASD\run_train.py --check-only     # 先檢查，不訓練
-python ASD\run_train.py                  # 正式跑
-python ASD\run_train.py --resume         # 中斷後續跑
+python ASD\run_train.py --train-dir data\ASD_preprocessed_v1\train --exp-name asd_exp1 --check-only   # 先檢查，不訓練
+python ASD\run_train.py --train-dir data\ASD_preprocessed_v1\train --exp-name asd_exp1                # 正式跑
+python ASD\run_train.py --train-dir data\ASD_preprocessed_v1\train --exp-name asd_exp1 --resume       # 中斷後續跑
 ```
 
 `--check-only` 要確認的三行：**python 路徑是不是你的 venv**、
@@ -702,19 +702,20 @@ aseg 回來之後是 256³，用**兩段整數切片**切回：
 
 ### 13.1 `ASD/test_dice.py`
 
-atlas、atlas-seg、test-dir、labels **全部有預設值**，所以通常只要給模型。
+**`--test-dir` 必填，直接給路徑**（2026-09-13 改，見 §14 開頭）；atlas、atlas-seg、labels 有預設值。
+tigerbx 組要另外給 `--atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz`。
 
 三種模式：
 
 ```powershell
 # ① 基準線：只有 Affine，模型無貢獻
-python ASD\test_dice.py --baseline --gpu 0
+python ASD\test_dice.py --baseline --test-dir data\mixed_preprocessed_v1\test --exp-name mix_exp1
 
 # ② 單一模型
-python ASD\test_dice.py --model models\asd_exp1\0190.pt --gpu 0
+python ASD\test_dice.py --model models\mix_exp1\0230.pt --test-dir data\mixed_preprocessed_v1\test
 
 # ③ 掃整個資料夾，畫 Dice 曲線
-python ASD\test_dice.py --model-dir models\asd_exp1 --step 10 --gpu 0
+python ASD\test_dice.py --model-dir models\mix_exp1 --step 10 --test-dir data\mixed_preprocessed_v1\test
 ```
 
 輸出 `dice_curve.csv`：`epoch, dice_mean, jneg_pct`。
@@ -728,8 +729,15 @@ python ASD\test_dice.py --model-dir models\asd_exp1 --step 10 --gpu 0
 ### 13.2 `ASD/visualize_dice.py`
 
 ```powershell
-python ASD\visualize_dice.py --model models\asd_exp1\0190.pt --subject T023 --gpu 0
+python ASD\visualize_dice.py --model models\mix_exp1\0230.pt --test-dir data\mixed_preprocessed_v1\test `
+    --subject T053 --out-dir models\mix_exp1\vis_T053
 ```
+
+- `--out-dir` 不給就存到模型旁邊的 `dice_vis\`（所有受試者擠在一起，建議分開給）。
+- `--labels` 指定「評估哪些結構」，預設 repo 的 `labels.npz`（30 個 FreeSurfer 標籤），**平常不用動**。
+  它決定 Dice 平均哪些結構、重疊圖畫哪些區域、長條圖列哪些結構；輪廓圖的 9 個結構是寫死的，跟它無關。
+- tigerbx 組要換 `--test-dir data\tigerbx_preprocessed_v1\test` 和 `--atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz`，
+  否則會拿 tigerbx 標籤去比 FreeSurfer 的 atlas 標籤，Dice 安靜地低掉約 0.14。
 
 出三張：**標籤重疊**（紅=只有 atlas、綠=只有受試者、黃=重疊）、
 **9 個結構的輪廓對照**、**逐結構長條圖**。上下排是「只有 Affine」vs「加上 VoxelMorph」。
@@ -791,30 +799,41 @@ data/
   mixed_preprocessed_v1/           make_mixed_set.py 併出來的
 ```
 
-`run_preprocess.py` / `run_train.py` / `test_dice.py` / `visualize_dice.py`
-都加了 **`--dataset`**，預設 `ASD`，會自動組出上面的路徑。
+🔄 **2026-09-13 起一律直接給路徑，`--dataset` 已拿掉**：`--dataset ASD` 會自己組出
+`data/ASD_preprocessed_v1`，指令上看不出是哪一版，有了 v2 之後還會安靜地拿 v1 去跑。
+
+| 腳本 | 路徑參數 |
+|---|---|
+| `run_preprocess.py` | `--src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1`（兩個都必填）|
+| `make_mixed_set.py` | `--sources <各包的前處理資料夾> --out <輸出資料夾>` |
+| `check_dataset.py` | `--dirs <前處理資料夾…>` |
+| `find_duplicate_scans.py` | `--prep-dir <前處理資料夾>` |
+| `run_train.py` | `--train-dir <…\train> --exp-name <實驗名>`（兩個都必填）|
+| `test_dice.py` / `visualize_dice.py` | `--test-dir <…\test>` |
 
 ### 14.1 加一包新資料的完整流程
 
 ```powershell
 # ① 放資料
-#    data\NEWDS_data\norm\<ID>.nii.gz
-#    data\NEWDS_data\aseg\<ID>.nii.gz
-#    ASD\NEWDS_subjects_final.txt      一行一個 ID
+#    data\NEWDS_data\fs_for_vxm\norm\<ID>.nii.gz
+#    data\NEWDS_data\fs_for_vxm\aseg\<ID>.nii.gz
+#    data\NEWDS_data\fs_stats\subjects.txt      一行一個 ID（或用 --subject-list 指定）
 
 # ② 先驗一顆
 python ASD\preprocess_fs.py --img-dir data\NEWDS_data\norm --seg-dir data\NEWDS_data\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir ASD\fs_check --only <某個ID>
 
 # ③ 批次前處理
-python ASD\run_preprocess.py --dataset NEWDS
+python ASD\run_preprocess.py --src-dir data\NEWDS_data --out-dir data\NEWDS_preprocessed_v1
 
 # ④ 併成混合訓練用的一份
-python ASD\make_mixed_set.py --sources ASD NEWDS --dry-run
-python ASD\make_mixed_set.py --sources ASD NEWDS
+python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\NEWDS_preprocessed_v1 `
+    --out data\mixed_preprocessed_v2 --dry-run
+python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\NEWDS_preprocessed_v1 `
+    --out data\mixed_preprocessed_v2
 
 # ⑤ 訓練
-python ASD\run_train.py --dataset mixed --exp-name mix_exp1
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp2
 ```
 
 ### 14.2 `make_mixed_set.py` 在做什麼
@@ -935,13 +954,16 @@ DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
 （中位數 0.663 / 0.656 / 0.653）。各包自己的切分原封不動併起來，所以仍然是受試者層級。
 
 ```powershell
-python ASD\run_preprocess.py --dataset DGM        # 自動套用 ASD\DGM_groups.txt
-python ASD\run_preprocess.py --dataset VNT
-python ASD\make_mixed_set.py --sources ASD DGM VNT
-python ASD\check_dataset.py --check --datasets ASD DGM VNT mixed   # 搬到 B 台之後
-python ASD\run_train.py --dataset mixed --exp-name mix_exp1
-python ASD\test_dice.py --dataset mixed --baseline --exp-name mix_exp1 --gpu 0
-python ASD\test_dice.py --dataset mixed --model-dir models\mix_exp1 --step 10 --gpu 0
+# 當時用的是舊的 --dataset 寫法，以下換成 2026-09-13 起「直接給路徑」的寫法
+python ASD\run_preprocess.py --src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1   # 自動套用 ASD\DGM_groups.txt
+python ASD\run_preprocess.py --src-dir data\VNT_data --out-dir data\VNT_preprocessed_v1
+python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 data\VNT_preprocessed_v1 `
+    --out data\mixed_preprocessed_v1
+python ASD\check_dataset.py --check --dirs data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 `
+    data\VNT_preprocessed_v1 data\mixed_preprocessed_v1          # 搬到 B 台之後
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v1\train --exp-name mix_exp1
+python ASD\test_dice.py --baseline --test-dir data\mixed_preprocessed_v1\test --exp-name mix_exp1
+python ASD\test_dice.py --model-dir models\mix_exp1 --step 10 --test-dir data\mixed_preprocessed_v1\test
 ```
 
 ⚠️ 搬到 B 台時曾經**複製不完整**（191 / 258 個 npz），`check_dataset.py` 補上混合集對帳後才抓到。
@@ -990,8 +1012,8 @@ python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-di
     --group-map ASD\DGM_groups.txt --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
 
 # 評估一定要換 atlas 分割
-python ASD\test_dice.py --dataset tigerbx --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz `
-    --model-dir models\tiger_exp1 --step 10 --gpu 0
+python ASD\test_dice.py --test-dir data\tigerbx_preprocessed_v1\test `
+    --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz --model-dir models\tiger_exp1 --step 10
 ```
 
 ### 17.2 結果

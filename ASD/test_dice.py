@@ -36,11 +36,21 @@ Affine 已吸收大部分尺寸差（實測受試者被放大約 1.44 倍），�
 
 用法
 ----
+    # 基準線（只做線性對位，不套模型）
+    python ASD\\test_dice.py --baseline --test-dir data\\mixed_preprocessed_v1\\test --exp-name mix_exp1
+
     # 單一模型
-    python ASD\\test_dice.py --model models\\asd_exp1\\0155.pt
+    python ASD\\test_dice.py --model models\\mix_exp1\\0230.pt --test-dir data\\mixed_preprocessed_v1\\test
 
     # 掃過多個 epoch（挑最佳用）
-    python ASD\\test_dice.py --model-dir models\\asd_exp1 --step 10
+    python ASD\\test_dice.py --model-dir models\\mix_exp1 --step 10 --test-dir data\\mixed_preprocessed_v1\\test
+
+    # tigerbx 組：atlas 分割也要換
+    python ASD\\test_dice.py --model-dir models\\tiger_exp1 --step 10 ^
+        --test-dir data\\tigerbx_preprocessed_v1\\test --atlas-seg IXI\\atlas_mni152_09c_v3_seg_tigerbx.npz
+
+--test-dir 必填，直接給路徑（2026-09-13 改）：原本的 --dataset ASD 會自己組出
+data/ASD_preprocessed_v1，指令上看不出用的是哪一版；有了 v2 之後還會安靜地拿 v1 去跑。
 """
 
 import os
@@ -67,20 +77,20 @@ g.add_argument('--baseline', action='store_true',
 ap.add_argument('--step', type=int, default=1, help='--model-dir 時每幾個 epoch 評估一次')
 ap.add_argument('--atlas', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))
 ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))
-ap.add_argument('--dataset', default='ASD', help='→ data/<名稱>_preprocessed_v1/test')
-ap.add_argument('--test-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/test')
+ap.add_argument('--test-dir', required=True,
+                help='test 資料夾，例如 data\\mixed_preprocessed_v1\\test')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
 ap.add_argument('--exp-name', default=None,
                 help='--baseline 時把結果寫到 models/<實驗名>/。基準線只跟「test 集 + atlas」'
                      '有關、跟模型無關，但放進實驗資料夾能讓每個實驗自成一體，'
-                     '之後翻舊實驗不用另外找對照。不給則寫到 models/<資料集>_baseline/')
+                     '之後翻舊實驗不用另外找對照。不給則寫到 models/<test 上一層的資料夾名>_baseline/')
 ap.add_argument('--out-csv', default=None)
 ap.add_argument('--gpu', default='0')
 args = ap.parse_args()
 
-# --test-dir 沒給就照 --dataset 推：data/<名稱>_preprocessed_v1/test
-if args.test_dir is None:
-    args.test_dir = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1', 'test')
+args.test_dir = os.path.normpath(args.test_dir)
+if not os.path.isdir(args.test_dir):
+    sys.exit('[X] 找不到 test 資料夾：%s' % args.test_dir)
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -277,8 +287,10 @@ if args.baseline:
     # 🔴 2026-09-08 改：原本寫到 data/<資料集>_preprocessed_v1/ 底下。
     #    data/ 應該只放資料，衍生結果全部進 models/ —— 同一份資料集會被很多實驗用到，
     #    把結果混進去之後很難分辨哪個檔案是輸入、哪個是產出。
+    # 沒給 --exp-name 就用資料夾名（含版本），例如 models/mixed_preprocessed_v1_baseline/
+    prep_name = os.path.basename(os.path.dirname(os.path.abspath(args.test_dir)))
     out = args.out_csv or os.path.join(
-        ROOT, 'models', args.exp_name or (args.dataset + '_baseline'), 'dice_baseline.csv')
+        ROOT, 'models', args.exp_name or (prep_name + '_baseline'), 'dice_baseline.csv')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)

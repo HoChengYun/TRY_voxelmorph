@@ -10,7 +10,16 @@
 還會畫出「配準前 vs 配準後」的對照，看模型到底改善了什麼。
 
 用法
-    python ASD\\visualize_dice.py --model models\\asd_exp1\\0190.pt --subject T023
+    python ASD\\visualize_dice.py --model models\\mix_exp1\\0230.pt ^
+        --test-dir data\\mixed_preprocessed_v1\\test --subject T053 --out-dir models\\mix_exp1\\vis_T053
+
+    # tigerbx 組：atlas 分割也要換，否則會拿 tigerbx 標籤去比 FreeSurfer 的 atlas 標籤
+    python ASD\\visualize_dice.py --model models\\tiger_exp1\\0240.pt ^
+        --test-dir data\\tigerbx_preprocessed_v1\\test --subject T053 ^
+        --atlas-seg IXI\\atlas_mni152_09c_v3_seg_tigerbx.npz --out-dir models\\tiger_exp1\\vis_T053
+
+--test-dir 直接給路徑（2026-09-13 改，原本的 --dataset 看不出用的是哪一版）。
+--out-dir 不給就存到模型旁邊的 dice_vis/。
 """
 
 import os
@@ -26,20 +35,22 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'voxelmorph-code'))
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--model', required=True)
+ap.add_argument('--model', required=True,
+                help='.pt；也吃作者釋出的 Keras .h5（經 author_model.py 搬進 PyTorch）')
 ap.add_argument('--subject', default=None, help='受試者 ID 或 npz 路徑；不給則取 test 第一顆')
 ap.add_argument('--atlas', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))
 ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))
-ap.add_argument('--dataset', default='ASD', help='→ data/<名稱>_preprocessed_v1/test')
-ap.add_argument('--test-dir', default=None, help='預設 data/<資料集>_preprocessed_v1/test')
+ap.add_argument('--test-dir', default=None,
+                help='test 資料夾，例如 data\\mixed_preprocessed_v1\\test。'
+                     '--subject 給的是 npz 完整路徑時可以省略')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
 ap.add_argument('--out-dir', default=None)
 ap.add_argument('--gpu', default='0')
 args = ap.parse_args()
 
-# --test-dir 沒給就照 --dataset 推：data/<名稱>_preprocessed_v1/test
-if args.test_dir is None:
-    args.test_dir = os.path.join(ROOT, 'data', args.dataset + '_preprocessed_v1', 'test')
+if not (args.subject and os.path.exists(args.subject)) and not args.test_dir:
+    sys.exit('[X] 要給 --test-dir（例如 data\\mixed_preprocessed_v1\\test），'
+             '或把 --subject 給成 npz 的完整路徑')
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 import torch
@@ -47,6 +58,7 @@ import voxelmorph as vxm
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from orient import canonical_axes, to_ras, axcode
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -88,7 +100,7 @@ name = os.path.basename(sub_path)[:-4]
 # 一定要含 epoch —— 否則把同一顆的不同 epoch 輸出到同一個資料夾會互相覆蓋，
 # 而且不會有任何提示。
 epoch = os.path.basename(os.path.abspath(args.model))
-epoch = epoch[:-3] if epoch.endswith('.pt') else epoch
+epoch = os.path.splitext(epoch)[0]
 out_dir = args.out_dir or os.path.join(os.path.dirname(os.path.abspath(args.model)),
                                        'dice_vis')
 os.makedirs(out_dir, exist_ok=True)
@@ -99,11 +111,16 @@ LABELS = np.load(args.labels)['labels'].astype(int).tolist()
 d = np.load(sub_path)
 vol, seg = d['vol'].astype(np.float32), d['seg'].astype(np.int32)
 
-print('受試者 : %s' % name)
+print('受試者 : %s  (%s)' % (name, sub_path))
 print('模型   : %s' % args.model)
 
 # ── 推論 ─────────────────────────────────────────────────────────────
-model = vxm.networks.VxmDense.load(args.model, device)
+if args.model.endswith('.h5'):
+    # 作者釋出的 Keras 模型：這台的 TF 載不起來，搬進 PyTorch 用（見 author_model.py）
+    from author_model import load_author_h5
+    model = load_author_h5(args.model, device)
+else:
+    model = vxm.networks.VxmDense.load(args.model, device)
 model.to(device).eval()
 warp_nn = vxm.torch.layers.SpatialTransformer(atlas_vol.shape, mode='nearest').to(device)
 
@@ -139,6 +156,13 @@ def rgb_overlay(a_mask, b_mask):
     img[..., 1] = b_mask
     return img
 
+
+# ── 轉正：依 atlas 的標籤判斷方向，一律轉成 RAS 再畫（見 orient.py）──
+# 我們的 MNI atlas 本來就是 RAS，等於沒動；作者的 atlas 是 LIA，不轉的話切面名稱全錯。
+perm, flip = canonical_axes(atlas_seg)
+print('方向   : atlas 是 %s，畫圖前轉成 RAS' % axcode(perm, flip))
+vol, seg, seg_w, atlas_vol, atlas_seg = (to_ras(x, perm, flip)
+                                         for x in (vol, seg, seg_w, atlas_vol, atlas_seg))
 
 D, H, W = vol.shape
 # ⚠️ Sagittal 不要切正中線：那裡切不到海馬迴（距中線約 30mm），側腦室也只剩一點，

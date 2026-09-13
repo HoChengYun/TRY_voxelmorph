@@ -30,6 +30,10 @@ import argparse
 import numpy as np
 import torch
 import voxelmorph as vxm
+import sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, 'ASD'))          # author_model.py、orient.py 在那裡
+from orient import canonical_axes, to_ras, flow_to_ras, axcode
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -38,8 +42,11 @@ from skimage.metrics import structural_similarity as ssim_fn
 
 # ── 參數 ──────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
-parser.add_argument('--model',    required=True)
+parser.add_argument('--model',    required=True, help='.pt；也吃作者釋出的 Keras .h5（經 ASD/author_model.py）')
 parser.add_argument('--atlas',    required=True)
+parser.add_argument('--atlas-seg', default=None,
+                    help='atlas 的標籤，只用來判斷影像方向（見 ASD/orient.py）。'
+                         '不給就用 atlas npz 裡的 seg，或旁邊的 <atlas>_seg.npz')
 parser.add_argument('--subject',  default=None,  help='npz 路徑，或受試者 ID（需搭 --test-dir）；不指定則從 test-dir 隨機選')
 parser.add_argument('--test-dir', default=None)
 parser.add_argument('--out-dir',  required=True)
@@ -59,7 +66,12 @@ atlas_vol = atlas_vol.astype(np.float32)
 atlas_tensor = torch.from_numpy(atlas_vol)[None, None].to(device)
 
 # ── 載入模型 ──────────────────────────────────────────────────────────
-model = vxm.networks.VxmDense.load(args.model, device)
+if args.model.endswith('.h5'):
+    # 作者釋出的 Keras 模型：這台的 TF 載不起來，搬進 PyTorch 用
+    from author_model import load_author_h5
+    model = load_author_h5(args.model, device)
+else:
+    model = vxm.networks.VxmDense.load(args.model, device)
 model.to(device)
 model.eval()
 
@@ -139,6 +151,26 @@ jneg_val, jacobian_map = jacobian_negative_ratio(flow_np)
 
 model_name = os.path.splitext(os.path.basename(args.model))[0]
 print(f'Warped NCC={ncc_val_warped:.4f}  SSIM={ssim_val_warped:.4f}  %|J|<=0={jneg_val*100:.3f}%')
+
+# ── 轉正：依 atlas 標籤判斷方向，一律轉成 RAS 再畫（見 ASD/orient.py）──────
+# 切面名稱假設 [左→右, 後→前, 下→上]。我們的 MNI atlas 本來就是，等於沒動；
+# 作者的 atlas（neurite-oasis 空間）是 LIA，不轉的話三個切面名稱都標錯、影像轉 90 度。
+moved_raw, flow_raw = moved_np, flow_np        # 存 NIfTI 要用原本的方向，才配得上原本的 affine
+_seg = None
+if args.atlas_seg:
+    _seg = np.load(args.atlas_seg)['seg']
+elif args.atlas.endswith('.npz') and 'seg' in np.load(args.atlas).files:
+    _seg = np.load(args.atlas)['seg']
+elif os.path.exists(args.atlas.replace('.npz', '_seg.npz')):
+    _seg = np.load(args.atlas.replace('.npz', '_seg.npz'))['seg']
+if _seg is not None:
+    perm, flip = canonical_axes(_seg.astype(np.int32))
+    print(f'方向：atlas 是 {axcode(perm, flip)}，畫圖前轉成 RAS')
+    vol, atlas_vol, moved_np, jacobian_map = (to_ras(x, perm, flip)
+                                              for x in (vol, atlas_vol, moved_np, jacobian_map))
+    flow_np = flow_to_ras(flow_np, perm, flip)
+else:
+    print('[!] 找不到 atlas 的標籤，無法判斷方向，照原樣畫（切面名稱可能不對）')
 
 # ── 工具函數 ─────────────────────────────────────────────────────────
 D, H, W = vol.shape
@@ -474,12 +506,12 @@ if args.save_nii or subject_path.endswith('.nii') or subject_path.endswith('.nii
     affine = vol_affine if vol_affine is not None else atlas_affine
     
     moved_out = os.path.join(args.out_dir, f'warped_{subject_name}_{model_name}.nii.gz')
-    vxm.py.utils.save_volfile(moved_np, moved_out, affine)
+    vxm.py.utils.save_volfile(moved_raw, moved_out, affine)
     print(f'[OK] Warped Image: {moved_out}')
     
     warp_out = os.path.join(args.out_dir, f'warp_{subject_name}_{model_name}.nii.gz')
     # warp field 必須從 (3, D, H, W) 轉回 (D, H, W, 3) 才能存成標準 NIfTI
-    flow_to_save = np.transpose(flow_np, (1, 2, 3, 0))
+    flow_to_save = np.transpose(flow_raw, (1, 2, 3, 0))
     vxm.py.utils.save_volfile(flow_to_save, warp_out, affine)
     print(f'[OK] Deformation Field: {warp_out}')
 

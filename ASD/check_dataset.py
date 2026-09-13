@@ -10,10 +10,15 @@ npz 被截斷或複製到一半，`np.load` 不一定會報錯（zip 結構可�
 兩種模式
 --------
     # 來源機器：產生指紋檔（跟著資料一起複製過去）
-    python ASD\\check_dataset.py --write-manifest --datasets ASD DGM VNT
+    python ASD\\check_dataset.py --write-manifest ^
+        --dirs data\\ASD_preprocessed_v1 data\\DGM_preprocessed_v1 data\\VNT_preprocessed_v1
 
-    # 目標機器：比對
-    python ASD\\check_dataset.py --check --datasets ASD DGM VNT
+    # 目標機器：比對（混合集也要查，它會跟 mixed_manifest.json 對帳）
+    python ASD\\check_dataset.py --check ^
+        --dirs data\\ASD_preprocessed_v1 data\\DGM_preprocessed_v1 data\\VNT_preprocessed_v1 data\\mixed_preprocessed_v1
+
+資料夾一律直接給路徑（2026-09-13 改）。與 subjects.txt 對帳時，清單取前處理資料夾旁邊的
+<名稱>_data/fs_stats/subjects.txt，名稱是資料夾名去掉 _preprocessed_vN。
 
 沒有 manifest 也能用 —— 只跑內容檢查（可讀、有 vol+seg、shape/dtype/值域正確、
 標籤是整數且落在合理集合、與 subjects.txt 對帳）。那擋得住大部分的壞檔，
@@ -23,6 +28,7 @@ import os
 import sys
 import glob
 import json
+import re
 import hashlib
 import argparse
 
@@ -40,7 +46,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = 'dataset_manifest.json'
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--datasets', nargs='+', default=['ASD', 'DGM', 'VNT'])
+ap.add_argument('--dirs', nargs='+', required=True,
+                help='要檢查的前處理資料夾，例如 data\\ASD_preprocessed_v1')
 ap.add_argument('--write-manifest', action='store_true', help='產生指紋檔（在來源機器跑）')
 ap.add_argument('--check', action='store_true', help='比對指紋檔（在目標機器跑）')
 ap.add_argument('--no-hash', action='store_true', help='跳過 sha256，只做內容檢查（快很多）')
@@ -102,8 +109,9 @@ if not (args.write_manifest or args.check):
     print('沒給 --write-manifest 或 --check，只做內容檢查。')
 
 total_bad = 0
-for ds in args.datasets:
-    prep = os.path.join(ROOT, 'data', ds + '_preprocessed_v1')
+for d_arg in args.dirs:
+    prep = os.path.abspath(d_arg)
+    ds = re.sub(r'_preprocessed_v\d+$', '', os.path.basename(prep.rstrip('\\/')))
     if not os.path.isdir(prep):
         print('[X] 找不到 %s' % prep)
         total_bad += 1
@@ -112,7 +120,7 @@ for ds in args.datasets:
     files = sorted(glob.glob(os.path.join(prep, '*', '*.npz')))
     print()
     print('=' * 66)
-    print('  %s   %d 個 npz' % (ds, len(files)))
+    print('  %s   %d 個 npz' % (prep, len(files)))
     print('=' * 66)
 
     # 混合集：跟 mixed_manifest.json 對帳（它沒有 subjects.txt）
@@ -120,7 +128,8 @@ for ds in args.datasets:
     #    但 mixed 少了 67 個檔案，train.py 照跑不報錯，只是少看四分之一的資料。
     mman = os.path.join(prep, 'mixed_manifest.json')
     if os.path.exists(mman):
-        want = json.load(open(mman, encoding='utf-8'))['members']
+        mj = json.load(open(mman, encoding='utf-8'))
+        want = mj['members']
         got = {os.path.basename(f) for f in files}
         miss = sorted(set(want) - got)
         extra = sorted(got - set(want))
@@ -136,14 +145,17 @@ for ds in args.datasets:
                          ' ...' if len(v) > 5 else ''))
             if extra:
                 print('      多：%s' % ', '.join(extra[:5]))
-            print('      -> 重建：python ASD\\make_mixed_set.py --sources %s --force'
-                  % ' '.join(sorted({want[k]['dataset'] for k in want})))
+            # 舊的 manifest 只記名稱沒記路徑，退回 v1 的慣例路徑
+            src_dirs = mj.get('source_dirs') or [os.path.join('data', n + '_preprocessed_v1')
+                                                 for n in mj.get('sources', [])]
+            print('      -> 重建：python ASD\\make_mixed_set.py --sources %s --out %s --force'
+                  % (' '.join(src_dirs), d_arg))
             total_bad += len(miss) + len(extra)
         else:
             print('  [v] 與 mixed_manifest.json 一致（%d 個）' % len(want))
 
     # 與 subjects.txt 對帳
-    slist = os.path.join(ROOT, 'data', ds + '_data', 'fs_stats', 'subjects.txt')
+    slist = os.path.join(os.path.dirname(prep), ds + '_data', 'fs_stats', 'subjects.txt')
     if os.path.exists(slist):
         ids = {l.strip() for l in open(slist, encoding='utf-8-sig')
                if l.strip() and not l.startswith('#')}
