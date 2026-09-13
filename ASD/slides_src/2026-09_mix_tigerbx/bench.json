@@ -1,0 +1,27 @@
+{
+ "model": "mix_exp1/0230.pt",
+ "n_test": 28,
+ "config": {
+  "use_probs": false,
+  "bidir": false,
+  "int_downsize": 2,
+  "int_steps": 7,
+  "unet_feat_mult": 1,
+  "nb_unet_levels": null,
+  "nb_unet_features": "[[16, 32, 32, 32], [32, 32, 32, 32, 32, 16, 16]]",
+  "inshape": "(192, 224, 192)"
+ },
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "n": 28,
+  "mean": 0.31440480714497554,
+  "sd": 0.0008699539945597972
+ },
+ "cpu": {
+  "name": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+  "threads": 1,
+  "n": 3,
+  "mean": 11.318673633330036,
+  "sd": 0.09188103252136708
+ }
+}

@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-08-23（第二次修訂）**
+> 最後更新：**2026-09-13**（ASD 線：三包混合訓練、tigerbx 對照、跟論文逐項對照）
 
 ---
 
@@ -12,7 +12,7 @@
 | 文件 | 涵蓋範圍 | 內容停在 | 狀態 |
 |------|---------|---------|------|
 | **`CLAUDE.md`（本文）** | 專案總覽、IXI 主線 | 2026/08，v3 / exp8 | ✅ **唯一事實來源** |
-| **`ASD/ASD相關手冊.md`** | **ASD 資料集（老師提供）那條線** | 2026/08 | ✅ **ASD 相關一律看這份** |
+| **`ASD/ASD相關手冊.md`** | **ASD 資料集（老師提供）那條線** | 2026/09，mix_exp1 / tiger_exp1 | ✅ **ASD 相關一律看這份** |
 | `IXI/ixi相關手冊.md` | IXI 操作細節 | 2026/04，v2 / resample 時期 | 🟡 已加更正框，仍需小心 |
 | `VoxelMorph_PyTorch_實作指南.md` | VoxelMorph 原理 / OASIS 時期 | 2026/03 | 🔴 最舊，多處失效 |
 
@@ -31,10 +31,19 @@
 **任務**：用 VoxelMorph（PyTorch 版）在 **IXI** 腦部 T1 MRI 上做 **scan-to-atlas** 非剛性配準，
 atlas 為 **MNI152 ICBM 2009c Asymmetric**（自製，非官方 OASIS atlas）。
 
-**當前狀態**：前處理／訓練／評估／視覺化都已跑通，完成 8 組實驗（exp1–exp8）。
-ASD（老師提供）那條線**整條打通了**：前處理 → 訓練（asd_exp1，B 台）→ **Dice 評估** → 視覺化。
-**asd_exp1：Dice 0.7811、折疊率 0.0000%、基準線 0.6760。**
-細節見 `ASD/ASD相關手冊.md` §9.1（結果）、§12（atlas 的 aseg）、§13（評估與視覺化）。
+**當前狀態**：IXI 線完成 8 組實驗（exp1–exp8），前處理／訓練／評估／視覺化都已跑通。
+ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 + DGM 54 + VNT 68 = 286）**，
+並加了一組 **tigerbx 標籤**的對照（同一批人、同一個切分）：
+
+| 實驗 | 資料 | 基準線 | Dice | 模型貢獻 | 折疊率 |
+|---|---|---|---|---|---|
+| asd_exp1（舊，167 顆清單）| ASD train 149 / test 17 | 0.6760 | 0.7811 | +0.105 | 0.000% |
+| **mix_exp1** | 三包 train 258 / test 28，FreeSurfer 標籤 | 0.6753 | **0.7874** | +0.112 | 0.000% |
+| **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
+
+細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）。
+⚠️ 三個實驗都是 repo 預設的**微分同胚版**（`int_steps=7`）＋ λ=1.0。折疊率 0 主要來自這個版本，
+**不代表模型比論文好**（論文 Table I 是非微分同胚版，見手冊 §18）。
 
 ⚠️ **本專案不含 TransMorph**。TransMorph 在 `D:\MyHome\MRI\TransMorph\`，有自己的 `CLAUDE.md`。
 根目錄的 `TransMorph_Report.docx` 只是報告備份，與本專案程式碼無關。
@@ -86,20 +95,27 @@ C:\Users\h4524\claude_cheng\
 │   ├── verify_conform_roundtrip.py     # 量 conform 來回的位移（0.0032 voxel）
 │   ├── make_padded_atlas_input.py      # atlas 補零成 256³，讓 recon-all 零內插
 │   ├── make_atlas_seg.py               # atlas aseg 切回訓練空間
-│   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（硬連結），給混合訓練
-│   ├── test_dice.py                    # ⭐ Dice 評估
+│   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（預設實體複製），給混合訓練
+│   ├── check_dataset.py                # 搬到別台機器後驗資料（sha256 manifest + 內容檢查）
+│   ├── find_duplicate_scans.py         # atlas 空間的標籤 Dice 找重複掃描（手冊 §15.2）
+│   ├── test_dice.py                    # ⭐ Dice 評估（--dataset / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
-│   ├── run_preprocess.py               # 前處理包裝（--dataset）
+│   ├── run_preprocess.py               # 前處理包裝（--dataset / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--dataset / --check-only / --resume）
-│   ├── subjects_final.txt              # ✅ ASD 的 FINAL 清單（167 個 ID）
-│   ├── groups.txt                      # 歸戶對照（目前不需要，見手冊 §3）
+│   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
+│   ├── DGM_groups.txt                  # DGM 歸戶表（D015/D037、D038/DGM002 同一人；已去識別化）
+│   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
-│   └── slides_src\                     # meeting 簡報原始碼（25 頁 .dc.html）
+│   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
-│   ├── ASD_data\norm\  ASD_data\aseg\  # 原始 FreeSurfer 產物，各 167 個，285 MB
-│   ├── ASD_preprocessed_v1\            # ✅ train 149 / test 17 + split.json（1.28 GB）
-│   ├── <名稱>_data\{norm,aseg}\        # 新資料集照這個命名，就能被 --dataset 找到
-│   └── mixed_preprocessed_v1\          # make_mixed_set.py 併出來的，混合訓練用
+│   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
+│   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
+│   ├── tigerbx\atlas\                  # tigerbx 對 atlas 的分割（256³）
+│   ├── ASD_preprocessed_v1\            # train 148 / test 16
+│   ├── DGM_preprocessed_v1\            # train 49 / test 5（54 個掃描 = 52 人）
+│   ├── VNT_preprocessed_v1\            # train 61 / test 7
+│   ├── mixed_preprocessed_v1\          # 三包併起來 train 258 / test 28 + mixed_manifest.json
+│   └── tigerbx_preprocessed_v1\        # tigerbx arm：同一個切分 train 258 / test 28
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
 │   ├── mni_icbm152_nlin_asym_09c_nifti\ # 下載的 MNI152 2009c
@@ -108,6 +124,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_preprocess_ixi.py     SeeHeader.m   read_nii_header.py
 │   ├── atlas_mni152_09c_v2.{npz,nii.gz}  # resample 版
 │   ├── atlas_mni152_09c_v3.{npz,nii.gz}  # crop 版（現行）
+│   ├── atlas_mni152_09c_v3_seg.npz         # atlas 的 FreeSurfer 分割（Dice 用）
+│   ├── atlas_mni152_09c_v3_seg_tigerbx.npz # atlas 的 tigerbx 分割（tigerbx arm 的 Dice 用）
 │   ├── IXI_preprocessed\               # v1（舊，🔴 已不可重現）train 522 / test 59
 │   ├── IXI_preprocessed_v2\            # v2       train 522 / test 59
 │   ├── IXI_preprocessed_v3\            # v3（現行）train 522 / test 59 + nii\
@@ -119,9 +137,10 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
+│   ├── asd_exp1\  mix_exp1\  tiger_exp1\   # ASD 線：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重
-├── share_models\                       # 空資料夾，用途不明
+├── share_models\                       # ⭐ 進版控的最佳模型：ASD_good\0190.pt、mix_exp1_good\0230.pt、tiger_exp1_good\0240.pt
 ├── log\                                # 訓練 stdout + 當初的指令
 ├── oasis\                              # OASIS 前處理（舊線，目前不動）
 ├── meeting報告\                        # 簡報 pptx（.gitignore）
@@ -458,10 +477,9 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 - `models/exp1` 有 201 個 `.pt`、`exp4` 有 501 個——**不要遍歷讀取**，只讀 `epoch_curve.csv`。
   （exp5–exp8 已清理，各只留最佳 epoch 的 `.pt` + `epoch_curve.csv/png`。）
 - 這是 **Windows 原生環境**，路徑用 `\`，指令用 PowerShell 語法（換行用反引號 `` ` ``）。
-- **動 git 之前先問使用者。** 目前 untracked：
-  `CLAUDE.md`、`FreeSurfer_到_VoxelMorph_交接.md`、`ASD/`、`log/exp7*`、`log/exp8*`、`前一AI擔心的/`，
-  以及已修改的 `IXI/ixi相關手冊.md`、`VoxelMorph_PyTorch_實作指南.md`、`.gitignore`。
-  ⚠️ 這幾份是目前最重要的資產，卻都還沒進版控。
+- **動 git 之前先問使用者。** 文件與 ASD 程式都已進版控（2026-09 起工作樹是乾淨的）。
+- 🔴 **GitHub repo 是公開的：不得出現個資**（出生日期／身高／體重／精確掃描日期）。
+  `data/` 整個被 `.gitignore` 擋掉；歸戶表（如 `ASD/DGM_groups.txt`）只寫判定依據的種類。
 
 ---
 
@@ -505,13 +523,10 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 批次前處理跑完 **0 失敗、0 個標籤消失**，輸出 `data/ASD_preprocessed_v1/`
 （切分當下 train 150 / test 17；**A016_1 於 QC 後移出 → 實際訓練 149 / 17**，**1.28 GB**）。
 
-**還卡著的一件事**：
-🟠 **A013 / A0131 / A0132、A016_1 / A016_2 是否同一人** —— 要問老師。
-已用程式掃過全部 167 個 ID，**這種命名曖昧全批只有這兩組**，沒有第三處。
-⚠️ 目前採「都是不同人」的**暫定假設**（使用者決定，`--grouping none`），
-若錯會造成 data leakage，**要發表必須在方法學說明或先確認**。
-好消息是可逆：寫一份 `ASD/groups.txt` 用 `--group-map` 重跑切分即可，不用改程式。
-詳見 `ASD/ASD相關手冊.md` §3。
+**✅ 同一人問題已由 DICOM 檔頭解決（2026-09-07）**：A013 是另一個人；A0131 / A0132 是同一位 5 歲男童（A0132 排除）；
+YT13 是 A0131 同一次掃描的重複匯出（排除）；A016_2 是品管掃描（排除）；T065 是編號誤植（納回）。
+ASD 清單 167 → **164**（train 148 / test 16）。詳見 `ASD/ASD相關手冊.md` §15。
+以下「前處理已完成」「149 / 17」等段落是 167 顆清單時期的記錄，保留當歷史。
 
 **清單**：
 ```

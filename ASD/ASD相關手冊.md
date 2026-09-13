@@ -1,7 +1,7 @@
 # ASD 資料集：FreeSurfer 產物 → VoxelMorph 訓練實作手冊
 
 何承運 · 2026
-建立日期：**2026-08-23**
+建立日期：**2026-08-23**　·　最後更新：**2026-09-13**
 
 ---
 
@@ -14,16 +14,19 @@
 > - **FreeSurfer 端寫給我們的接入說明**：`FreeSurfer_到_VoxelMorph_交接.md`
 > - **FreeSurfer 端的資料品質原始記錄**：`D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md`
 >
-> ## 現況（2026-08-23）
+> ## 現況（2026-09-13）
 >
 > | 階段 | 狀態 |
 > |---|---|
-> | 混掃描檢查 | ✅ 通過，異常 0 |
-> | FINAL 清單 | ✅ 167 顆，`ASD/subjects_final.txt` |
-> | 資料落地 | ✅ `data/ASD_data/norm` + `aseg`，各 167 個，285 MB |
-> | **前處理** | ✅ **已跑完**：train 149 / test 17（A016_1 於 QC 後移出），0 失敗、0 標籤消失 |
-> | **訓練** | ⏳ 在 **B 台**（`D:\chengyun\TRY_voxelmorph`）進行，見 §7 |
-> | Dice 評估 | 🔴 **腳本尚未撰寫** |
+> | 資料把關 | ✅ DICOM 檔頭逐一核對：ASD 170 → **164**；DGM 54 個掃描 = 52 人；VNT 68 人（§15）|
+> | 前處理 | ✅ 三包 FreeSurfer（train 258 / test 28）＋ tigerbx 一包（同一個切分），0 失敗 |
+> | 訓練 | ✅ mix_exp1（FreeSurfer 標籤）、tiger_exp1（tigerbx 標籤），都在 B 台 |
+> | Dice 評估 | ✅ mix 0.7874、tiger 0.8594，折疊率皆 0（§16、§17）|
+> | 跟論文比 | ✅ Table I 全表、逐項差異、推論時間實測（§18）|
+> | meeting 簡報 | ✅ `meeting報告/ASD延伸實驗_混合訓練與tigerbx_v2.pptx`（29 頁）|
+>
+> ⚠️ §2–§13 寫於 08-23～09-07（167 顆清單、asd_exp1 時期），保留當歷史。
+> 跟 §15 以後衝突時，**以 §15 以後為準**。
 
 ---
 
@@ -46,6 +49,9 @@
 ---
 
 ## 2. 🔴 資料品質：排除清單
+
+> 🔄 **2026-09-07 更新**：這張表是 08-23 版。之後讀了 DICOM 檔頭，T065 翻案納回，
+> 另外排除 A016_1 / A016_2 / YT13 / A0132，清單變成 164。**最新的排除表見 §15.1。**
 
 來源：`D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md`（FreeSurfer 端已查證，有 log／檔案證據）
 
@@ -96,6 +102,9 @@
 ---
 
 ## 3. 受試者歸戶（避免 data leakage）
+
+> 🔄 **2026-09-07 已解決**：DICOM 檔頭顯示 A013 是另一個人，A0131 / A0132 是同一人（A0132 排除），
+> A016_1 / A016_2 都排除。本節的「暫定假設」已經不需要。DGM 另有兩對同一人，用 `ASD/DGM_groups.txt`。見 §15。
 
 同一個人的多次掃描若一個進 train、一個進 test，模型等於看過答案，Dice 會虛高。
 **切分必須以「受試者」為單位，不是檔案層級 shuffle。**
@@ -508,6 +517,8 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 | 實驗 | 資料 | atlas | epochs | image-loss | λ | int-steps | int-downsize | 最佳 epoch | Dice | %\|J\|≤0 | 備註 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **asd_exp1** | ASD_preprocessed_v1 | v3 | 250 | **ncc** | **1.0** | 7 | 2 | 0190 | **0.7811** | **0.0000%** | 已跑完（B 台）。基準線 0.6760，+0.105 |
+| **mix_exp1** | mixed_preprocessed_v1（三包）| v3 | 250 | ncc | 1.0 | 7 | 2 | 0230 | **0.7874** | **0.0000%** | 2026-09-08，B 台。基準線 0.6753，+0.112（§16）|
+| **tiger_exp1** | tigerbx_preprocessed_v1 | v3（seg 用 tigerbx 版）| 250 | ncc | 1.0 | 7 | 2 | 0240 | **0.8594** | **0.0000%** | 2026-09-09，B 台。基準線 0.7376，+0.122（§17）|
 
 📌 **λ=1.0 是這個專案第一次這樣跑，而且確實生效了。**
 `log/asd_exp1.txt` 最後一步：`loss: -0.169698 (-0.199097, 0.029399)`，
@@ -528,12 +539,13 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 數字一致代表標籤搬運與 Dice 計算沒有錯。
 
 🔴 **「最佳 epoch = 190」是雜訊，不要當成結論。**
-17 顆測試的標準誤是 **0.0051**，epoch 90 之後任何一個檢查點都落在 2×SEM 內。
+17 顆測試的標準誤是 **0.0038**（舊版寫 0.0051，2026-09 重算更正），epoch 90 之後各檢查點差距很小。
 `dice_curve.csv` 尾段：230 → 0.780848、240 → 0.780899、250 → 0.779413。
 
-📌 **折疊率 0.0000% 代表折疊預算完全沒用到**，λ=1.0 可能偏保守。
-論文 Table I 的 VoxelMorph(CC) 是 0.366%，ANTs SyN 0.185%。
-下一步可以跑 λ=0.5 對照，看 Dice 會不會再上去（見 §10）。
+🔴 **更正（2026-09-13）：舊版這裡寫「折疊率 0 代表折疊預算沒用到、λ=1.0 可能偏保守」，這個推論不成立。**
+我們用的是 repo 預設的**微分同胚版**（`int_steps=7`，速度場積分），這個版本本來就幾乎不會折疊；
+論文 Table I 的 0.366% 是**非微分同胚的位移場版本**（`int_steps=0`）。兩者不能比，
+折疊率 0 也不能拿來說 λ 太大或模型比較好。λ=0.5 對照仍然可以做，但目的只是「看 Dice 會不會上升」。
 
 ⚠️ **不要拿 0.7811 直接跟論文的 0.753 比。** 基準線就不一樣（我們 0.676、論文 0.584），
 資料集、標籤來源、atlas 也全都不同。要比的是「比基準線高多少」。
@@ -564,25 +576,29 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 - [x] **Dice 評估腳本** —— `ASD/test_dice.py`（§13.1）
 - [x] **視覺化** —— `ASD/visualize_dice.py`（§13.2）
 
-### 🔴 進行中
+### ✅ 2026-09 完成
 
-- [ ] （可選）跑 λ=0.5 對照 —— 折疊預算完全沒用到，λ=1.0 可能偏保守（§9.1）
+- [x] DICOM 檔頭核對、同一人判定（§15）
+- [x] DGM、VNT 前處理；三包混合（§16）
+- [x] mix_exp1、tiger_exp1 訓練與 Dice 評估（§16、§17）
+- [x] 跟論文 Table I 逐項對照、推論時間實測（§18）
+
+### 🔴 下一步
+
+- [ ] **切出 validation set** —— 使用者決定「等下次資料多一點再做」。目前 epoch 是看 test 挑的，數字偏樂觀
+- [ ] （可選）λ = 0.5 對照：只看 Dice 會不會上升（**不是**因為折疊率 0，見 §9.1 更正）
+- [ ] 訓練可縮成 120 epochs：epoch 90 之後已持平（§16）
+- [ ] 頭殼沒切好的影響：沒有直接測試（使用者決定暫不做）。要測就把腦遮罩刻意膨脹／侵蝕，其他條件不變
 
 ### 🟠 需要問老師
 
-- [ ] **A013 / A0131 / A0132 是否同一人**（§3）—— 目前採「不同人」的暫定假設
-- [ ] **A016_1 / A016_2 是否同一人**（§3）—— 同上。這兩題**要發表就必須有答案或在方法學說明**
-- [ ] **T065 的真實身分**（資料夾名 T065 但 DICOM ID 是 T056）
+- [ ] **DGM 2023-04-25 那四位**：資料夾編號與 DICOM ID 差 1
+- [ ] **A014 的組別**：DICOM ID 是 T094
+- ~~A013 / A016 是否同一人~~、~~T065 身分~~ → 已由 DICOM 解決（§15）
 
 ### 🟡 研究設計
 
-- [ ] **Dice 報在哪批**（§8）—— 兩段式 vs ASD 自己 train/test
-
-### 程式面
-
-- [ ] **⭐ Dice 評估腳本尚未撰寫**（`test_ixi.py` 只算 NCC / SSIM）——
-      這是接 aseg 標籤的真正回報，`labels.npz` 的 30 個結構已確認可直接用
-- [ ] 跑完訓練後用 `batch_test_ixi.py` 挑 epoch，並清掉多餘的 `.pt`
+- [ ] **Dice 報在哪批**（§8）—— 目前實際做法是 ASD + DGM + VNT 自己 train / test
 
 ---
 
@@ -599,10 +615,17 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 | `ASD/test_dice.py` | ⭐ Dice 評估（§13.1）|
 | `ASD/visualize_dice.py` | ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖（§13.2）|
 | `ASD/run_preprocess.py` / `run_train.py` | 前處理與訓練的包裝腳本 |
-| `ASD/slides_src/` | meeting 簡報原始碼（25 頁 `.dc.html` + `canvas.json`）|
-| `meeting報告/講稿.md` | 簡報講稿 |
-| `ASD/subjects_final.txt` | 最終可用清單（待 FreeSurfer 端交付）|
-| `ASD/groups.txt` | 受試者歸戶對照（待老師確認）|
+| `ASD/make_mixed_set.py` | 多資料集併成一份（預設實體複製）|
+| `ASD/check_dataset.py` | 搬機器後的資料完整性檢查（sha256 manifest）|
+| `ASD/find_duplicate_scans.py` | atlas 空間的標籤 Dice 找重複掃描（§15.2）|
+| `ASD/DGM_groups.txt` | DGM 歸戶表（已去識別化）|
+| `IXI/atlas_mni152_09c_v3_seg_tigerbx.npz` | tigerbx arm 的 atlas 分割（§17）|
+| `share_models/{ASD,mix_exp1,tiger_exp1}_good/` | 進版控的最佳模型與 Dice 曲線 |
+| `meeting報告/ASD延伸實驗_混合訓練與tigerbx_v2.pptx` | 2026-09 meeting 簡報（29 頁，含備忘稿）|
+| `ASD/slides_src/2026-09_mix_tigerbx/` | 上面那份 29 頁簡報的產生器（pptxgenjs）|
+| `ASD/slides_src/` | 舊 meeting 簡報原始碼（25 頁 `.dc.html` + `canvas.json`）|
+| `meeting報告/講稿.md` | 舊簡報（25 頁）的講稿 |
+| `ASD/subjects_final.txt` | 🟡 舊清單（08-23 版）；現行清單是 `data/ASD_data/fs_stats/subjects.txt`（164，隨資料附）|
 | `CLAUDE.md` | 專案總覽、超參數、實驗記錄 |
 | `FreeSurfer_到_VoxelMorph_交接.md` | FreeSurfer 端寫的接入說明 |
 | `D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md` | 品質問題的原始診斷 |
@@ -799,7 +822,8 @@ python ASD\run_train.py --dataset mixed --exp-name mix_exp1
 `train.py` 是 `glob(datadir/*.npz)`，**只吃單一扁平資料夾**，
 所以混合訓練必須先把各資料集的 npz 併到同一個目錄。
 
-- 用**硬連結**不是複製 —— 1.3 GB 併三份就是 4 GB，沒有意義。跨磁碟時自動退回複製。
+- 🔄 **預設是實體複製**（2026-09-08 使用者決定改掉硬連結）：Windows 檔案總管看不出哪個檔案是硬連結，
+  省 2.2 GB 不值得一個看不見的機關，尤其這份資料要在機器之間搬。真的要省空間再加 `--hardlink`。
 - **train 併 train、test 併 test**，各來源自己的切分原封不動。
   所以只要每個資料集的切分是受試者層級的，合併後仍然沒有 leakage。
 - 🔴 **會先檢查撞名**。不同資料集若有同名受試者（例如兩邊都有 `A001.npz`），
@@ -833,3 +857,247 @@ python ASD\run_train.py --dataset mixed --exp-name mix_exp1
       擋不住「同一人但兩邊 ID 不同」。
 - [ ] **兩批的年齡 / 族群分布。** ASD 這批 eTIV 中位數 1.29 L，可能包含兒童（§10）。
       若新資料是成人，混合訓練會讓模型同時看到兩種尺度 —— 不一定是壞事，但要寫進方法學。
+
+> 🔄 **2026-09-08 結果**：① 基準線重算為 **0.6753**（28 位 test）；② 同一人用 DICOM ＋ 標籤 Dice 查過，
+> DGM 內有兩對，已綁在同一邊（§15）；③ 年齡：ASD 中位數 22 歲（5–34，未滿 18 歲 24 位）、
+> DGM 23 歲（19–43）、VNT 36 歲（22–48）。ASD 確實有兒童，但主體是成人。
+
+---
+
+## 15. 資料把關：DICOM 檔頭與同一人（2026-09-07）
+
+FreeSurfer 端逐一讀了 **4,903 個 DICOM 序列**的檔頭，推翻了幾件事，也找出新的問題。
+
+### 15.1 ASD 最新的排除／納回表（170 → 164）
+
+| 受試者 | 問題 | 處置 |
+|---|---|---|
+| A043 | 雜訊過高、灰白對比不足 | 排除 |
+| T085 | 只有 120 / 192 張切片，來源即缺 | 排除 |
+| A016_1 | 皮質面積僅中位數 54%；技師當場標註 low contrast | 排除 |
+| A016_2 | ID 是 QA＋日期、性別欄 O：品管掃描，不是受試者 | 排除 |
+| YT13 | 與 A0131 的掃描時間**精確到秒相同**：同一次掃描被匯出成兩個 ID | 排除 |
+| A0132 | 與 A0131 是同一位 5 歲男童，相隔 23 天的第二次掃描 | 排除 |
+| T065 | 建檔時誤植為 T056；資料夾內留有說明檔 | **納回** |
+| A012 | 資料夾混了兩次掃描 | 已分離重跑，納入 |
+
+- A013 是另一個人（23 歲成人），跟 A0131 無關。
+- **現行清單是 `data/ASD_data/fs_stats/subjects.txt`（164 個，隨資料附）**。`ASD/subjects_final.txt` 是 08-23 的舊版，不要再用。
+- 切分：ASD train 148 / test 16。
+- 🔒 個資（出生日期／身高／體重／精確掃描日）**不進公開版控**，只記判定依據的種類。
+
+**對舊結果的影響**：asd_exp1 的 17 顆 test 裡，A0131 反而是最低的（0.740）。
+排除它之後平均只升 +0.0026，小於標準誤 0.0038 → **這次洩漏沒有把分數灌高**，但方法學已經修正。
+
+### 15.2 用影像找同一人：`find_duplicate_scans.py`
+
+DICOM 的人口學欄位在這批**不可全信**：技師會複製上一位的登錄資料（D023/D024、T029/T028 都是實例）。
+所以另外用影像檢查：兩顆腦 affine 到 atlas 之後，量 30 個結構的標籤 Dice。
+
+| 配對 | 標籤 Dice | 判定 |
+|---|---|---|
+| A0131 / YT13 | 0.9793 | 同一次掃描（重複匯出）|
+| D015 / D037 | 0.8561 | 同一人，相隔 3 個月 |
+| D038 / DGM002 | 0.8528 | 同一人，相隔 9 個月 |
+| A0131 / A0132 | 0.7318 | 同一人（5 歲），相隔 23 天 |
+| D018 / DGM001 | 0.6995 | 不同人（DICOM 定案）|
+| VNT027 / VNT028 | 0.6609 | 不同人（複製登錄）|
+
+不同人的分布：ASD 13,366 對（中位數 0.663、第 99 百分位 0.721、最大 0.747）、
+DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
+
+- **抓得到**：同一次掃描（0.98）、成人同一人（0.85）
+- **抓不到**：5 歲兒童相隔 23 天只有 0.73，落在不同人的分布裡面
+- 🔴 **教訓**：一開始拿 1 對同人 vs 8 對不同人定門檻 0.70，全掃之後誤報幾百對。小樣本定的門檻不能用。
+- 判不出來時採保守做法：**當成同一人放在一起**（錯了只損失一點切分自由度，反過來錯就是 leakage）。
+
+### 15.3 DGM 與 VNT
+
+- **DGM**：D015 / D037、D038 / DGM002 是同一人 → 54 個掃描 = **52 人**，寫成 `ASD/DGM_groups.txt` 給 `--group-map`。
+  D015 / D037 的性別欄相反，至少一邊是錯的，**這兩顆的性別欄不要用於分析**。
+- **VNT**：68 顆確認是 68 個獨立個體。
+- `preprocess_fs.py` 的檔名歸戶規則已收緊：原本 VNT001～VNT009 會被誤判成同一人（字根 VNT00）。
+
+---
+
+## 16. 三包混合訓練：mix_exp1（2026-09-08）
+
+### 16.1 資料
+
+| | ASD | DGM | VNT | 合計 |
+|---|---|---|---|---|
+| 受試者 | 164 | 54 掃描 = 52 人 | 68 | 286 掃描 |
+| 年齡中位數（範圍）| 22（5–34）| 23（19–43）| 36（22–48）| |
+| 未滿 18 歲 | 24 | 0 | 0 | |
+| train / test | 148 / 16 | 49 / 5 | 61 / 7 | **258 / 28** |
+
+**為什麼可以合併**：同一台 Skyra 3T、同一個 MPRAGE 協定；三包內部「不同人」之間的標籤 Dice 分布幾乎一樣
+（中位數 0.663 / 0.656 / 0.653）。各包自己的切分原封不動併起來，所以仍然是受試者層級。
+
+```powershell
+python ASD\run_preprocess.py --dataset DGM        # 自動套用 ASD\DGM_groups.txt
+python ASD\run_preprocess.py --dataset VNT
+python ASD\make_mixed_set.py --sources ASD DGM VNT
+python ASD\check_dataset.py --check --datasets ASD DGM VNT mixed   # 搬到 B 台之後
+python ASD\run_train.py --dataset mixed --exp-name mix_exp1
+python ASD\test_dice.py --dataset mixed --baseline --exp-name mix_exp1 --gpu 0
+python ASD\test_dice.py --dataset mixed --model-dir models\mix_exp1 --step 10 --gpu 0
+```
+
+⚠️ 搬到 B 台時曾經**複製不完整**（191 / 258 個 npz），`check_dataset.py` 補上混合集對帳後才抓到。
+
+### 16.2 結果
+
+| 項目 | 值 |
+|---|---|
+| 基準線（只做線性對位）| **0.6753**（epoch 0 的值與 `--baseline` 完全一致 → 評估流程沒錯）|
+| 最佳 epoch 230 | **0.7874**（+0.1121），折疊率 0.000% |
+| epoch ≥ 90 | 平均 0.7825，全距 0.0106 → 各檢查點分不出高下，「最佳 epoch」沒有特別意義 |
+| 受試者之間的標準差 | 0.040 → 0.015：模型把大家拉到 0.79 附近 |
+| 改善幅度 vs 起點 | 相關係數 **−0.96**：起點越低進步越多 → **該報模型後的絕對值，不是改善幅度** |
+
+分資料集（模型後）：ASD 0.787、DGM 0.790、VNT 0.786，三包幾乎一樣；VNT 起點最低（0.650，年紀最大），所以進步最多。
+DGM 5 位、VNT 7 位，人數太少，只作觀察。
+
+跟 asd_exp1 相比：資料多 73%（149 → 258），但 test 集不同，Dice 不能直接比；進步幅度小於標準誤。
+
+---
+
+## 17. tigerbx 標籤對照：tiger_exp1（2026-09-09）
+
+同一批 286 位、同一個切分，只把 **FreeSurfer 的影像與標籤換成 tigerbx 的**。
+
+### 17.1 怎麼比才公平
+
+1. **同一批人、同一個切分**：`--split-from data\mixed_preprocessed_v1\mixed_manifest.json`，286 位逐一比對歸屬相同
+2. **補做偏場校正**：tigerbx 的 `_tbet` 是原始強度（白質變異係數 15.9%），FreeSurfer 已做過 nu 校正 → 加 `--n4`
+3. **atlas 的標籤也換成 tigerbx**：兩套方法在 atlas 的 30 個結構上只有 0.855 一致。沿用 FreeSurfer 的 atlas 標籤，
+   光 atlas 這一端就先扣掉約 0.14，那跟配準無關
+4. **同一人綁同一邊**：DGM 那兩對在兩組都放同一邊
+
+仍然存在的差異：去顱骨鬆緊不同（腦遮罩是有標籤腦區的 FreeSurfer 1.53 倍、tigerbx 1.23 倍）；FreeSurfer 組多一次重採樣。
+👉 **比的是兩條完整流程，不是兩個分割演算法。**
+
+```powershell
+# atlas 的 tigerbx 分割（data\tigerbx\atlas\ 是 tigerbx 對補零 256³ atlas 的輸出）
+python ASD\make_atlas_seg.py --src data\tigerbx\atlas\mni152_09c_t1_padded256_aseg.nii.gz `
+    --out IXI\atlas_mni152_09c_v3_seg_tigerbx.npz
+
+# 前處理（依 log\tigerbx_preprocess.txt 還原；當時直接呼叫 preprocess_fs.py，沒有 script log）
+python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-dir data\tigerbx_data\fs_for_vxm\aseg `
+    --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\tigerbx_preprocessed_v1 `
+    --subject-list data\tigerbx_data\fs_stats\subjects.txt --list-is-final --grouping none `
+    --group-map ASD\DGM_groups.txt --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
+
+# 評估一定要換 atlas 分割
+python ASD\test_dice.py --dataset tigerbx --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz `
+    --model-dir models\tiger_exp1 --step 10 --gpu 0
+```
+
+### 17.2 結果
+
+| | 基準線 | 模型後 | 模型貢獻 | 折疊率 |
+|---|---|---|---|---|
+| FreeSurfer 組（mix_exp1，ep 230）| 0.6753 | 0.7874 | +0.1121 | 0.000% |
+| tigerbx 組（tiger_exp1，ep 240）| 0.7376 | 0.8594 | +0.1218 | 0.000% |
+
+- 逐人配對：tigerbx 組的貢獻平均多 **+0.0097**（配對標準誤 0.0026，約 3.7 倍），28 位中 22 位較大 → 測得到，但幅度很小
+- 絕對值差 0.072，其中 0.062 在訓練前就存在（tigerbx 標籤較平滑）→ **絕對值不能直接比**
+- 30 個結構全部是 tigerbx 組較高：差最多的是脈絡叢（+0.25，FreeSurfer 本身就切不穩）、殼核（+0.12）、蒼白球（+0.11）；
+  差最少的是大腦白質（+0.015）。反映的是標籤性質，不代表配準變好
+- tiger_exp1 曲線上最高其實是 epoch 230（0.8598），留存與評估用的是 0240（0.8594），差距在雜訊內
+
+### 17.3 A0131（5 歲，兩組都是最低）
+
+- 排除三個假設：體積切錯（兩方法體積比 0.98）、結構太小、影像品質
+- **右側是標籤不確定**：兩套分割的右杏仁核一致性 0.525（286 位中最低）；換成 tigerbx 標籤，Dice 從 0.476 回到 0.870
+- **左側比較像配準困難**：兩方法有共識（0.751），模型卻只有 0.394（FreeSurfer 組）
+- **不是「兒童較差」**：24 位未成年的分割一致性與成人相當（0.83 vs 0.84）
+- 換成 tigerbx 標籤後，跟第二低的差距從 0.04 縮到 0.002
+
+---
+
+## 18. 跟論文比（Balakrishnan et al., IEEE TMI 2019）
+
+### 18.1 論文 Table I 全表，接上我們
+
+| 方法 | Dice（標準差）| GPU 秒 | CPU 秒 | 折疊 voxel 數 | 折疊率 % |
+|---|---|---|---|---|---|
+| *作者：8 個公開資料集 3,731 顆，test 250 · TitanX / Xeon E5-2680* | | | | | |
+| Affine only | 0.584 (0.157) | 0 | 0 | 0 | 0 |
+| ANTs SyN (CC) | 0.749 (0.136) | – | 9059 (2023) | 9662 (6258) | 0.185 (0.091) |
+| NiftyReg (CC) | 0.755 (0.143) | – | 2347 (202) | 41251 (14336) | 0.793 (0.208) |
+| **VoxelMorph (CC)** | **0.753 (0.145)** | 0.45 (0.01) | 57 (1) | 19077 (5928) | 0.366 (0.114) |
+| VoxelMorph (MSE) | 0.752 (0.140) | 0.45 (0.01) | 57 (1) | 9606 (4516) | 0.184 (0.087) |
+| *我們：286 位，test 28 · RTX 4060 Laptop / 單線程 CPU* | | | | | |
+| 只做線性對位 · FreeSurfer | 0.675 (0.152) | 0 | 0 | 0 | 0 |
+| VoxelMorph (CC) · FreeSurfer | 0.787 (0.122) | 0.31 (0.00) | 11.3 (0.1) | 0 | 0 |
+| 只做線性對位 · tigerbx | 0.738 (0.137) | 0 | 0 | 0 | 0 |
+| VoxelMorph (CC) · tigerbx | 0.859 (0.076) | 0.31 (0.00) | 11.3 (0.1) | 0 | 0 |
+
+- **標準差用論文的算法**：「across structures and subjects」＝ 28 位 × 30 個結構的 840 個 Dice 攤平後算
+- **時間**：論文 §V-B「1) Runtime」寫明是 Xeon E5-2680 ＋ TitanX，計時從線性對位之後開始。
+  我們量的是 `model(scan, atlas, registration=True)`（含積分），GPU 暖機 2 次後量 28 顆、CPU 單線程量 3 顆。
+  論文**沒寫 CPU 線程數**；硬體不同，影像也比論文大 20%（192×224×192 vs 160×192×224）→ 只能看數量級
+- **折疊**：論文分母是腦內 520 萬 voxel；我們兩組 28 位都是 0 個，主要因為用了微分同胚版
+
+### 18.2 論文其他跟我們有關的數字
+
+**Table II（專家手動標註，Buckner40 共 39 顆；模型沿用 Table I 那批，沒有重訓）**
+
+| 方法 | Dice（標準差）| 比 Affine 多 |
+|---|---|---|
+| Affine only | 0.608 (0.175) | — |
+| ANTs SyN (CC) | 0.776 (0.130) | +0.168 |
+| NiftyReg (CC) | 0.776 (0.132) | +0.168 |
+| VoxelMorph (MSE) | 0.766 (0.133) | +0.158 |
+| VoxelMorph (MSE) inst. | 0.776 (0.132) | +0.168 |
+| VoxelMorph (CC) | 0.774 (0.133) | +0.166 |
+| VoxelMorph (CC) inst. | 0.786 (0.132) | +0.178 |
+
+inst. ＝ 每一對再用梯度下降微調 100 次（GPU 23.7 秒、單線程 CPU 628 秒）。
+作者換標籤後絕對值 0.753 → 0.774、貢獻 +0.169 → +0.166 幾乎不變；跟我們換 tigerbx 的觀察方向一致（但作者連受試者也換了）。
+
+**Fig. 7（λ 敏感度，validation Dice）**：論文只有圖，下面是從圖上量的，誤差約 ±0.001。
+
+| λ（CC）| 0 | 0.5 | **1** | 1.5 | 2 | 5 |
+|---|---|---|---|---|---|---|
+| Dice ≈ | 0.687 | 0.743 | **0.746** | 0.746 | 0.745 | 0.737 |
+
+| λ（MSE）| 0 | 0.005 | 0.01 | 0.02 | 0.05 |
+|---|---|---|---|---|---|
+| Dice ≈ | 0.688 | 0.742 | 0.744 | 0.745 | 0.734 |
+
+作者的做法：**試多個 λ，每個 λ 各訓練一個模型**，挑 validation Dice 最高的去跑 test。
+論文沒寫 Table I 最後用哪個 λ；CC 在 λ = 1 和 1.5 並列最高。我們只訓練一個模型、直接用 λ = 1.0。
+Table III（受試者對受試者）、Table IV（訓練時加入分割標籤）的設定跟我們不同，沒有拿來比。
+
+### 18.3 逐項差異
+
+| 項目 | 作者 | 我們 |
+|---|---|---|
+| 資料 | 8 個公開資料集、3,731 顆；多中心，年齡、疾病、掃描參數各異 | 3 包 286 位；同一台 Skyra 3T、同一協定 |
+| 切分 | train 3,231 / val 250 / test 250 | train 258 / val 0 / test 28 |
+| 同一人 | 未說明 | DICOM ＋ 標籤 Dice 檢查，同一人放同一邊 |
+| 去顱骨 | FreeSurfer | FreeSurfer（norm.mgz）；tigerbx 組用 tigerbx |
+| 線性對位 | FreeSurfer 做；**對到哪個模板論文沒寫** | ANTs Affine，直接對到評估用的 MNI152 atlas |
+| atlas | 外部資料集的平均模板，檔案與參數沒公布 | MNI152 2009c；標籤自己跑 FreeSurfer／tigerbx |
+| 影像大小 | 160 × 192 × 224 | 192 × 224 × 192 |
+| **形變場** | **位移場（Table I 主結果，= int_steps 0）** | **速度場積分，微分同胚（int_steps 7）** |
+| 形變場解析度 | 全解析度 | 半解析度（int_downsize 2）|
+| 網路／損失 | U-Net（Fig. 3）；CC 窗格 9 ＋ λ × 梯度平滑 | 相同（repo 預設）|
+| λ | 用 validation 挑 | 1.0，沒自己挑 |
+| 訓練量 | 預設 150,000 次迭代 | 250 epoch × 100 步 = 25,000 次（約 1/6），epoch 90 後已持平 |
+| 優化器 | ADAM，lr 1e-4，batch 1 | 相同 |
+| 選模型 | validation Dice | 看 test 曲線挑 epoch（偏樂觀）|
+| 框架 | Keras + TensorFlow | PyTorch |
+
+### 18.4 報告時的說法
+
+- **絕對值我們比較高，但起點就高了約 0.09**（0.675 vs 0.584）。看模型貢獻，我們 +0.112、作者 +0.169，我們比較低
+- 起點越高，剩下能進步的空間越小，但這個天花板我們量化不出來
+- **折疊率不能比**：形變場版本不同（見 §9.1 更正）
+- 資料、atlas、線性對位三個起點都不同 → 只能比「模型貢獻」這類相對量，而且也只能參考
+
+📌 29 頁簡報的產生器在 `ASD/slides_src/2026-09_mix_tigerbx/`（用法見該資料夾的 README.md）。
+投影片上的數字都由 `gather.py` 從 `models/*/dice_*.csv` 算出，不手打。
