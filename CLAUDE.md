@@ -42,6 +42,8 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 | **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
 
 細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）。
+作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
+在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ 三個實驗都是 repo 預設的**微分同胚版**（`int_steps=7`）＋ λ=1.0。折疊率 0 主要來自這個版本，
 **不代表模型比論文好**（論文 Table I 是非微分同胚版，見手冊 §18）。
 
@@ -98,6 +100,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（預設實體複製），給混合訓練
 │   ├── check_dataset.py                # 搬到別台機器後驗資料（sha256 manifest + 內容檢查）
 │   ├── find_duplicate_scans.py         # atlas 空間的標籤 Dice 找重複掃描（手冊 §15.2）
+│   ├── author_model.py                 # 作者的 Keras 模型（.h5）搬進 PyTorch（手冊 §19）
+│   ├── orient.py                       # 依 atlas 標籤判斷方向，視覺化前轉成 RAS
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
@@ -138,11 +142,12 @@ C:\Users\h4524\claude_cheng\
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
 │   ├── asd_exp1\  mix_exp1\  tiger_exp1\   # ASD 線：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重
 ├── share_models\                       # ⭐ 進版控的最佳模型：ASD_good\0190.pt、mix_exp1_good\0230.pt、tiger_exp1_good\0240.pt
 ├── log\                                # 訓練 stdout + 當初的指令
-├── oasis\                              # OASIS 前處理（舊線，目前不動）
+├── oasis\                              # OASIS：oasis_npz\（vol + seg35）、prepare_author_check.py（作者模型對照，手冊 §19）
 ├── meeting報告\                        # 簡報 pptx（.gitignore）
 ├── 前一AI擔心的\                        # 文件稽核報告（另一個 session 產出）
 ├── FreeSurfer_到_VoxelMorph_交接.md    # FreeSurfer 端寫的接入說明

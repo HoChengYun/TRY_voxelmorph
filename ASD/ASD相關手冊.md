@@ -24,6 +24,7 @@
 > | Dice 評估 | ✅ mix 0.7874、tiger 0.8594，折疊率皆 0（§16、§17）|
 > | 跟論文比 | ✅ Table I 全表、逐項差異、推論時間實測（§18）|
 > | meeting 簡報 | ✅ `meeting報告/ASD延伸實驗_混合訓練與tigerbx_v2.pptx`（29 頁）|
+> | 作者模型對照 | ✅ 作者的預訓練模型搬進 PyTorch，在 4 位 OASIS 上 0.598 → 0.753（§19）|
 >
 > ⚠️ §2–§13 寫於 08-23～09-07（167 顆清單、asd_exp1 時期），保留當歷史。
 > 跟 §15 以後衝突時，**以 §15 以後為準**。
@@ -618,6 +619,9 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 | `ASD/make_mixed_set.py` | 多資料集併成一份（預設實體複製）|
 | `ASD/check_dataset.py` | 搬機器後的資料完整性檢查（sha256 manifest）|
 | `ASD/find_duplicate_scans.py` | atlas 空間的標籤 Dice 找重複掃描（§15.2）|
+| `ASD/author_model.py` | 作者的 Keras 模型（.h5）搬進 PyTorch（§19）|
+| `ASD/orient.py` | 依 atlas 標籤判斷方向，畫圖前轉成 RAS（§19.4）|
+| `oasis/prepare_author_check.py` | OASIS 受試者轉成 FreeSurfer 編號的 npz（§19.3）|
 | `ASD/DGM_groups.txt` | DGM 歸戶表（已去識別化）|
 | `IXI/atlas_mni152_09c_v3_seg_tigerbx.npz` | tigerbx arm 的 atlas 分割（§17）|
 | `share_models/{ASD,mix_exp1,tiger_exp1}_good/` | 進版控的最佳模型與 Dice 曲線 |
@@ -738,6 +742,8 @@ python ASD\visualize_dice.py --model models\mix_exp1\0230.pt --test-dir data\mix
   它決定 Dice 平均哪些結構、重疊圖畫哪些區域、長條圖列哪些結構；輪廓圖的 9 個結構是寫死的，跟它無關。
 - tigerbx 組要換 `--test-dir data\tigerbx_preprocessed_v1\test` 和 `--atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz`，
   否則會拿 tigerbx 標籤去比 FreeSurfer 的 atlas 標籤，Dice 安靜地低掉約 0.14。
+- `--model` 也吃作者釋出的 `.h5`（§19）。畫圖前會依 atlas 標籤自動轉成 RAS，
+  換成作者的 atlas（LIA）切面名稱也不會標錯；我們的 MNI 本來就是 RAS，圖跟以前一模一樣。
 
 出三張：**標籤重疊**（紅=只有 atlas、綠=只有受試者、黃=重疊）、
 **9 個結構的輪廓對照**、**逐結構長條圖**。上下排是「只有 Affine」vs「加上 VoxelMorph」。
@@ -1123,3 +1129,93 @@ Table III（受試者對受試者）、Table IV（訓練時加入分割標籤）
 
 📌 29 頁簡報的產生器在 `ASD/slides_src/2026-09_mix_tigerbx/`（用法見該資料夾的 README.md）。
 投影片上的數字都由 `gather.py` 從 `models/*/dice_*.csv` 算出，不手打。
+
+---
+
+## 19. 作者的模型用在作者的資料上：author_exp1（2026-09-13）
+
+老師想看跟作者的差別。論文 Table I 那顆模型拿不到（§18），手上最接近的是
+`models/vxm_dense_brain_T1_3D_mse.h5`，拿它在作者自己的資料（OASIS）上跑，看作者的模型長什麼樣。
+
+### 19.1 這顆模型是什麼
+
+| 項目 | 內容 |
+|---|---|
+| 來源 | VoxelMorph 官方的腦部預訓練模型。3/20 放進專案，下載處沒記錄；官方 README 現在已經不列它 |
+| 設定（讀 h5 裡的 `model_config`）| VxmDense，輸入 160×192×224，`int_steps=7`、`int_downsize=2`、`unet_half_res=True`，檔名寫 MSE |
+| 跟論文 Table I 的關係 | ❌ **不是同一顆**：這是微分同胚版，Table I 主結果是 `int_steps=0` |
+| 跟我們模型的關係 | 網路特徵數、積分設定都跟 repo 預設相同；差在 decoder 少放大一次（half_res）|
+
+另一個 `models/atlas_creation_uncond_NCC_1500.h5` 是 NeurIPS 2019「自己學一顆 atlas」的模型，跟配準評估無關，沒用到。
+
+### 19.2 怎麼跑起來：`ASD/author_model.py`
+
+- **載不起來的原因**：這台的 neurite 跟 TF 2.21 內建的 Keras 3 不相容（import 就失敗）；
+  PyTorch 的 `VxmDense` 又沒有 `unet_half_res` 這個選項
+- **做法**：照 `voxelmorph/tf/networks.py` 在 PyTorch 重蓋同一個網路，權重逐層照名字搬
+  （卷積核 Keras `(kx,ky,kz,in,out)` → PyTorch `(out,in,kx,ky,kz)`）。h5 的設定跟預期不同就拒絕載入
+- **反證**：同一位受試者，正確的形變場 Dice 0.77；故意對調 xyz 分量掉到 0.54、故意反方向掉到 0.45 → 搬的方向與順序是對的
+- 可能的小差異：半解析度形變場放大 2 倍時的內插對齊、影像邊界外的處理 —— 都在形變場內插，不在網路本身
+
+### 19.3 資料：OASIS（作者 8 個資料集之一）
+
+- `oasis/oasis_npz/` 每個 npz 都有 `vol` 和 `seg`，就是作者版的 norm + aseg：
+  `vol` = `aligned_norm`（FreeSurfer norm 對位、裁切，直接除以 255）、`seg` = `aligned_seg35`
+- 跟 repo 的 `atlas.npz` 在同一空間（160×192×224，腦遮罩重疊 0.85–0.91），不用再對位
+- 🔴 **seg35 不是 FreeSurfer 編號**，是 0–35 重新編號。直接丟給 `visualize_dice.py` **不會報錯但會對錯結構**
+  （seg35 的 17 是左腹側間腦，會被當成左海馬迴）。要先跑 `oasis/prepare_author_check.py` 換編號
+  （對照表照抄 `scripts/torch/test_oasis.py` 的 `SEG35_TO_FS`）；它也會擋掉「已經換過編號」的檔案
+- seg35 **沒有 CSF（24）**，作者的 atlas 有 → 評估改用 29 個結構（`oasis/author_check/labels_eval.npz`，
+  用 `--labels` 指定），否則 CSF 會因為受試者那邊永遠是空的而被算成 0 分
+
+### 19.4 方向：`ASD/orient.py`
+
+視覺化的切面名稱（sagittal = 軸 0…）假設陣列是 RAS。作者的 atlas 是 **LIA**（跟 FreeSurfer 內部方向相同），
+不轉的話影像轉 90 度、三個切面名稱全錯。
+
+npz 沒有檔頭，所以用 atlas 的標籤判斷方向：左右白質（41 − 2）、腦室減腦幹（上）、尾狀核減小腦（前）。
+MNI152 判成 RAS、作者 atlas 判成 LIA，都跟 NIfTI 檔頭一致。兩支視覺化腳本畫圖前自動轉成 RAS。
+
+- 只影響畫圖：Dice、NCC 都在轉之前算；`--save-nii` 存的是轉之前的陣列，配原本的 affine
+- 回歸測試：commit 前後的版本對跑 FreeSurfer 組、tigerbx 組、asd_exp1、IXI exp7（含 `--save-nii`），圖與 NIfTI 逐像素相同
+- atlas 沒有標籤可用時（例如 IXI v2 atlas）照原樣畫，並印出提示
+
+### 19.5 指令
+
+```powershell
+# ① OASIS 受試者換成 FreeSurfer 編號（吃原始資料夾或 oasis_npz 的 npz）
+python oasis\prepare_author_check.py --subject oasis\oasis_npz\test\OASIS_OAS1_0277_MR1.npz --out-dir oasis\author_check
+
+# ② 標籤重疊 / 輪廓 / 逐結構（3 張）
+python ASD\visualize_dice.py --model models\vxm_dense_brain_T1_3D_mse.h5 `
+    --atlas voxelmorph-code\data\atlas.npz --atlas-seg voxelmorph-code\data\atlas.npz `
+    --labels oasis\author_check\labels_eval.npz `
+    --subject oasis\author_check\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
+
+# ③ 三平面 / 棋盤格 / 形變網格 / 疊圖 / Jacobian（5 張）
+python draw-img\visualize_reg_ixi.py --model models\vxm_dense_brain_T1_3D_mse.h5 `
+    --atlas voxelmorph-code\data\atlas.npz `
+    --subject oasis\author_check\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
+```
+
+輸出在 `models\author_exp1\vis_OAS1_<ID>\`，每位 8 張，跟我們的 `vis_*` 一樣。
+
+### 19.6 結果
+
+| 受試者 | 只做線性對位 | 加上作者模型 | 進步 | NCC | SSIM | 折疊率 |
+|---|---|---|---|---|---|---|
+| OAS1_0050 | 0.640 | 0.772 | +0.132 | 0.970 | 0.901 | 0% |
+| OAS1_0277 | 0.648 | 0.761 | +0.114 | 0.972 | 0.896 | 0% |
+| OAS1_0395 | 0.579 | 0.754 | +0.176 | 0.970 | 0.892 | 0% |
+| OAS1_0073 | 0.525 | 0.725 | +0.201 | 0.972 | 0.893 | 0% |
+| **4 位平均** | **0.598** | **0.753** | **+0.156** | | | |
+
+- 4 位平均 0.598 → 0.753；論文 Table I 的 VoxelMorph (CC) 是 0.584 → 0.753，量級吻合（但只有 4 位，而且不是同一顆模型）
+- 起點越低進步越多（0073：0.525 → 0.725），跟我們資料的 −0.96（§16.2）同方向
+- 0073 配準前皮質外圍一圈紅（atlas 有、受試者沒有），像是腦比較小或比較萎縮；沒有這位的年齡資料，不能確定
+
+⚠️ **解讀限制**
+- **這幾位作者訓練時可能看過**：OASIS 在作者的 3,731 顆裡，不知道他們的 train / test 怎麼切
+  → 只能當「作者的模型在作者的資料上長什麼樣」，**不是測試分數**，也不能拿來跟我們的 0.787 比
+- 只有 4 位
+- 三平面圖的 atlas 正中矢狀面看起來缺一塊皮質，是 atlas 檔本身的樣子（轉正只轉方向、不會挖掉內容）；Dice 用標籤算，不受影響
