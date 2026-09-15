@@ -1030,7 +1030,8 @@ python ASD\test_dice.py --test-dir data\tigerbx_preprocessed_v1\test `
 | tigerbx 組（tiger_exp1，ep 240）| 0.7376 | 0.8594 | +0.1218 | 0.000% |
 
 - 逐人配對：tigerbx 組的貢獻平均多 **+0.0097**（配對標準誤 0.0026，約 3.7 倍），28 位中 22 位較大 → 測得到，但幅度很小
-- 絕對值差 0.072，其中 0.062 在訓練前就存在（tigerbx 標籤較平滑）→ **絕對值不能直接比**
+- 絕對值差 0.072，其中 0.062 在訓練前就存在（兩套標籤畫邊界的方式不同）→ **絕對值不能直接比**
+  - ⚠️ 舊版寫「tigerbx 標籤較平滑」，那是推測的原因，沒有直接量過；實際觀察到的只有「還沒配準就比較重疊」
 - 30 個結構全部是 tigerbx 組較高：差最多的是脈絡叢（+0.25，FreeSurfer 本身就切不穩）、殼核（+0.12）、蒼白球（+0.11）；
   差最少的是大腦白質（+0.015）。反映的是標籤性質，不代表配準變好
 - tiger_exp1 曲線上最高其實是 epoch 230（0.8598），留存與評估用的是 0240（0.8594），差距在雜訊內
@@ -1190,15 +1191,29 @@ python oasis\prepare_author_check.py --subject oasis\oasis_npz\test\OASIS_OAS1_0
 python ASD\visualize_dice.py --model models\vxm_dense_brain_T1_3D_mse.h5 `
     --atlas voxelmorph-code\data\atlas.npz --atlas-seg voxelmorph-code\data\atlas.npz `
     --labels oasis\author_check\labels_eval.npz `
-    --subject oasis\author_check\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
+    --subject oasis\author_check\test\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
 
 # ③ 三平面 / 棋盤格 / 形變網格 / 疊圖 / Jacobian（5 張）
 python draw-img\visualize_reg_ixi.py --model models\vxm_dense_brain_T1_3D_mse.h5 `
     --atlas voxelmorph-code\data\atlas.npz `
-    --subject oasis\author_check\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
+    --subject oasis\author_check\test\OASIS_OAS1_0277_MR1.npz --out-dir models\author_exp1\vis_OAS1_0277
 ```
 
 輸出在 `models\author_exp1\vis_OAS1_<ID>\`，每位 8 張，跟我們的 `vis_*` 一樣。
+
+受試者的 npz 放在 `oasis\author_check\test\`（`test_dice.py` 會把 `--test-dir` 裡每個 npz 當成受試者，清單要放外面）。
+Dice 存成 CSV（簡報那頁從這裡讀）：
+
+```powershell
+python ASD\test_dice.py --baseline --test-dir oasis\author_check\test `
+    --atlas voxelmorph-code\data\atlas.npz --atlas-seg voxelmorph-code\data\atlas.npz `
+    --labels oasis\author_check\labels_eval.npz --exp-name author_exp1
+python ASD\test_dice.py --model models\vxm_dense_brain_T1_3D_mse.h5 --test-dir oasis\author_check\test `
+    --atlas voxelmorph-code\data\atlas.npz --atlas-seg voxelmorph-code\data\atlas.npz `
+    --labels oasis\author_check\labels_eval.npz --out-csv models\author_exp1\dice_vxm_dense_brain_T1_3D_mse.csv
+```
+
+`test_dice.py` 算出的 4 位跟 `visualize_dice.py` 印的逐位相同（兩條程式路徑交叉比對）。
 
 ### 19.6 結果
 
@@ -1208,7 +1223,7 @@ python draw-img\visualize_reg_ixi.py --model models\vxm_dense_brain_T1_3D_mse.h5
 | OAS1_0277 | 0.648 | 0.761 | +0.114 | 0.972 | 0.896 | 0% |
 | OAS1_0395 | 0.579 | 0.754 | +0.176 | 0.970 | 0.892 | 0% |
 | OAS1_0073 | 0.525 | 0.725 | +0.201 | 0.972 | 0.893 | 0% |
-| **4 位平均** | **0.598** | **0.753** | **+0.156** | | | |
+| **4 位平均** | **0.598** | **0.753** | **+0.155** | | | |
 
 - 4 位平均 0.598 → 0.753；論文 Table I 的 VoxelMorph (CC) 是 0.584 → 0.753，量級吻合（但只有 4 位，而且不是同一顆模型）
 - 起點越低進步越多（0073：0.525 → 0.725），跟我們資料的 −0.96（§16.2）同方向

@@ -13,8 +13,10 @@ CSF 會因為受試者那邊永遠是空的而被算成 0 分，平均被拉低 
     python oasis\\prepare_author_check.py --subject oasis\\oasis_npz\\test\\OASIS_OAS1_0277_MR1.npz --out-dir oasis\\author_check
 
 輸出
-    <out-dir>/<受試者>.npz          vol = aligned_norm、seg = aligned_seg35 換成 FreeSurfer 編號
+    <out-dir>/test/<受試者>.npz     vol = aligned_norm、seg = aligned_seg35 換成 FreeSurfer 編號
     <out-dir>/labels_eval.npz       評估用的結構（labels.npz 裡、受試者也有的那些）
+
+受試者放 test/、清單放外面：test_dice.py 會把 --test-dir 裡每個 npz 都當成受試者。
 """
 import os
 import sys
@@ -84,8 +86,8 @@ keep = [l for l in labels if l in have]
 drop = [l for l in labels if l not in have]
 print('評估結構 %d 個；受試者沒有而拿掉的：%s' % (len(keep), drop or '無'))
 
-os.makedirs(args.out_dir, exist_ok=True)
-out = os.path.join(args.out_dir, name + '.npz')
+os.makedirs(os.path.join(args.out_dir, 'test'), exist_ok=True)
+out = os.path.join(args.out_dir, 'test', name + '.npz')
 np.savez_compressed(out, vol=vol, seg=seg)
 np.savez(os.path.join(args.out_dir, 'labels_eval.npz'), labels=np.array(keep))
 print('[v] %s' % out)

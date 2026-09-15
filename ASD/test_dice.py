@@ -106,8 +106,8 @@ if args.model:
                  % (mp, args.model.rstrip('\\/')))
     if not os.path.exists(mp):
         sys.exit('[X] 找不到 %s' % mp)
-    if not mp.endswith('.pt'):
-        sys.exit('[X] --model 應該指向 .pt 檔，收到的是 %s' % mp)
+    if not mp.endswith(('.pt', '.h5')):
+        sys.exit('[X] --model 應該指向 .pt（或作者的 .h5）檔，收到的是 %s' % mp)
 
 if args.model_dir:
     md = os.path.normpath(args.model_dir)
@@ -197,7 +197,12 @@ def dice(a, b, lab):
 
 
 def evaluate(model_path):
-    model = vxm.networks.VxmDense.load(model_path, device)
+    if model_path.endswith('.h5'):
+        # 作者釋出的 Keras 模型：這台的 TF 載不起來，搬進 PyTorch 用（見 author_model.py）
+        from author_model import load_author_h5
+        model = load_author_h5(model_path, device)
+    else:
+        model = vxm.networks.VxmDense.load(model_path, device)
     model.to(device)
     model.eval()
 

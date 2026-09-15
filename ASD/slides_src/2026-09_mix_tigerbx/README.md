@@ -33,6 +33,7 @@ powershell -ExecutionPolicy Bypass -File render.ps1 -Pptx deck.pptx -OutDir rend
 - `models/mix_exp1/`：`dice_curve.csv`、`dice_baseline.csv`、`dice_0230.csv`、`vis_*/`
 - `models/tiger_exp1/`：`dice_curve.csv`、`dice_baseline.csv`、`dice_0240.csv`、`vis_*/`
 - `models/asd_exp1/dice_0190.csv`
+- `models/author_exp1/`：`dice_baseline.csv`、`dice_vxm_dense_brain_T1_3D_mse.csv`、`vis_OAS1_0395/`（作者模型那頁，手冊 §19）
 - `data/mixed_preprocessed_v1/mixed_manifest.json`
 - `data/{ASD,DGM,VNT}_data/fs_stats/demographics.tsv`
 
@@ -41,6 +42,7 @@ powershell -ExecutionPolicy Bypass -File render.ps1 -Pptx deck.pptx -OutDir rend
 - `gather.py` 的 `dup_dist` / `dup_pairs`：`find_duplicate_scans.py` 的實測結果
 - `build.js` 的論文數字：Table I、Table II 直接抄論文；**Fig. 7 的 λ 數字是從圖上量的（約 ±0.001）**
 - `build.js` 的資料把關頁（排除表、DICOM 那頁）：來自 FreeSurfer 端的 DICOM 核對
+- `build.js` 作者模型那頁的「0.77 掉到 0.54 / 0.45」：移植的反證（OAS1_0050，手冊 §19.2）
 
 ## 不進版控
 

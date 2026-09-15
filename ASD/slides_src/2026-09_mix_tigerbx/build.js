@@ -125,6 +125,7 @@ const MROOT = path.join(HERE, '..', '..', '..', 'models');   // 專案根目錄�
 const MX = (sid, kind) => `${MROOT}/mix_exp1/vis_${sid}/${kind}_${sid}_0230.png`;
 const TG = (sid, kind) => `${MROOT}/tiger_exp1/vis_${sid}/${kind}_${sid}_0240.png`;
 const MX_TRI = (sid) => `${MROOT}/mix_exp1/vis_${sid}/reg_${sid}_0230_triplanar.png`;
+const AU = (sid, kind) => `${MROOT}/author_exp1/vis_OAS1_${sid}/${kind}_OASIS_OAS1_${sid}_MR1_vxm_dense_brain_T1_3D_mse.png`;
 const SUB = (id) => {
   const x = D.subjects.find((q) => q.id === id);
   if (!x) throw new Error('deck_data.json 裡沒有 ' + id);
@@ -423,6 +424,41 @@ const bold = (t) => ({ text: t, options: { bold: true } });
   ], { x: M, y: 6.0, w: 12.1, h: 0.95, fontSize: 11, color: C.MUTED, paraSpaceAfter: 2 });
 }
 
+// 作者的模型跑作者的資料（OASIS 4 位，手冊 §19）
+{
+  const AO = D.author_oasis;
+  if (!AO) throw new Error('沒有 author_exp1 的 Dice CSV —— 先用 test_dice.py 算（手冊 §19.5）');
+  const gainA = AO.after - AO.base;
+  const s = base('VS. PAPER · AUTHOR MODEL', '作者的模型跑作者的資料：OASIS 4 位',
+    `論文 Table I 那顆模型拿不到，但官方有釋出一顆預訓練的腦部模型，我拿它跑作者自己的資料 OASIS，看作者的模型本身能做到多少。${AO.subjects.length} 位平均從 ${f3(AO.base)} 升到 ${f3(AO.after)}，進步 ${sg(gainA, 3)}，跟論文 Table I 的 +0.169 很接近。我們的模型貢獻是 ${sg(S.fs_gain, 3)} 和 ${sg(S.tg_gain, 3)}，比它小。所以我們的絕對值比較高，是因為起點高，不是模型比較強。有三件事要注意：這顆不是 Table I 那顆，是官方預訓練的 MSE 微分同胚版；這幾位作者訓練時可能看過，所以不能當測試分數；作者用 TensorFlow，這台載不起來，我照原架構搬進 PyTorch，並用故意弄壞形變場的方式確認沒有搬錯。`);
+  const short = (id) => id.replace('OASIS_', '').replace('_MR1', '');
+  table(s, [
+    ['受試者', '只做線性對位', '作者模型', '進步'],
+    ...AO.subjects.map((x) => [short(x.id), f3(x.base), f3(x.after), sg(x.after - x.base, 3)]),
+    [bold(`${AO.subjects.length} 位平均`), bold(f3(AO.base)), bold(f3(AO.after)), hl(sg(gainA, 3), C.INK)],
+  ], { x: M, y: 1.5, w: 6.0, colW: [1.5, 1.6, 1.5, 1.4], rowH: 0.38, fontSize: 12.5 });
+  txt(s, [{ text: '作者模型的貢獻接近論文、比我們大', options: { bold: true, breakLine: true } },
+    { text: '→ 我們絕對值較高是因為起點高，不是模型較強' }],
+  { x: M, y: 3.9, w: 6.0, h: 0.55, fontSize: 12.5 });
+  s.addChart(pres.charts.BAR, [{ name: '模型貢獻', labels: ['論文 Table I', '作者模型 · OASIS', '我們 · FS', '我們 · tigerbx'], values: [0.169, gainA, S.fs_gain, S.tg_gain] }], {
+    x: M, y: 4.5, w: 6.0, h: 2.4, barDir: 'col', chartColors: [C.MUTED, C.INK, C.TEAL, C.TEAL_L],
+    valAxisMinVal: 0, valAxisMaxVal: 0.2, valAxisMajorUnit: 0.05, valAxisLabelFormatCode: '0.00',
+    showValue: true, dataLabelPosition: 'outEnd', dataLabelFormatCode: '+0.000', dataLabelFontFace: F.MONO, dataLabelFontSize: 10,
+    catAxisLabelFontSize: 10, catAxisLabelFontFace: F.SANS, valAxisLabelFontSize: 9, valAxisLabelFontFace: F.MONO,
+    catAxisLabelColor: C.INK, valAxisLabelColor: C.MUTED, valGridLine: { color: 'E4E4DE', size: 0.5 }, catGridLine: { style: 'none' },
+    showLegend: false, showTitle: true, title: '模型貢獻（模型後 − 只做線性對位）', titleFontSize: 11, titleColor: C.INK, titleFontFace: F.SANS,
+  });
+  const X2 = 6.9, W2 = 5.8;
+  const im = fitImage(s, AU('0395', 'labels'), X2, 1.45, W2, 3.75, 'OAS1_0395 標籤重疊：作者模型配準前後');
+  txt(s, 'OAS1_0395（最接近 4 位平均）。紅 = 只有 atlas 有、綠 = 只有受試者有、黃 = 重疊；上排只做線性對位，下排加上作者模型。',
+    { x: X2, y: im.y + im.h + 0.05, w: W2, h: 0.5, fontSize: 10.5, color: C.MUTED });
+  bullets(s, [
+    [bold('不是 Table I 那顆：'), { text: '官方預訓練的 MSE、微分同胚版' }],
+    [bold('不是測試分數：'), { text: '這幾位作者訓練時可能看過（OASIS 在作者的 3,731 顆裡）' }],
+    [bold('有確認沒搬錯：'), { text: '作者用 TensorFlow，照原架構搬進 PyTorch；故意弄壞形變場，Dice 就從 0.77 掉到 0.54 / 0.45' }],
+  ], { x: X2, y: 5.85, w: W2, h: 1.1, fontSize: 11.5, paraSpaceAfter: 3 });
+}
+
 // 論文其他跟我們有關的數字：Table II（手動標註）、Fig. 7（λ）
 {
   const s = base('VS. PAPER · OTHER', '論文裡其他跟我們有關的數字',
@@ -675,7 +711,7 @@ const bold = (t) => ({ text: t, options: { bold: true } });
   txt(s, [
     { text: `28 位中有 ${S.gain_diff_tg_better} 位是 tigerbx 組貢獻較大 —— 測得到，但幅度很小。\n`, options: {} },
     { text: '絕對值不能直接比：', options: { bold: true, color: C.RUST } },
-    { text: `模型後差 ${f3(S.tg_after - S.fs_after)}，其中 ${f3(S.tg_base - S.fs_base)} 在訓練前就存在（tigerbx 標籤較平滑）。\n` },
+    { text: `模型後差 ${f3(S.tg_after - S.fs_after)}，其中 ${f3(S.tg_base - S.fs_base)} 在訓練前就存在（兩套標籤畫邊界的方式不同）。\n` },
     { text: '作者那列＝左圖黑線：', options: { bold: true } },
     { text: '論文 Table I 的 VoxelMorph (CC)，只有一個數字。另一批資料、另一顆 atlas、非微分同胚版，只能參考。看模型貢獻我們兩組都較低；我們折疊率為 0 主要來自微分同胚版，不代表模型較好。' },
   ], { x: 7.6, y: 5.1, w: 5.1, h: 1.7, fontSize: 12 });

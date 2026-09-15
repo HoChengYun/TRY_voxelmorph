@@ -101,6 +101,19 @@ try:
 except FileNotFoundError:
     D['bench'] = None
 
+# 作者的預訓練模型跑作者的資料（OASIS 4 位，手冊 §19）：test_dice.py 算的 CSV
+try:
+    ab = bykey(r'models\author_exp1\dice_baseline.csv')
+    aa = bykey(r'models\author_exp1\dice_vxm_dense_brain_T1_3D_mse.csv')
+    au = [{'id': k[:-4], 'base': float(ab[k]['dice_mean']), 'after': float(aa[k]['dice_mean']),
+           'jneg': float(aa[k]['jneg_pct'])} for k in sorted(aa)]
+    D['author_oasis'] = {'subjects': au,
+                         'base': float(np.mean([x['base'] for x in au])),
+                         'after': float(np.mean([x['after'] for x in au])),
+                         'n_labels': sum(1 for c in aa[sorted(aa)[0]] if c.startswith('label_'))}
+except FileNotFoundError:
+    D['author_oasis'] = None
+
 # 高原
 for exp in ('mix_exp1', 'tiger_exp1'):
     c = D['curve_' + exp]
