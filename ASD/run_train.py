@@ -36,6 +36,12 @@ ap.add_argument('--exp-name', required=True,
 ap.add_argument('--image-loss', default='ncc', choices=['ncc', 'mse'])
 ap.add_argument('--lambda', dest='weight', type=float, default=1.0)
 ap.add_argument('--epochs', type=int, default=250)
+# 預設 7 / 2 是 repo 的微分同胚版（速度場積分、半解析度形變場）。
+# 論文 Table I 的主結果是非微分同胚的位移場版：--int-steps 0 --int-downsize 1。
+# ⚠️ train.py 是 Grad('l2', loss_mult=args.int_downsize)，所以 --int-downsize 從 2 改成 1
+#    會把平滑懲罰的實際權重砍半 —— 這是論文版本本來的設定，不是失誤，但要知道。
+ap.add_argument('--int-steps', type=int, default=7)
+ap.add_argument('--int-downsize', type=int, default=2)
 ap.add_argument('--steps-per-epoch', type=int, default=100)
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
@@ -167,7 +173,9 @@ cmd = [PY, TRAIN, DATA,
        '--steps-per-epoch', str(args.steps_per_epoch),
        '--gpu', args.gpu,
        '--image-loss', args.image_loss,
-       '--lambda', str(args.weight)]
+       '--lambda', str(args.weight),
+       '--int-steps', str(args.int_steps),
+       '--int-downsize', str(args.int_downsize)]
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]
