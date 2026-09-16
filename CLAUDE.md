@@ -42,7 +42,7 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 | **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
 | mix_exp2（待跑）| 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同）| 0.6882 | — | — | — |
 
-細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
+個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
 **§20（第四包資料 + train/val/test 三段切分，2026-09-16）**。
 
 🔴 **判斷「是不是同一個人」禁止用影像相似度**（使用者 2026-09-16 規定，見手冊 §15.2）。
@@ -135,7 +135,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_subjects_data\               # 第四包（234 顆，2026-09-16）。⚠️ 沒有 demographics.tsv
 │   ├── fs_subjects_preprocessed_v1\    # train 234 / test 0（--test-frac 0）
 │   ├── mixed_preprocessed_v1\          # 三包併起來 train 258 / test 28 + mixed_manifest.json
-│   ├── mixed_preprocessed_v2\          # ⭐ 四包 train 442 / val 48 / test 28 + val_split.json + _excluded\
+│   ├── mixed_preprocessed_v2\          # ⭐ 四包 train 418 / val 51 / test 51（80/10/10）+ split.json
 │   └── tigerbx_preprocessed_v1\        # tigerbx arm：同一個切分 train 258 / test 28
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
@@ -550,10 +550,8 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 批次前處理跑完 **0 失敗、0 個標籤消失**，輸出 `data/ASD_preprocessed_v1/`
 （切分當下 train 150 / test 17；**A016_1 於 QC 後移出 → 實際訓練 149 / 17**，**1.28 GB**）。
 
-**✅ 同一人問題已由 DICOM 檔頭解決（2026-09-07）**：A013 是另一個人；A0131 / A0132 是同一位 5 歲男童（A0132 排除）；
-YT13 是 A0131 同一次掃描的重複匯出（排除）；A016_2 是品管掃描（排除）；T065 是編號誤植（納回）。
-ASD 清單 167 → **164**（train 148 / test 16）。詳見 `ASD/ASD相關手冊.md` §15。
-以下「前處理已完成」「149 / 17」等段落是 167 顆清單時期的記錄，保留當歷史。
+**個案**（排除清單、檔頭比對、要問老師的事）：📁 **個案紀錄見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`**（四包資料唯一的一份，2026-09-17 整併）。
+ASD 現行清單 164（train 148 / test 16）。以下「前處理已完成」「149 / 17」等段落是 167 顆清單時期的記錄，保留當歷史。
 
 **清單**：
 ```
