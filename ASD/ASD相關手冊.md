@@ -1360,6 +1360,34 @@ seed=42，切完會複驗沒有人橫跨兩邊，紀錄寫進 `split.json`。
 ⚠️ `test_dice.py` 原本不管評估哪個資料夾都寫同一個 `dice_curve.csv`，先跑 val 再跑 test 會安靜蓋掉。
 2026-09-16 改成資料夾名不是 `test` 就自動加後綴（`dice_curve_val.csv`、`dice_baseline_val.csv`）。
 
+### 20.3.1 重複的人：查過了，但不處理（2026-09-16 使用者決定）
+
+切分前查過一輪，結果**不套用在切分上**，只留給老師判斷：
+
+- 520 顆兩兩比影像：隨機不同人的相似度中位數 0.67、最高 0.75；
+  有 **33 組（67 顆）落在 0.88 以上**，中間 0.75–0.88 完全沒有資料
+- 校準點：已用 DICOM 檔頭確認是同一人的 D015/D037 = 0.98
+- 組成：新批內部 13 組（12 組是 `HP_IA` ↔ `PILOT` 一對一）、新批 × 舊三包 14 組、
+  舊三包彼此 4 組（D029/T069、A040/D055、A074/D040、DGM001/T005）、已知的 2 組
+- 新這批扣掉重複後實際只增加約 **207 位**
+
+證據檔：`log/dupcheck_mixed_v2.txt`、`log/dupcheck_mixed_v2_pairs.csv`、`log/dup_components_v2.json`。
+給老師的說明寫在 `meeting報告/奇怪資料清單.md` 第 5 節（那份 gitignore，不進版控）。
+
+🔴 **後果要講清楚**：切分沒有做歸戶，所以上面這些人**可能一顆在 train、一顆在 test**。
+mix_exp2 / mix_exp3 的分數會因此偏高一點。這是使用者在知情下的決定，報告時要照實寫。
+
+### 20.3.2 曲線圖：`ASD/plot_dice_curve.py`
+
+```powershell
+python ASD\plot_dice_curve.py --model-dir models\mix_exp2 --label "ncc, lambda=1.0"
+```
+
+讀 `dice_curve.csv`（有 `dice_curve_val.csv` 會一起畫），輸出 `dice_curve_analysis.png`：
+上格 Dice vs epoch + 基準線 + 最佳 epoch，下格折疊率 vs epoch + 論文兩條參考線。
+mix_exp1 / tiger_exp1 已補畫。
+⚠️ 舊版 asd_exp1 那張圖上的「±2 SEM」藍帶是錯的（用基準線的標準誤去比 epoch），新腳本已拿掉。
+
 ### 20.4 這台筆電訓練不動這個設定
 
 `DiscoLaptop`（RTX 4060 Laptop，**8 GB**）上實測：每步 **25 秒**，GPU 100%。

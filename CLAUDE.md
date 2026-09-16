@@ -114,6 +114,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── orient.py                       # 依 atlas 標籤判斷方向，視覺化前轉成 RAS
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
+│   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
