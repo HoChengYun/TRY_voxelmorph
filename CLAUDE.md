@@ -40,7 +40,7 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 | asd_exp1（舊，167 顆清單）| ASD train 149 / test 17 | 0.6760 | 0.7811 | +0.105 | 0.000% |
 | **mix_exp1** | 三包 train 258 / test 28，FreeSurfer 標籤 | 0.6753 | **0.7874** | +0.112 | 0.000% |
 | **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
-| mix_exp2（待跑）| 四包 train 442 / **val 48** / test 28（test 與 mix_exp1 相同）| 0.6753 | — | — | — |
+| mix_exp2（待跑）| 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同）| 0.6882 | — | — | — |
 
 細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
 **§20（第四包資料 + train/val/test 三段切分，2026-09-16）**。
@@ -48,8 +48,8 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 🔴 **三件從 §20 來、會影響怎麼解讀舊結果的事**：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
-2. **mix_exp1 的 test 有一個既存的 leakage**：test 的 D029 與 train 的 T069 是同一個人（§20.4）。
-3. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.5）。
+2. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.4）。
+3. **mixed_v2 的 test 換人了**（80/10/10 重切），mix_exp2 不能再跟 mix_exp1 的 0.7874 直接比。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ 三個實驗都是 repo 預設的**微分同胚版**（`int_steps=7`）＋ λ=1.0。折疊率 0 主要來自這個版本，
@@ -108,8 +108,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（預設實體複製），給混合訓練
 │   ├── check_dataset.py                # 搬到別台機器後驗資料（sha256 manifest + 內容檢查）
 │   ├── find_duplicate_scans.py         # atlas 空間的標籤 Dice 找重複掃描（手冊 §15.2、§20.4）
-│   ├── make_val_split.py               # ⭐ 從 train 切 val（test 不動、以人為單位、可 --undo）
-│   ├── mixed_v2_groups.txt             # mixed_v2 歸戶表：32 群 / 65 筆（手冊 §20.4）
+│   ├── make_val_split.py               # 從 train 切 val（test 不動、可 --undo）
+│   ├── make_split.py                   # ⭐ 整批重切 train/val/test（依來源分層）
 │   ├── author_model.py                 # 作者的 Keras 模型（.h5）搬進 PyTorch（手冊 §19）
 │   ├── orient.py                       # 依 atlas 標籤判斷方向，視覺化前轉成 RAS
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）

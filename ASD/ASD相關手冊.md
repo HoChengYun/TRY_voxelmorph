@@ -1314,9 +1314,8 @@ python ASD\test_dice.py --model models\vxm_dense_brain_T1_3D_mse.h5 --test-dir o
 - 結構同前三包：`fs_for_vxm/{norm,aseg}` + `fs_stats/`；編號前綴 `sub-`(72)、`PILOT`(61)、`HP`(59)、`EDP`(26)、`CP`(15)、`A`(1)
 - QC（皮質面積 < 中位數 75% 或破洞 > 80）：**0 顆需排除**（最低的皮質面積是中位數的 78%，破洞最多 79）
 - 🔴 **沒有 `demographics.tsv`**（沒有年齡／性別）→「排除小孩」這條對這 234 顆做不到
-- 撞名：這包的 `A001` 與 ASD 的 `A001` 同名 → 改名 **`FSS_A001`**（紀錄在
-  `data/fs_subjects_data/README_改名.txt`；`fs_stats/*.tsv` 維持原編號未改）
-  ⚠️ 後來證實這兩顆其實是**同一個人**（見 20.4），改名的理由變成只是避免覆蓋
+- 撞名：這包的 `A001` 與 ASD 的 `A001` 同名，合併時會互相覆蓋 → 改名 **`FSS_A001`**
+  （紀錄在 `data/fs_subjects_data/README_改名.txt`；`fs_stats/*.tsv` 維持原編號未改）
 
 前處理（`--test-frac 0` = 這包全部進 train，test 沿用舊的 28 顆）：
 
@@ -1331,69 +1330,37 @@ python ASD\preprocess_fs.py `
 234 顆全部成功、0 失敗、標籤沒掉。
 （`preprocess_fs.py` 原本 `n_test = max(1, ...)`，`--test-frac 0` 也會硬塞 1 顆進 test，2026-09-16 改掉。）
 
-### 20.3 三段切分怎麼做：`ASD/make_val_split.py`（新）
+### 20.3 三段切分：`ASD/make_split.py`（現行做法）
 
-**不重跑前處理**，直接把 `train/` 裡的一部分**搬**到 `val/`，`test/` 一個檔案都不碰
-（所以新舊實驗仍可在同一批 test 上直接比）。以「人」為單位、依來源資料集分層，`--undo` 可整個還原。
+**2026-09-16 使用者決定：就照拿到的資料分，不做重複／相似度的判定。**
+所以切分不帶歸戶表，每一個掃描各自算一位受試者；原本的歸戶表已刪除。
+（判定過程與證據仍保留在 `log/dupcheck_mixed_v2*.*`，老師之後若要追再拿出來看。）
 
 ```powershell
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 `
-    data\VNT_preprocessed_v1 data\fs_subjects_preprocessed_v1 --out data\mixed_preprocessed_v2
-python ASD\make_val_split.py --prep-dir data\mixed_preprocessed_v2 --val-frac 0.10 `
-    --group-map ASD\mixed_v2_groups.txt
+    data\VNT_preprocessed_v1 datas_subjects_preprocessed_v1 --out data\mixed_preprocessed_v2
+python ASD\make_split.py --prep-dir data\mixed_preprocessed_v2 --val-frac 0.10 --test-frac 0.10
 ```
 
-**最後的切分：train 442 / val 48 / test 28**（85% / 9% / 5%）。
-test 基準線 **0.6753**，與 mix_exp1 完全相同 → test 確實沒動過（val 基準線 0.6854）。
+`make_split.py` 把 train/val/test 底下的 npz 全部倒回來重新分，依來源資料集分層，
+seed=42，切完會複驗沒有人橫跨兩邊，紀錄寫進 `split.json`。
+（`make_val_split.py` 是另一種用法：只從 train 挖 val、test 不動，要跟舊實驗比時才用。）
+
+**最後的切分（520 顆，80 / 10 / 10）**
+
+| | 掃描數 | 比例 | ASD | DGM | VNT | fs_subjects |
+|---|---|---|---|---|---|---|
+| train | 418 | 80.4% | 132 | 44 | 54 | 188 |
+| val | 51 | 9.8% | 16 | 5 | 7 | 23 |
+| test | 51 | 9.8% | 16 | 5 | 7 | 23 |
+
+基準線（只有 affine）：val **0.6817**、test **0.6882**。
+⚠️ test 換人了，**不能再跟 mix_exp1 的 0.7874 直接比**。
 
 ⚠️ `test_dice.py` 原本不管評估哪個資料夾都寫同一個 `dice_curve.csv`，先跑 val 再跑 test 會安靜蓋掉。
 2026-09-16 改成資料夾名不是 `test` 就自動加後綴（`dice_curve_val.csv`、`dice_baseline_val.csv`）。
 
-### 20.4 🔴 新這包和舊資料大量重複（最重要的發現）
-
-`find_duplicate_scans.py` 原本只掃 `train/` + `test/`，**漏掉 `val/`**，已修正。
-
-判定分兩步，證據檔在 `log/`：
-
-1. **標籤 Dice** 掃 520 顆的全部 134,940 對（`log/dupcheck_mixed_v2_pairs.csv`）→ 取 ≥ 0.80 的 35 對
-2. **影像本身**（腦區遮罩內的相關係數）再比一次，並把全部 133,903 對都算過當對照
-
-| | 影像相關係數 |
-|---|---|
-| 一般人群 133,903 對 | 中位數 **0.669**、第 99 百分位 0.718、**最高 0.754** |
-| ← 中間 0.754–0.878 是空的，一對都沒有 → | |
-| 可疑的 33 對 | **0.878 – 0.993** |
-
-**校準點**：已用 DICOM 檔頭確認是同一人的 `D015`/`D037` = **0.9835**、`D038`/`DGM002` = **0.9736**，
-都落在上面那群裡 → 門檻取 0.85，中間有 0.12 的空白帶。
-
-把配對用連通分量串起來 → **33 群 / 67 顆掃描**（例如 `T049` / `VNT022` / `sub-0023` 三顆一群）。
-
-- 新包 234 顆裡 **27 顆是重複的人** → 實際只新增 **207 位新受試者**
-- 新包內部有 13 對 `HP_IA###` ↔ `PILOT###` 一對一互相配對 → 同一批人用兩套編號各存一份
-- 最像的一對是 `A001` ↔ `FSS_A001` = 0.9929
-
-**4 群跨 split（會造成 leakage）**，處理方式：
-
-| 群 | 處理 |
-|---|---|
-| `D029`(test) / `T069`(train) | 🔴 **mix_exp1 當時就已經有這個洞**；`T069` 移出訓練資料 |
-| `T037`(test) / `PILOT034`(train) | `PILOT034` 移出訓練資料 |
-| `T049` / `VNT022` / `sub-0023` | 歸戶後整組留在 train |
-| `HP_IA018` / `PILOT027` | 歸戶後整組留在 train |
-
-test 那 28 顆要維持不動才能跟 mix_exp1 比，所以撞到 test 的只能移除另一邊
-（搬到 `data/mixed_preprocessed_v2/_excluded/`，附 README 說明理由）。
-同一人在 train 裡有兩次掃描**不是** leakage，其餘全部保留，只寫進歸戶表。
-
-最後定案：`ASD/mixed_v2_groups.txt`（**32 群 / 65 筆**，含補上的漏網 `PILOT061`/`T039` = 0.8618）。
-複驗：全部 133,903 對影像比完，**沒有任何人橫跨 split**。
-
-⚠️ **這是影像證據，不是身分證據**。能說的是「像到只有同一個人才可能」，說不出是誰，
-也分不出「同一次掃描存兩份」還是「同一人掃兩次」。新這包沒有 DICOM 檔頭可查，
-要確認得回頭問資料提供者。
-
-### 20.5 🔴 這台筆電訓練不動這個設定
+### 20.4 這台筆電訓練不動這個設定
 
 `DiscoLaptop`（RTX 4060 Laptop，**8 GB**）上實測：每步 **25 秒**，GPU 100%。
 量到峰值真正配置 **7.08 GB**、配置器保留 **13.46 GB** → 超過 8 GB，溢位到系統記憶體。
@@ -1405,15 +1372,14 @@ test 那 28 顆要維持不動才能跟 mix_exp1 比，所以撞到 test 的只�
 搬資料：`data/mixed_preprocessed_v2`（4.0 GB，520 顆）已產 `dataset_manifest.json`，
 到目標機器後跑 `python ASD\check_dataset.py --dirs data\mixed_preprocessed_v2 --check` 驗證。
 
-### 20.6 mix_exp2 的跑法（待執行，在另一台）
+### 20.5 mix_exp2 的跑法（待執行，在另一台）
 
 ```powershell
-python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp2 `
+python ASD
+un_train.py --train-dir data\mixed_preprocessed_v2	rain --exp-name mix_exp2 `
     --image-loss ncc --lambda 1.0 --epochs 250 --gpu 0
-python ASD\test_dice.py --model-dir models\mix_exp2 --test-dir data\mixed_preprocessed_v2\val --step 10
-python ASD\test_dice.py --model models\mix_exp2\<val 最高那個>.pt --test-dir data\mixed_preprocessed_v2\test
+python ASD	est_dice.py --model-dir models\mix_exp2 --test-dir data\mixed_preprocessed_v2al --step 10
+python ASD	est_dice.py --model models\mix_exp2\<val 最高那個>.pt --test-dir data\mixed_preprocessed_v2	est
 ```
 
-超參數與 mix_exp1 完全相同 → 差異只來自「資料變多」。
-⚠️ 比較 mix_exp1 與 mix_exp2 時，兩者評的是**同一批 28 顆**，
-要比高下請用**逐人配對差值**（配對後的誤差遠小於單一數字的標準誤 0.004）。
+超參數與 mix_exp1 相同，但資料與切分都換了，兩者不是同一批 test。
