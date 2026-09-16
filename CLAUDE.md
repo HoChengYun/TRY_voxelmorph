@@ -45,6 +45,10 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
 **§20（第四包資料 + train/val/test 三段切分，2026-09-16）**。
 
+🔴 **判斷「是不是同一個人」只允許一種方法：逐張影像內容完全相同。**
+標籤 Dice、影像相關係數、用檔頭生日／體重推論，全部禁止（使用者 2026-09-16 規定，見手冊 §15.2）。
+相關腳本與歸戶表已刪除，不要重建。切分不做歸戶，每個掃描各自算一位受試者。
+
 🔴 **三件從 §20 來、會影響怎麼解讀舊結果的事**：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
@@ -107,7 +111,6 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_atlas_seg.py               # atlas aseg 切回訓練空間
 │   ├── make_mixed_set.py               # ⭐ 多資料集併成一份（預設實體複製），給混合訓練
 │   ├── check_dataset.py                # 搬到別台機器後驗資料（sha256 manifest + 內容檢查）
-│   ├── find_duplicate_scans.py         # atlas 空間的標籤 Dice 找重複掃描（手冊 §15.2、§20.4）
 │   ├── make_val_split.py               # 從 train 切 val（test 不動、可 --undo）
 │   ├── make_split.py                   # ⭐ 整批重切 train/val/test（依來源分層）
 │   ├── author_model.py                 # 作者的 Keras 模型（.h5）搬進 PyTorch（手冊 §19）
@@ -118,7 +121,6 @@ C:\Users\h4524\claude_cheng\
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
-│   ├── DGM_groups.txt                  # DGM 歸戶表（D015/D037、D038/DGM002 同一人；已去識別化）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器
@@ -503,7 +505,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 - **ASD 腳本一律直接給資料路徑**（2026-09-13 起沒有 `--dataset`）：例如 `--test-dir data\mixed_preprocessed_v1\test`。
   `--dataset ASD` 看不出是哪一版，有了 v2 之後還會安靜地拿 v1 去跑。對照表見 `ASD/ASD相關手冊.md` §14 開頭。
 - 🔴 **GitHub repo 是公開的：不得出現個資**（出生日期／身高／體重／精確掃描日期）。
-  `data/` 整個被 `.gitignore` 擋掉；歸戶表（如 `ASD/DGM_groups.txt`）只寫判定依據的種類。
+  `data/` 整個被 `.gitignore` 擋掉。
 
 ---
 

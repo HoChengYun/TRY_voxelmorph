@@ -105,7 +105,7 @@
 ## 3. 受試者歸戶（避免 data leakage）
 
 > 🔄 **2026-09-07 已解決**：DICOM 檔頭顯示 A013 是另一個人，A0131 / A0132 是同一人（A0132 排除），
-> A016_1 / A016_2 都排除。本節的「暫定假設」已經不需要。DGM 另有兩對同一人，用 `ASD/DGM_groups.txt`。見 §15。
+> A016_1 / A016_2 都排除。本節的「暫定假設」已經不需要。見 §15。
 
 同一個人的多次掃描若一個進 train、一個進 test，模型等於看過答案，Dice 會虛高。
 **切分必須以「受試者」為單位，不是檔案層級 shuffle。**
@@ -618,11 +618,9 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 | `ASD/run_preprocess.py` / `run_train.py` | 前處理與訓練的包裝腳本 |
 | `ASD/make_mixed_set.py` | 多資料集併成一份（預設實體複製）|
 | `ASD/check_dataset.py` | 搬機器後的資料完整性檢查（sha256 manifest）|
-| `ASD/find_duplicate_scans.py` | atlas 空間的標籤 Dice 找重複掃描（§15.2）|
 | `ASD/author_model.py` | 作者的 Keras 模型（.h5）搬進 PyTorch（§19）|
 | `ASD/orient.py` | 依 atlas 標籤判斷方向，畫圖前轉成 RAS（§19.4）|
 | `oasis/prepare_author_check.py` | OASIS 受試者轉成 FreeSurfer 編號的 npz（§19.3）|
-| `ASD/DGM_groups.txt` | DGM 歸戶表（已去識別化）|
 | `IXI/atlas_mni152_09c_v3_seg_tigerbx.npz` | tigerbx arm 的 atlas 分割（§17）|
 | `share_models/{ASD,mix_exp1,tiger_exp1}_good/` | 進版控的最佳模型與 Dice 曲線 |
 | `meeting報告/ASD延伸實驗_混合訓練與tigerbx_v2.pptx` | 2026-09 meeting 簡報（29 頁，含備忘稿）|
@@ -866,7 +864,6 @@ data/
 | `run_preprocess.py` | `--src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1`（兩個都必填）|
 | `make_mixed_set.py` | `--sources <各包的前處理資料夾> --out <輸出資料夾>` |
 | `check_dataset.py` | `--dirs <前處理資料夾…>` |
-| `find_duplicate_scans.py` | `--prep-dir <前處理資料夾>` |
 | `run_train.py` | `--train-dir <…\train> --exp-name <實驗名>`（兩個都必填）|
 | `test_dice.py` / `visualize_dice.py` | `--test-dir <…\test>` |
 
@@ -967,33 +964,26 @@ FreeSurfer 端逐一讀了 **4,903 個 DICOM 序列**的檔頭，推翻了幾件
 **對舊結果的影響**：asd_exp1 的 17 顆 test 裡，A0131 反而是最低的（0.740）。
 排除它之後平均只升 +0.0026，小於標準誤 0.0038 → **這次洩漏沒有把分數灌高**，但方法學已經修正。
 
-### 15.2 用影像找同一人：`find_duplicate_scans.py`
+### 15.2 同一人的判定：只用「影像完全相同」
 
-DICOM 的人口學欄位在這批**不可全信**：技師會複製上一位的登錄資料（D023/D024、T029/T028 都是實例）。
-所以另外用影像檢查：兩顆腦 affine 到 atlas 之後，量 30 個結構的標籤 Dice。
+> 🔴 **2026-09-16 使用者規定**：判斷「是不是同一個人」**只允許一種方法：逐張影像內容完全相同**。
+> 標籤 Dice、影像相關係數、用檔頭的生日／性別／體重推論，全部禁止使用，也不要重建。
+> 重複與身分的問題由老師判斷。相關腳本（`find_duplicate_scans.py`）、比對輸出（`log/dupcheck_*`）
+> 與歸戶表（`DGM_groups.txt`、`mixed_v2_groups.txt`）**已刪除**。
 
-| 配對 | 標籤 Dice | 判定 |
-|---|---|---|
-| A0131 / YT13 | 0.9793 | 同一次掃描（重複匯出）|
-| D015 / D037 | 0.8561 | 同一人，相隔 3 個月 |
-| D038 / DGM002 | 0.8528 | 同一人，相隔 9 個月 |
-| A0131 / A0132 | 0.7318 | 同一人（5 歲），相隔 23 天 |
-| D018 / DGM001 | 0.6995 | 不同人（DICOM 定案）|
-| VNT027 / VNT028 | 0.6609 | 不同人（複製登錄）|
+現行唯一允許的判定：**兩顆的影像逐張完全相同**（檔案內容一致）。
+本批唯一符合的是 **A0131 / YT13**（192 張影像完全相同，同一次掃描存成兩份）→ YT13 排除。
 
-不同人的分布：ASD 13,366 對（中位數 0.663、第 99 百分位 0.721、最大 0.747）、
-DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
-
-- **抓得到**：同一次掃描（0.98）、成人同一人（0.85）
-- **抓不到**：5 歲兒童相隔 23 天只有 0.73，落在不同人的分布裡面
-- 🔴 **教訓**：一開始拿 1 對同人 vs 8 對不同人定門檻 0.70，全掃之後誤報幾百對。小樣本定的門檻不能用。
-- 判不出來時採保守做法：**當成同一人放在一起**（錯了只損失一點切分自由度，反過來錯就是 leakage）。
+其餘曾經被判為「同一人」的配對，依據都是已禁用的方法，**不再作為處置依據**。
+受影響的既有決定（A0132 排除、DGM 的兩對歸戶）維持現狀不動，但理由改寫成
+「檔頭欄位內容相同，待老師確認」，不寫成結論。
 
 ### 15.3 DGM 與 VNT
 
-- **DGM**：D015 / D037、D038 / DGM002 是同一人 → 54 個掃描 = **52 人**，寫成 `ASD/DGM_groups.txt` 給 `--group-map`。
+- **DGM**：D015 / D037、D038 / DGM002 這兩對的檔頭欄位高度一致（生日、體重相同），
+  但依現行規定**不判定為同一人**，歸戶表 `ASD/DGM_groups.txt` 已刪除，切分不做歸戶。
   D015 / D037 的性別欄相反，至少一邊是錯的，**這兩顆的性別欄不要用於分析**。
-- **VNT**：68 顆確認是 68 個獨立個體。
+- **VNT**：68 顆，各自算一位受試者。
 - `preprocess_fs.py` 的檔名歸戶規則已收緊：原本 VNT001～VNT009 會被誤判成同一人（字根 VNT00）。
 
 ---
@@ -1014,7 +1004,7 @@ DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
 
 ```powershell
 # 當時用的是舊的 --dataset 寫法，以下換成 2026-09-13 起「直接給路徑」的寫法
-python ASD\run_preprocess.py --src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1   # 自動套用 ASD\DGM_groups.txt
+python ASD\run_preprocess.py --src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1
 python ASD\run_preprocess.py --src-dir data\VNT_data --out-dir data\VNT_preprocessed_v1
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 data\VNT_preprocessed_v1 `
     --out data\mixed_preprocessed_v1
@@ -1068,7 +1058,7 @@ python ASD\make_atlas_seg.py --src data\tigerbx\atlas\mni152_09c_t1_padded256_as
 python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-dir data\tigerbx_data\fs_for_vxm\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\tigerbx_preprocessed_v1 `
     --subject-list data\tigerbx_data\fs_stats\subjects.txt --list-is-final --grouping none `
-    --group-map ASD\DGM_groups.txt --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
+    --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
 
 # 評估一定要換 atlas 分割
 python ASD\test_dice.py --test-dir data\tigerbx_preprocessed_v1\test `
@@ -1334,7 +1324,7 @@ python ASD\preprocess_fs.py `
 
 **2026-09-16 使用者決定：就照拿到的資料分，不做重複／相似度的判定。**
 所以切分不帶歸戶表，每一個掃描各自算一位受試者；原本的歸戶表已刪除。
-（判定過程與證據仍保留在 `log/dupcheck_mixed_v2*.*`，老師之後若要追再拿出來看。）
+（先前的比對輸出已依規定刪除。）
 
 ```powershell
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 `
@@ -1360,22 +1350,17 @@ seed=42，切完會複驗沒有人橫跨兩邊，紀錄寫進 `split.json`。
 ⚠️ `test_dice.py` 原本不管評估哪個資料夾都寫同一個 `dice_curve.csv`，先跑 val 再跑 test 會安靜蓋掉。
 2026-09-16 改成資料夾名不是 `test` 就自動加後綴（`dice_curve_val.csv`、`dice_baseline_val.csv`）。
 
-### 20.3.1 重複的人：查過了，但不處理（2026-09-16 使用者決定）
+### 20.3.1 同一人：不做判定（2026-09-16 使用者決定）
 
-切分前查過一輪，結果**不套用在切分上**，只留給老師判斷：
+> 🔴 **2026-09-16 使用者規定**：判斷「是不是同一個人」**只允許一種方法：逐張影像內容完全相同**。
+> 標籤 Dice、影像相關係數、用檔頭的生日／性別／體重推論，全部禁止使用，也不要重建。
+> 重複與身分的問題由老師判斷。相關腳本（`find_duplicate_scans.py`）、比對輸出（`log/dupcheck_*`）
+> 與歸戶表（`DGM_groups.txt`、`mixed_v2_groups.txt`）**已刪除**。
 
-- 520 顆兩兩比影像：隨機不同人的相似度中位數 0.67、最高 0.75；
-  有 **33 組（67 顆）落在 0.88 以上**，中間 0.75–0.88 完全沒有資料
-- 校準點：已用 DICOM 檔頭確認是同一人的 D015/D037 = 0.98
-- 組成：新批內部 13 組（12 組是 `HP_IA` ↔ `PILOT` 一對一）、新批 × 舊三包 14 組、
-  舊三包彼此 4 組（D029/T069、A040/D055、A074/D040、DGM001/T005）、已知的 2 組
-- 新這批扣掉重複後實際只增加約 **207 位**
+所以 `mixed_preprocessed_v2` 的切分**沒有做歸戶**：每個掃描各自算一位受試者，隨機分配。
 
-證據檔：`log/dupcheck_mixed_v2.txt`、`log/dupcheck_mixed_v2_pairs.csv`、`log/dup_components_v2.json`。
-給老師的說明寫在 `meeting報告/奇怪資料清單.md` 第 5 節（那份 gitignore，不進版控）。
-
-🔴 **後果要講清楚**：切分沒有做歸戶，所以上面這些人**可能一顆在 train、一顆在 test**。
-mix_exp2 / mix_exp3 的分數會因此偏高一點。這是使用者在知情下的決定，報告時要照實寫。
+🔴 **後果要照實寫**：同一個人若有兩筆掃描，可能一筆在 train、一筆在 test，
+分數會因此偏高一點。這是知情下的決定。
 
 ### 20.3.2 曲線圖：`ASD/plot_dice_curve.py`
 
