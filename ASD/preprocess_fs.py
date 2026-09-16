@@ -402,7 +402,8 @@ else:
     rng = random.Random(args.seed)
     person_ids = sorted(persons.keys())
     rng.shuffle(person_ids)
-    n_test = max(1, int(round(len(person_ids) * args.test_frac)))
+    # --test-frac 0 = 這批全部進 train（例如只拿來擴充訓練集，test 沿用別批）
+    n_test = 0 if args.test_frac <= 0 else max(1, int(round(len(person_ids) * args.test_frac)))
     test_persons = set(person_ids[:n_test])
 
     split_of = {}

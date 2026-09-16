@@ -1,0 +1,1893 @@
+掃到 234 個檔案：data\fs_subjects_data\fs_for_vxm\norm
+    套用白名單：234 -> 234
+
+歸戶：234 個掃描 -> 234 位受試者
+  --grouping  : none（每個掃描各自成一人，不合併）
+  --group-map : 未提供
+
+[i] 另有 27 組（232 個掃描）只是「末位數字不同」（如 CP001 / CP002）。
+    補零流水號本來就長這樣，通常不是同一人。要逐組看的話：--show-weak-groups
+
+切分（受試者層級，seed=42，test_frac=0.0）：
+  train  234 人 / 234 個掃描
+  test     0 人 /   0 個掃描
+  [v] 沒有受試者橫跨 train/test
+
+Atlas：IXI/atlas_mni152_09c_v3.nii.gz
+  shape=(192, 224, 192)  spacing=(1.0, 1.0, 1.0)
+
+[  1/234] 處理：CP001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  2/234] 處理：CP002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  3/234] 處理：CP003  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP003.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  4/234] 處理：CP005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  5/234] 處理：CP006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  6/234] 處理：CP007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  7/234] 處理：CP008  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\CP008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  8/234] 處理：CP009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  9/234] 處理：CP010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 10/234] 處理：CP011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 11/234] 處理：CP012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 12/234] 處理：CP013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 13/234] 處理：CP014  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP014.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 14/234] 處理：CP015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 15/234] 處理：CP016  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\CP016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 16/234] 處理：EDP001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 17/234] 處理：EDP002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 18/234] 處理：EDP005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 19/234] 處理：EDP006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 20/234] 處理：EDP007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 21/234] 處理：EDP008  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 22/234] 處理：EDP009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 23/234] 處理：EDP010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 24/234] 處理：EDP011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 25/234] 處理：EDP012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 26/234] 處理：EDP013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 27/234] 處理：EDP014  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP014.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 28/234] 處理：EDP015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 29/234] 處理：EDP016  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 30/234] 處理：EDP017  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP017.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 31/234] 處理：EDP018  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP018.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 32/234] 處理：EDP019  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP019.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 33/234] 處理：EDP020  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP020.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 34/234] 處理：EDP021  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP021.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 35/234] 處理：EDP022  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP022.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 36/234] 處理：EDP023  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP023.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 37/234] 處理：EDP024  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP024.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 38/234] 處理：EDP025  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP025.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 39/234] 處理：EDP026  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP026.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 40/234] 處理：EDP029  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP029.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 41/234] 處理：EDP030  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\EDP030.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 42/234] 處理：FSS_A001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\FSS_A001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 43/234] 處理：HP_IA001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 44/234] 處理：HP_IA002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 45/234] 處理：HP_IA003  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA003.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 46/234] 處理：HP_IA004  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA004.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 47/234] 處理：HP_IA005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 48/234] 處理：HP_IA006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 49/234] 處理：HP_IA007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 50/234] 處理：HP_IA008  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 51/234] 處理：HP_IA009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 52/234] 處理：HP_IA010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 53/234] 處理：HP_IA011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 54/234] 處理：HP_IA012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 55/234] 處理：HP_IA013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 56/234] 處理：HP_IA014  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA014.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 57/234] 處理：HP_IA015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 58/234] 處理：HP_IA016  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 59/234] 處理：HP_IA017  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA017.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 60/234] 處理：HP_IA018  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA018.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 61/234] 處理：HP_IA019  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA019.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 62/234] 處理：HP_IA020  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA020.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 63/234] 處理：HP_IA021  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA021.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 64/234] 處理：HP_IA022  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA022.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 65/234] 處理：HP_IA023  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA023.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 66/234] 處理：HP_IA024  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA024.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 67/234] 處理：HP_IA025  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA025.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 68/234] 處理：HP_IA026  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA026.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 69/234] 處理：HP_IA027  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA027.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 70/234] 處理：HP_IA028  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA028.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 71/234] 處理：HP_IA029  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA029.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 72/234] 處理：HP_IA030  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA030.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 73/234] 處理：HP_IA031  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA031.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 74/234] 處理：HP_IA032  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA032.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 75/234] 處理：HP_IA033  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA033.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 76/234] 處理：HP_IA034  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA034.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 77/234] 處理：HP_IA035  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA035.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 78/234] 處理：HP_IA036  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA036.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 79/234] 處理：HP_IA037  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA037.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 80/234] 處理：HP_IA038  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA038.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 81/234] 處理：HP_IA039  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA039.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 82/234] 處理：HP_IA040  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA040.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 83/234] 處理：HP_IA041  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA041.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 84/234] 處理：HP_IA042  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA042.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 85/234] 處理：HP_IA043  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA043.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 86/234] 處理：HP_IA044  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA044.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 87/234] 處理：HP_IA045  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA045.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 88/234] 處理：HP_IA046  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA046.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 89/234] 處理：HP_IA047  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA047.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 90/234] 處理：HP_IA048  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA048.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 91/234] 處理：HP_IA049  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA049.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 92/234] 處理：HP_IA050  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA050.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 93/234] 處理：HP_IA051  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA051.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 94/234] 處理：HP_IA052  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA052.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 95/234] 處理：HP_IA053  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA053.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 96/234] 處理：HP_IA054  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA054.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 97/234] 處理：HP_IA055  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA055.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 98/234] 處理：HP_IA056  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA056.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 99/234] 處理：HP_IA057  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA057.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[100/234] 處理：HP_IA058  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA058.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[101/234] 處理：HP_IA059  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\HP_IA059.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[102/234] 處理：PILOT001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[103/234] 處理：PILOT002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[104/234] 處理：PILOT003  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT003.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[105/234] 處理：PILOT004  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT004.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[106/234] 處理：PILOT005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[107/234] 處理：PILOT006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[108/234] 處理：PILOT007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[109/234] 處理：PILOT008  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[110/234] 處理：PILOT009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[111/234] 處理：PILOT010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[112/234] 處理：PILOT011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[113/234] 處理：PILOT012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[114/234] 處理：PILOT013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[115/234] 處理：PILOT014  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT014.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[116/234] 處理：PILOT015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[117/234] 處理：PILOT016  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[118/234] 處理：PILOT017  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT017.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[119/234] 處理：PILOT018  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT018.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[120/234] 處理：PILOT019  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT019.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[121/234] 處理：PILOT020  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT020.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[122/234] 處理：PILOT021  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT021.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[123/234] 處理：PILOT022  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT022.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[124/234] 處理：PILOT023  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT023.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[125/234] 處理：PILOT024  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT024.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[126/234] 處理：PILOT025  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT025.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[127/234] 處理：PILOT026  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT026.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[128/234] 處理：PILOT027  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT027.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[129/234] 處理：PILOT028  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT028.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[130/234] 處理：PILOT029  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT029.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[131/234] 處理：PILOT030  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT030.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[132/234] 處理：PILOT031  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT031.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[133/234] 處理：PILOT032  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT032.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[134/234] 處理：PILOT033  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT033.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[135/234] 處理：PILOT034  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT034.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[136/234] 處理：PILOT035  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT035.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[137/234] 處理：PILOT036  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT036.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[138/234] 處理：PILOT037  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT037.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[139/234] 處理：PILOT038  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT038.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[140/234] 處理：PILOT039  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT039.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[141/234] 處理：PILOT040  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT040.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[142/234] 處理：PILOT041  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT041.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[143/234] 處理：PILOT042  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT042.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[144/234] 處理：PILOT043  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT043.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[145/234] 處理：PILOT044  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT044.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[146/234] 處理：PILOT045  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT045.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[147/234] 處理：PILOT046  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT046.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[148/234] 處理：PILOT047  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT047.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[149/234] 處理：PILOT049  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT049.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[150/234] 處理：PILOT050  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT050.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[151/234] 處理：PILOT051  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT051.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[152/234] 處理：PILOT052  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT052.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[153/234] 處理：PILOT053  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT053.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[154/234] 處理：PILOT054  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT054.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[155/234] 處理：PILOT055  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT055.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[156/234] 處理：PILOT056  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT056.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[157/234] 處理：PILOT057  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT057.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[158/234] 處理：PILOT058  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT058.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[159/234] 處理：PILOT059  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT059.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[160/234] 處理：PILOT060  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT060.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[161/234] 處理：PILOT061  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT061.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[162/234] 處理：PILOT062  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\PILOT062.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[163/234] 處理：sub-0001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[164/234] 處理：sub-0002  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0002.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[165/234] 處理：sub-0003  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0003.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[166/234] 處理：sub-0004  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0004.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[167/234] 處理：sub-0005  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0005.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[168/234] 處理：sub-0006  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0006.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[169/234] 處理：sub-0007  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0007.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[170/234] 處理：sub-0008  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0008.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[171/234] 處理：sub-0009  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0009.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[172/234] 處理：sub-0010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[173/234] 處理：sub-0011  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0011.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[174/234] 處理：sub-0012  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0012.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[175/234] 處理：sub-0013  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0013.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[176/234] 處理：sub-0015  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0015.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[177/234] 處理：sub-0016  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0016.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[178/234] 處理：sub-0017  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0017.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[179/234] 處理：sub-0018  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0018.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[180/234] 處理：sub-0019  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0019.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[181/234] 處理：sub-0021  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0021.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[182/234] 處理：sub-0022  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0022.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[183/234] 處理：sub-0023  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0023.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[184/234] 處理：sub-0024  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0024.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[185/234] 處理：sub-0025  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0025.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[186/234] 處理：sub-0026  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0026.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[187/234] 處理：sub-0027  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0027.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[188/234] 處理：sub-0028  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0028.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[189/234] 處理：sub-0029  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0029.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[190/234] 處理：sub-0030  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0030.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[191/234] 處理：sub-0031  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0031.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[192/234] 處理：sub-0033  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0033.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[193/234] 處理：sub-0034  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0034.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[194/234] 處理：sub-0035  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0035.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[195/234] 處理：sub-0036  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0036.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[196/234] 處理：sub-0038  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0038.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[197/234] 處理：sub-0039  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0039.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[198/234] 處理：sub-0040  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0040.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[199/234] 處理：sub-0042  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0042.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[200/234] 處理：sub-0043  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0043.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[201/234] 處理：sub-0044  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0044.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[202/234] 處理：sub-0045  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0045.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[203/234] 處理：sub-0046  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0046.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[204/234] 處理：sub-0047  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0047.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[205/234] 處理：sub-0049  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0049.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[206/234] 處理：sub-0050  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0050.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[207/234] 處理：sub-0051  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 44   [!] 消失：[80]
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0051.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[208/234] 處理：sub-0052  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0052.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[209/234] 處理：sub-0053  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0053.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[210/234] 處理：sub-0055  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0055.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[211/234] 處理：sub-0056  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0056.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[212/234] 處理：sub-0058  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0058.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[213/234] 處理：sub-0059  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0059.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[214/234] 處理：sub-0060  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0060.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[215/234] 處理：sub-0061  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0061.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[216/234] 處理：sub-0063  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0063.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[217/234] 處理：sub-0064  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0064.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[218/234] 處理：sub-0065  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0065.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[219/234] 處理：sub-0066  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0066.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[220/234] 處理：sub-0068  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0068.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[221/234] 處理：sub-0069  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0069.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[222/234] 處理：sub-0070  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0070.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[223/234] 處理：sub-0072  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0072.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[224/234] 處理：sub-0073  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0073.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[225/234] 處理：sub-0074  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0074.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[226/234] 處理：sub-0075  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0075.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[227/234] 處理：sub-0076  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0076.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[228/234] 處理：sub-0078  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0078.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[229/234] 處理：sub-0079  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0079.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[230/234] 處理：sub-0080  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0080.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[231/234] 處理：sub-0081  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0081.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[232/234] 處理：sub-0082  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0082.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[233/234] 處理：sub-0084  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0084.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[234/234] 處理：sub-0085  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/fs_subjects_preprocessed_v1\train\sub-0085.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+=======================================================
+完成！ 成功=234 略過=0 切分改變而搬移=0 失敗=0
+輸出：data/fs_subjects_preprocessed_v1  （切分記錄：split.json）

@@ -84,7 +84,10 @@ args = ap.parse_args()
 stride = 1 if args.full else args.stride
 PREP = os.path.abspath(args.prep_dir)
 
+# 🔴 2026-09-16 加上 val：train/val 之間的重複同樣是 leakage（在 val 挑 epoch 會被墊高），
+#    漏掉 val 等於整批沒查。
 files = sorted(glob.glob(os.path.join(PREP, 'train', '*.npz'))
+               + glob.glob(os.path.join(PREP, 'val', '*.npz'))
                + glob.glob(os.path.join(PREP, 'test', '*.npz')))
 if not files:
     sys.exit('[X] %s 底下沒有 npz —— 先用 run_preprocess.py 產生它' % PREP)

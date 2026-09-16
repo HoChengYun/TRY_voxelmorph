@@ -191,7 +191,7 @@ function pairSlide(eyebrow, title, notes, left, right, caption) {
       ['', '位置', '問題', '答案', '頁'],
       [ok, 'p04', 'T065 標「重複」', '不是重複：建檔時編號打成 T056，資料正確 → 已納回', pg('DATA QUALITY')],
       [ok, 'p04', 'A016_1 標「拿掉」', '已排除；另查出 A016_2 是品管掃描，一併排除', pg('DATA QUALITY')],
-      [ok, 'p10', '去看檔頭', 'A0131 / A0132 是同一位 5 歲男童；YT13 是 A0131 的重複匯出', rng(pg('DICOM HEADER'), pg('SAME-PERSON CHECK'))],
+      [ok, 'p10', '去看檔頭', 'A0131 / A0132 是同一位 5 歲男童；YT13 是 A0131 的重複匯出', pg('DICOM HEADER')],
       [ok, 'p11', 'VoxelMorph 的 atlas 哪來的', '論文只寫「由外部資料集算出」，沒有檔案與參數，無法重現', pg('ATLAS SOURCE')],
       [ok, 'p24 ①', '跟論文差多少', '模型貢獻：我們 +0.112、作者 +0.169；另附論文全表與逐項差異', rng(pg('VS. PAPER'), pg('VS. PAPER · DIFF ②'))],
       [part, 'p24 ②', '頭殼沒切好的效果', '沒有直接測試，只有旁證', pg('SKULL STRIPPING')],
@@ -253,40 +253,6 @@ function pairSlide(eyebrow, title, notes, left, right, caption) {
   ], { x: 8.2, y: 5.3, w: 4.3, h: 1.1, fontSize: 12.5 });
 }
 
-// 05 同人偵測
-{
-  const s = base('SAME-PERSON CHECK', '怎麼確認是不是同一人：atlas 空間的標籤 Dice',
-    'DICOM 的人口學欄位在這批不可全信，技師會複製上一位的登錄資料。所以另外用影像本身檢查：兩顆腦對到 atlas 之後，30 個結構的標籤重疊多少。同一次掃描 0.98、成人同一人 0.85，都遠在不同人的分布之外。但 5 歲小孩的兩次掃描只有 0.73，跟不同人分不開。');
-  const pairs = D.dup_pairs.slice().reverse();
-  const same = pairs.map((p) => (p[2].startsWith('不同人') ? 0 : p[1]));
-  const diff = pairs.map((p) => (p[2].startsWith('不同人') ? p[1] : 0));
-  s.addChart(pres.charts.BAR, [
-    { name: '已知同一人／同一次掃描', labels: pairs.map((p) => p[0]), values: same },
-    { name: '已知不同人', labels: pairs.map((p) => p[0]), values: diff },
-  ], {
-    x: M, y: 1.6, w: 7.2, h: 4.6, barDir: 'bar', barGrouping: 'stacked', barGapWidthPct: 55,
-    chartColors: [C.TEAL, C.RUST],
-    valAxisMinVal: 0.5, valAxisMaxVal: 1.0, valAxisMajorUnit: 0.1, valAxisLabelFormatCode: '0.0',
-    showValue: true, dataLabelPosition: 'inEnd', dataLabelFormatCode: '0.000;;;', dataLabelColor: C.WHITE,
-    dataLabelFontFace: F.MONO, dataLabelFontSize: 11, dataLabelFontBold: true,
-    catAxisLabelFontFace: F.MONO, catAxisLabelFontSize: 11, catAxisLabelColor: C.INK,
-    valAxisLabelFontFace: F.MONO, valAxisLabelFontSize: 10, valAxisLabelColor: C.MUTED,
-    valGridLine: { color: 'E4E4DE', size: 0.5 }, catGridLine: { style: 'none' },
-    showLegend: true, legendPos: 'b', legendFontFace: F.SANS, legendFontSize: 11,
-  });
-  table(s, [
-    ['不同人的分布', '對數', '中位數', '第 99 百分位'],
-    ['ASD', '13,366', '0.663', '0.721'],
-    ['DGM', '1,431', '0.656', '0.722'],
-    ['VNT', '2,278', '0.653', '0.719'],
-  ], { x: 8.2, y: 1.7, w: 4.5, colW: [1.25, 0.95, 0.95, 1.35], rowH: 0.42, fontSize: 12 });
-  bullets(s, [
-    [{ text: '抓得到：', options: { bold: true, color: C.TEAL } }, { text: '同一次掃描（0.98）、成人同一人（0.85）' }],
-    [{ text: '抓不到：', options: { bold: true, color: C.RUST } }, { text: '5 歲兒童的兩次掃描只有 0.73，落在不同人的範圍內' }],
-    [{ text: '教訓：', options: { bold: true } }, { text: '一開始用 1 對同人 vs 8 對不同人定門檻，全掃之後誤報幾百對 —— 小樣本定的門檻不能用' }],
-  ], { x: 8.2, y: 3.75, w: 4.5, h: 2.8, fontSize: 13 });
-}
-
 // 06 atlas 哪來的
 {
   const s = base('ATLAS SOURCE', 'VoxelMorph 作者的 atlas 從哪來',
@@ -318,7 +284,7 @@ function pairSlide(eyebrow, title, notes, left, right, caption) {
 // 07 三包資料
 {
   const s = base('DATASETS', '混多一點資料集：ASD + DGM + VNT',
-    '三包都是同一台 Skyra 3T、同一個 MPRAGE 協定。DGM 裡有兩對同一人，所以 54 個掃描是 52 個人。VNT 年紀最大，中位數 36 歲。下方那行是合併的根據：三包彼此之間的相似度分布幾乎一樣。');
+    '三包都是同一台 Skyra 3T、同一個 MPRAGE 協定。DGM 裡有兩對同一人，所以 54 個掃描是 52 個人。VNT 年紀最大，中位數 36 歲。下方那行是合併的根據：除了同一台機器、同一個協定，三包裡「任兩個不同的人」彼此有多像，分布也幾乎一樣，代表三包的腦沒有系統性的差別。');
   const dem = D.demo;
   const info = [
     ['ASD', '164 位', `${dem.ASD.age_median} 歲（${dem.ASD.age_min}–${dem.ASD.age_max}）`, `${dem.ASD.under18} 位`, '148 / 16', C.TEAL],
@@ -338,8 +304,8 @@ function pairSlide(eyebrow, title, notes, left, right, caption) {
   card(s, M, 5.25, 12.1, 1.35, C.PAPER);
   label(s, '為什麼可以合併', M + 0.3, 5.45, 5, C.TEAL);
   txt(s, [
-    { text: '同一台 Skyra 3T、同一個 MPRAGE 協定；而且三包內部「不同人」之間的標籤 Dice 分布幾乎一樣（中位數 0.663 / 0.656 / 0.653，第 99 百分位 0.721 / 0.722 / 0.719）', options: {} },
-    { text: '—— 從資料本身支持三包可以合併。合計 ', options: {} },
+    { text: '同一台 Skyra 3T、同一個 MPRAGE 協定；三包裡任兩個不同的人彼此有多像，分布也幾乎一樣（兩兩比對結構重疊的中位數 0.663 / 0.656 / 0.653）', options: {} },
+    { text: '—— 所以三包可以合併。合計 ', options: {} },
     { text: 'train 258 / test 28', options: { bold: true } },
     { text: '。', options: {} },
   ], { x: M + 0.3, y: 5.8, w: 11.5, h: 0.75, fontSize: 13 });
@@ -543,7 +509,7 @@ const bold = (t) => ({ text: t, options: { bold: true } });
 // 10 壓平
 {
   const s = base('RESULT · SPREAD', '模型把受試者之間的差距壓平了',
-    '每個點是一位 test 受試者。橫軸是只做線性對位的 Dice，縱軸是模型後的 Dice。模型不管你從哪裡出發，都把你拉到 0.79 附近。所以改善幅度幾乎完全由起點決定，相關係數 −0.96。報告時該報模型後的絕對值，不是改善幅度。');
+    '每個點是一位 test 受試者。橫軸是只做線性對位的 Dice，縱軸是模型後的 Dice，每位的 Dice 都是 30 個結構的平均。模型不管你從哪裡出發，都把你拉到 0.79 附近。右上的兩個數字是這樣算的：第一個，把 28 位各自的 Dice 取標準差，只做線性對位時是 0.040，模型後剩 0.015，大家的差距縮到大約三分之一。第二個，每位算一個「進步」，就是模型後減掉起點，再看 28 位的進步和起點有多一致，相關係數 −0.96，接近 −1，代表起點越低、進步越多，幾乎是一條直線。所以報告時該報模型後的絕對值，不是改善幅度。');
   const sub = D.subjects;
   s.addChart(pres.charts.SCATTER, [
     { name: '基準線', values: sub.map((x) => x.fs_base) },
@@ -559,8 +525,10 @@ const bold = (t) => ({ text: t, options: { bold: true } });
     valGridLine: { color: 'E4E4DE', size: 0.5 }, catGridLine: { color: 'E4E4DE', size: 0.5 }, showLegend: false,
   });
   const X0 = 8.2;
-  stat(s, `${f3(S.fs_base_sd)} → ${f3(S.fs_after_sd)}`, '受試者之間的標準差（縮到約 36%）', X0, 1.7, 4.5, C.TEAL);
-  stat(s, S.r_gain_vs_base_fs.toFixed(2), '起點越低、進步越多（相關係數，−1 代表完全反向）', X0, 3.0, 4.5, C.RUST);
+  stat(s, `${f3(S.fs_base_sd)} → ${f3(S.fs_after_sd)}`,
+    `28 位各自的 Dice 取標準差：只做線性對位 → 模型後（縮到約 ${Math.round(100 * S.fs_after_sd / S.fs_base_sd)}%）`, X0, 1.7, 4.5, C.TEAL);
+  stat(s, S.r_gain_vs_base_fs.toFixed(2),
+    '每位算「進步＝模型後 − 起點」，28 位的進步與起點的相關係數（−1＝完全反向）', X0, 3.0, 4.5, C.RUST);
   bullets(s, [
     `A0131 為 ${f3(sub.find((x) => x.id === 'A0131').fs_after)}；其餘 27 位介於 ${f3(Math.min(...sub.filter((x) => x.id !== 'A0131').map((x) => x.fs_after)))}–${f3(Math.max(...sub.map((x) => x.fs_after)))}`,
     '起點越低，改善越多 —— 改善幅度主要由起點決定',
@@ -692,7 +660,7 @@ const bold = (t) => ({ text: t, options: { bold: true } });
 // 13 tigerbx 結果
 {
   const s = base('TIGERBX · RESULT', '同樣的資料換 tigerbx：結果（對照論文）',
-    '兩組都是同一批 28 位 test，可以逐人配對比較。tigerbx 組的模型貢獻平均多 0.0097，是配對標準誤的 3.7 倍，28 位有 22 位比較大，統計上測得到但幅度很小。絕對值的差 0.072 裡，有 0.062 在訓練前就已經存在。表格最下面那列、也是左圖那條黑色水平線，是作者在論文 Table I 的 VoxelMorph (CC)。它只是一個數字，不是作者的訓練曲線；資料是另外 8 個資料集共 3,731 顆，atlas 也不同，而且論文主結果是非微分同胚版，所以只能參考。看模型貢獻，我們兩組都比論文低。我們折疊率是 0，主要是因為用了 repo 預設的微分同胚版（int_steps=7），形變場透過積分不容易折疊，不代表模型比論文好。');
+    '表格的數字都是 28 位 test 的平均，每位的 Dice 是 30 個結構的平均；貢獻就是模型後減基準線。兩組都是同一批 28 位，可以逐人配對：每位算「tigerbx 組的貢獻減 FreeSurfer 組的貢獻」，28 個差平均是 0.0097。配對標準誤是這 28 個差的標準差除以根號 28，等於 0.0026，差值大約是它的 3.7 倍，超過 2 倍通常就不是碰巧。28 位裡有 22 位是 tigerbx 組的貢獻比較大。所以統計上測得到，但幅度很小。絕對值的差 0.072 裡，有 0.062 在訓練前就已經存在。表格最下面那列、也是左圖那條黑色水平線，是作者在論文 Table I 的 VoxelMorph (CC)。它只是一個數字，不是作者的訓練曲線；資料是另外 8 個資料集共 3,731 顆，atlas 也不同，而且論文主結果是非微分同胚版，所以只能參考。看模型貢獻，我們兩組都比論文低。我們折疊率是 0，主要是因為用了 repo 預設的微分同胚版（int_steps=7），形變場透過積分不容易折疊，不代表模型比論文好。');
   const a = curve('mix_exp1'), b = curve('tiger_exp1');
   lineChart(s, [
     { name: 'FreeSurfer 組', color: C.TEAL, labels: a.map((x) => String(x[0])), values: a.map((x) => x[1]) },
@@ -707,14 +675,19 @@ const bold = (t) => ({ text: t, options: { bold: true } });
     ['tigerbx 組', f4(S.tg_base), f4(S.tg_after), hl(sg(S.tg_gain), C.RUST), '0.000%'],
     [bold('作者（論文）'), '0.584', '0.753', hl('+0.169', C.INK), '0.366%'],
   ], { x: 7.6, y: 1.7, w: 5.1, colW: [1.55, 0.85, 0.85, 0.95, 0.9], rowH: 0.46, fontSize: 12 });
-  stat(s, sg(S.gain_diff), `兩組的貢獻差（配對標準誤 ${f4(S.gain_diff_sem)}，約 ${(S.gain_diff / S.gain_diff_sem).toFixed(1)} 倍）`, 7.6, 3.85, 5.1, C.INK);
+  txt(s, '28 位的平均；每位的 Dice 是 30 個結構平均。貢獻＝模型後 − 基準線',
+    { x: 7.6, y: 3.58, w: 5.1, h: 0.25, fontSize: 10, color: C.MUTED });
+  stat(s, sg(S.gain_diff), '', 7.6, 3.9, 5.1, C.INK);
+  txt(s, `每位算「tigerbx 貢獻 − FS 貢獻」再平均。配對標準誤 ${f4(S.gain_diff_sem)}＝這 28 個差的標準差 ÷ √28；`
+    + `差是它的 ${(S.gain_diff / S.gain_diff_sem).toFixed(1)} 倍（超過 2 倍通常不是碰巧）`,
+  { x: 7.6, y: 4.56, w: 5.1, h: 0.72, fontSize: 11.5, color: C.MUTED });
   txt(s, [
     { text: `28 位中有 ${S.gain_diff_tg_better} 位是 tigerbx 組貢獻較大 —— 測得到，但幅度很小。\n`, options: {} },
     { text: '絕對值不能直接比：', options: { bold: true, color: C.RUST } },
-    { text: `模型後差 ${f3(S.tg_after - S.fs_after)}，其中 ${f3(S.tg_base - S.fs_base)} 在訓練前就存在（兩套標籤畫邊界的方式不同）。\n` },
+    { text: `模型後差 ${f3(S.tg_after - S.fs_after)}（${f4(S.tg_after)} − ${f4(S.fs_after)}），其中 ${f3(S.tg_base - S.fs_base)}（${f4(S.tg_base)} − ${f4(S.fs_base)}）在訓練前就存在（兩套標籤畫邊界的方式不同）。\n` },
     { text: '作者那列＝左圖黑線：', options: { bold: true } },
-    { text: '論文 Table I 的 VoxelMorph (CC)，只有一個數字。另一批資料、另一顆 atlas、非微分同胚版，只能參考。看模型貢獻我們兩組都較低；我們折疊率為 0 主要來自微分同胚版，不代表模型較好。' },
-  ], { x: 7.6, y: 5.1, w: 5.1, h: 1.7, fontSize: 12 });
+    { text: '論文 Table I 的單一數字；資料、atlas、形變場版本都不同，只能參考。' },
+  ], { x: 7.6, y: 5.35, w: 5.1, h: 1.5, fontSize: 12 });
 }
 
 // 14 分結構

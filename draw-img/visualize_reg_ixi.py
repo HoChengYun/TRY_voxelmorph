@@ -53,6 +53,9 @@ parser.add_argument('--out-dir',  required=True)
 parser.add_argument('--gpu',      default='0')
 parser.add_argument('--checker-block', type=int, default=16, help='Checkerboard 方塊大小（pixel）')
 parser.add_argument('--grid-spacing', type=int, default=4, help='Warped Grid 網格間距（pixel）')
+parser.add_argument('--sag-offset', type=int, default=28,
+                    help='矢狀面偏離中線幾個 voxel（0 = 正中線）。正中線切不到海馬迴與側腦室，'
+                         '預設 28 跟 ASD/visualize_dice.py 一致')
 parser.add_argument('--save-nii', action='store_true', help='是否將配準結果與變形場儲存為 .nii.gz 實體檔案')
 args = parser.parse_args()
 
@@ -196,7 +199,8 @@ def get_flow_slice(flow3d, axis, idx):
     if axis == 'axial':    return flow3d[0, :, :, idx], flow3d[1, :, :, idx]   # D, H
 
 def get_mid(axis):
-    return {'sagittal': D//2, 'coronal': H//2, 'axial': W//2}[axis]
+    # 矢狀面偏離中線：正中線切不到海馬迴（距中線約 30mm），側腦室也只剩一點
+    return {'sagittal': D//2 - args.sag_offset, 'coronal': H//2, 'axial': W//2}[axis]
 
 def flip_for_display(sl, axis, vol_type):
     """
@@ -425,8 +429,9 @@ for row_i in range(2):
         # 疊加紅色 atlas (背景透明)
         cmap_reds = plt.get_cmap('Reds')
         norm = plt.Normalize(vmin=0, vmax=a_sl.max())
-        rgba = cmap_reds(norm(a_sl.T))
-        rgba[..., 3] = np.clip(a_sl.T / a_sl.max(), 0, 1) * 0.85  # alpha blending (調高讓紅色更深)
+        # 紅色加深：只取色階的上半段（0.45~1.0），並提高不透明度
+        rgba = cmap_reds(0.45 + 0.55 * norm(a_sl.T))
+        rgba[..., 3] = np.clip(a_sl.T / a_sl.max(), 0, 1) * 0.95
         ax.imshow(rgba, origin='lower', aspect='equal')
         ax.axis('off')
 

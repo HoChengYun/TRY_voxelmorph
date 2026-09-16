@@ -143,6 +143,13 @@ if not os.path.exists(args.atlas_seg):
     sys.exit('[X] 找不到 atlas 的 seg：%s\n'
              '    要先跑 ASD\\make_atlas_seg.py 產生。' % args.atlas_seg)
 atlas_seg = np.load(os.path.normpath(args.atlas_seg))['seg'].astype(np.int32)
+# 🔴 2026-09-16 加：同一顆模型會在 val（挑 epoch）和 test（最後一次）各評估一次。
+#    兩次都寫 dice_curve.csv 的話，後跑的會安靜蓋掉先跑的 —— 而且看檔名分不出
+#    這條曲線是哪一份資料算的。資料夾名不是 test 就自動加後綴。
+def _split_suffix(test_dir):
+    b = os.path.basename(os.path.normpath(os.path.abspath(test_dir)))
+    return '' if b == 'test' else '_' + b
+
 LABELS = np.load(os.path.normpath(args.labels))['labels'].astype(int).tolist()
 
 if atlas_vol.shape != atlas_seg.shape:
@@ -295,7 +302,8 @@ if args.baseline:
     # 沒給 --exp-name 就用資料夾名（含版本），例如 models/mixed_preprocessed_v1_baseline/
     prep_name = os.path.basename(os.path.dirname(os.path.abspath(args.test_dir)))
     out = args.out_csv or os.path.join(
-        ROOT, 'models', args.exp_name or (prep_name + '_baseline'), 'dice_baseline.csv')
+        ROOT, 'models', args.exp_name or (prep_name + '_baseline'),
+        'dice_baseline%s.csv' % _split_suffix(args.test_dir))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
@@ -331,8 +339,9 @@ elif args.model:
     if len(LABELS) % 5:
         print()
 
-    out = args.out_csv or os.path.join(os.path.dirname(mp),
-                                       'dice_%s.csv' % os.path.basename(mp)[:-3])
+    out = args.out_csv or os.path.join(
+        os.path.dirname(mp),
+        'dice_%s%s.csv' % (os.path.basename(mp)[:-3], _split_suffix(args.test_dir)))
     import csv
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
@@ -360,7 +369,7 @@ else:
         curve.append((ep, dm, jn))
 
     import csv
-    out = args.out_csv or os.path.join(md, 'dice_curve.csv')
+    out = args.out_csv or os.path.join(md, 'dice_curve%s.csv' % _split_suffix(args.test_dir))
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
         w.writerow(['epoch', 'dice_mean', 'jneg_pct'])
