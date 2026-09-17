@@ -412,11 +412,19 @@ else:
         for s in ss:
             split_of[s] = tag
 
+# 沿用 mixed_v2 這類三段切分時會有 val（2026-09-17 加）
+SPLITS = [sp for sp in ('train', 'val', 'test') if sp in set(split_of.values())]
+unknown = sorted(set(split_of.values()) - {'train', 'val', 'test'})
+if unknown:
+    sys.exit(f"[X] 切分裡有認不得的名稱：{unknown}（只接受 train / val / test）")
 n_tr = sum(1 for v in split_of.values() if v == 'train')
+n_va = sum(1 for v in split_of.values() if v == 'val')
 n_te = sum(1 for v in split_of.values() if v == 'test')
 print(f"\n切分（受試者層級，seed={args.seed}，test_frac={args.test_frac}）：")
-print(f"  train  {len(persons) - n_test:3d} 人 / {n_tr:3d} 個掃描")
-print(f"  test   {n_test:3d} 人 / {n_te:3d} 個掃描")
+print(f"  train  {n_tr:3d} 個掃描")
+if n_va:
+    print(f"  val    {n_va:3d} 個掃描")
+print(f"  test   {n_te:3d} 個掃描")
 
 leak = [pid for pid, ss in persons.items() if len({split_of[s] for s in ss}) > 1]
 assert not leak, f"切分有誤，這些人橫跨 train/test：{leak}"
@@ -440,7 +448,7 @@ except ImportError:
     sys.exit("[X] 請先安裝 antspyx：pip install antspyx")
 
 os.makedirs(args.out_dir, exist_ok=True)
-for sp in ['train', 'test']:
+for sp in SPLITS:
     os.makedirs(os.path.join(args.out_dir, sp), exist_ok=True)
 nii_dir = os.path.join(args.out_dir, 'nii')
 if args.save_nii:
@@ -483,17 +491,23 @@ for i, subj in enumerate(subjects, 1):
     # 切分改變時（例如補了 --group-map），同一顆的舊檔還躺在另一個資料夾裡。
     # 直接搬過來，不要重跑 —— ANTs 配準有隨機取樣，重跑會得到跟原本略微不同的結果，
     # 那會讓同一份資料集裡的檔案來自兩次不同的處理。
-    other = 'test' if split == 'train' else 'train'
-    src_old = os.path.join(args.out_dir, other, subj + '.npz')
-    if os.path.exists(src_old) and not os.path.exists(dst):
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        os.replace(src_old, dst)
-        moved += 1
-        print(f"[{i:3d}/{n}] 切分改變，{other} -> {split}：{subj}")
+    relocated = False
+    for other in ('train', 'val', 'test'):
+        if other == split:
+            continue
+        src_old = os.path.join(args.out_dir, other, subj + '.npz')
+        if os.path.exists(src_old) and not os.path.exists(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            os.replace(src_old, dst)
+            moved += 1
+            relocated = True
+            print(f"[{i:3d}/{n}] 切分改變，{other} -> {split}：{subj}")
+            break
+        if os.path.exists(src_old) and os.path.exists(dst):
+            os.remove(src_old)      # 兩邊都有 -> 舊的那份是殘留
+            print(f"[{i:3d}/{n}] 清掉 {other}/ 的殘留：{subj}")
+    if relocated:
         continue
-    if os.path.exists(src_old) and os.path.exists(dst):
-        os.remove(src_old)      # 兩邊都有 -> 舊的那份是殘留
-        print(f"[{i:3d}/{n}] 清掉 {other}/ 的殘留：{subj}")
 
     if args.skip_done and os.path.exists(dst):
         skip += 1

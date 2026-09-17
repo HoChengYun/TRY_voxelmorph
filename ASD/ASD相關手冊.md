@@ -51,17 +51,7 @@
 
 ## 2. 🔴 資料品質：排除清單
 
-> 🔄 **2026-09-07 更新**：這張表是 08-23 版。之後讀了 DICOM 檔頭，T065 翻案納回，
-> 另外排除 A016_1 / A016_2 / YT13 / A0132，清單變成 164。**最新的排除表見 §15.1。**
-
-來源：`D:\MyHome\MRI\FreeSurfer\docs\ASD_資料品質記錄.md`（FreeSurfer 端已查證，有 log／檔案證據）
-
-| 受試者 | 問題 | 處置 |
-|---|---|---|
-| **A043** | 影像雜訊過高、灰白對比不足（白質只認出約 5%）| 🔴 排除（recon-all 未完成）|
-| **T085** | 只有 120/192 張切片（缺 0001–0072）+ 首張檔案截斷 | 🔴 排除（來源即缺）|
-| **A012** | 資料夾混了兩次掃描（0801 + A012 各 192 張 → 合併成 384）| ✅ **2026-08-23 已修復並重跑完成（141 分），已納入 FINAL 清單** |
-| **T065** | 資料夾名 T065，但 DICOM 病人 ID 是 **T056** | 🟠 身分待確認，先不納入 |
+📁 **個案紀錄見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`**（四包資料唯一的一份，2026-09-17 整併）。
 
 > ⚠️ **A012 這一列是「狀態會變」的活教材。**
 > `preprocess_fs.py` 的 `DEFAULT_EXCLUDE` 原本寫死了這四個，A012 修好之後，
@@ -70,7 +60,6 @@
 > （會印出「清單裡有 N 個曾被判定有問題的受試者，依清單為準予以保留」）。
 > 要覆寫請明寫 `--exclude`。
 
-`A043` / `T085` / `T065` 已從來源資料夾移除，本來就不會出現在 `--img-dir` 裡。
 
 ### 混掃描全面掃描
 
@@ -102,57 +91,12 @@
 
 ---
 
-## 3. 受試者歸戶（避免 data leakage）
+## 3. 受試者歸戶
 
-> 🔄 **2026-09-07 已解決**：DICOM 檔頭顯示 A013 是另一個人，A0131 / A0132 是同一人（A0132 排除），
-> A016_1 / A016_2 都排除。本節的「暫定假設」已經不需要。DGM 另有兩對同一人，用 `ASD/DGM_groups.txt`。見 §15。
+📁 **個案紀錄見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`**（四包資料唯一的一份，2026-09-17 整併）。
 
-同一個人的多次掃描若一個進 train、一個進 test，模型等於看過答案，Dice 會虛高。
-**切分必須以「受試者」為單位，不是檔案層級 shuffle。**
-
-### 🔴 本次採用的假設：完全不合併（`--grouping none`）
-
-**使用者決定（2026-08-23）**：
-
-| 組別 | 檔名 | 決定 |
-|---|---|---|
-| A013 | `A013`, `A0131`, `A0132` | **當作三個不同的人** |
-| A016 | `A016_1`, `A016_2` | **當作兩個不同的人** |
-| 0801 | — | 不納入（修 A012 時已移到 `ASD_T1only_misplaced/`，本來就不在 167 裡）|
-
-**→ 167 個掃描 = 167 位受試者，不做任何合併。**
-
-⚠️ 這跟程式的預設行為（`--grouping auto` 會自動合併 `_1`/`_2`）相反，
-**所以每次都要明寫 `--grouping none`**，否則會變成 166 位。
-
-### ⚠️ 這是暫定假設，未經老師確認
-
-若 A013 / A016 那幾組其實是同一人的多次掃描，而被分到不同的 train/test，
-會造成 **data leakage，Dice 會虛高**。
-
-FreeSurfer 端粗估：在 10% test 比例下，A013 那組約 **27%**、A016 那組約 **18%**
-的機率會被拆開。影響範圍有限（最多 1–3 個 test 樣本），但：
-
-> 🔴 **若要發表，這個假設必須在方法學中說明，或先向老師確認。**
-
-程式每次執行都會把這兩組列出來並印出風險警告，不會安靜通過。
-
-### 好消息：可逆，不用改程式
-
-歸戶是**外部設定檔**。老師之後若確認為同一人，寫一個 `ASD/groups.txt`（TSV）：
-
-```
-A013	A013
-A0131	A013
-A0132	A013
-A016_1	A016
-A016_2	A016
-```
-
-然後加 `--group-map ASD\groups.txt` 重跑切分即可。`--group-map` 明列的一律優先於 `--grouping`。
-
-📌 **`split.json` 會記錄本次採用的 `grouping` 模式與被拆開的組別**，
-之後回頭看才知道那份切分是在什麼假設下產生的。
+切分規則（使用者決定）：**一律 `--grouping none`，每個掃描各自算一位受試者，不做歸戶。**
+判斷是不是同一人禁止用影像相似度，只能看逐張影像完全相同或 DICOM 檔頭（§15）。
 
 ---
 
@@ -326,7 +270,7 @@ python ASD\preprocess_fs.py `
     --save-nii > .\log\asd_preprocess.txt 2>&1
 ```
 
-⚠️ **不要加 `--group-map`**，除非老師已確認 A013 / A016 那幾組是同一人（見 §3）。
+⚠️ **不要加 `--group-map`**：切分不做歸戶（見 §3）。
 
 ### 5.4 輸出
 
@@ -595,7 +539,7 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 
 - [ ] **DGM 2023-04-25 那四位**：資料夾編號與 DICOM ID 差 1
 - [ ] **A014 的組別**：DICOM ID 是 T094
-- ~~A013 / A016 是否同一人~~、~~T065 身分~~ → 已由 DICOM 解決（§15）
+- 個案問題 → 見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`
 
 ### 🟡 研究設計
 
@@ -618,11 +562,9 @@ ASD 這批自己 train + test，Dice 內部一致。缺點是樣本數少（167 
 | `ASD/run_preprocess.py` / `run_train.py` | 前處理與訓練的包裝腳本 |
 | `ASD/make_mixed_set.py` | 多資料集併成一份（預設實體複製）|
 | `ASD/check_dataset.py` | 搬機器後的資料完整性檢查（sha256 manifest）|
-| `ASD/find_duplicate_scans.py` | atlas 空間的標籤 Dice 找重複掃描（§15.2）|
 | `ASD/author_model.py` | 作者的 Keras 模型（.h5）搬進 PyTorch（§19）|
 | `ASD/orient.py` | 依 atlas 標籤判斷方向，畫圖前轉成 RAS（§19.4）|
 | `oasis/prepare_author_check.py` | OASIS 受試者轉成 FreeSurfer 編號的 npz（§19.3）|
-| `ASD/DGM_groups.txt` | DGM 歸戶表（已去識別化）|
 | `IXI/atlas_mni152_09c_v3_seg_tigerbx.npz` | tigerbx arm 的 atlas 分割（§17）|
 | `share_models/{ASD,mix_exp1,tiger_exp1}_good/` | 進版控的最佳模型與 Dice 曲線 |
 | `meeting報告/ASD延伸實驗_混合訓練與tigerbx_v2.pptx` | 2026-09 meeting 簡報（29 頁，含備忘稿）|
@@ -866,7 +808,6 @@ data/
 | `run_preprocess.py` | `--src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1`（兩個都必填）|
 | `make_mixed_set.py` | `--sources <各包的前處理資料夾> --out <輸出資料夾>` |
 | `check_dataset.py` | `--dirs <前處理資料夾…>` |
-| `find_duplicate_scans.py` | `--prep-dir <前處理資料夾>` |
 | `run_train.py` | `--train-dir <…\train> --exp-name <實驗名>`（兩個都必填）|
 | `test_dice.py` / `visualize_dice.py` | `--test-dir <…\test>` |
 
@@ -942,58 +883,20 @@ python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name 
 
 ---
 
-## 15. 資料把關：DICOM 檔頭與同一人（2026-09-07）
+## 15. 資料把關
 
-FreeSurfer 端逐一讀了 **4,903 個 DICOM 序列**的檔頭，推翻了幾件事，也找出新的問題。
+📁 **個案紀錄見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`**（四包資料唯一的一份，2026-09-17 整併）。
+排除清單、檔頭比對、要問老師的事都在那份，這裡不再重複。
 
-### 15.1 ASD 最新的排除／納回表（170 → 164）
+> 🔴 **2026-09-16 使用者規定**：判斷「是不是同一個人」**禁止用影像相似度**。
+> 允許的只有：① 逐張影像內容完全相同 ② DICOM 檔頭欄位（出生日期／性別／年齡／體重／掃描日期）。
+> 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，也不要重建。
+> 相關腳本（`find_duplicate_scans.py`）、比對輸出（`log/dupcheck_*`）與歸戶表（`DGM_groups.txt`、`mixed_v2_groups.txt`）**已刪除**。
 
-| 受試者 | 問題 | 處置 |
-|---|---|---|
-| A043 | 雜訊過高、灰白對比不足 | 排除 |
-| T085 | 只有 120 / 192 張切片，來源即缺 | 排除 |
-| A016_1 | 皮質面積僅中位數 54%；技師當場標註 low contrast | 排除 |
-| A016_2 | ID 是 QA＋日期、性別欄 O：品管掃描，不是受試者 | 排除 |
-| YT13 | 與 A0131 的掃描時間**精確到秒相同**：同一次掃描被匯出成兩個 ID | 排除 |
-| A0132 | 與 A0131 是同一位 5 歲男童，相隔 23 天的第二次掃描 | 排除 |
-| T065 | 建檔時誤植為 T056；資料夾內留有說明檔 | **納回** |
-| A012 | 資料夾混了兩次掃描 | 已分離重跑，納入 |
-
-- A013 是另一個人（23 歲成人），跟 A0131 無關。
-- **現行清單是 `data/ASD_data/fs_stats/subjects.txt`（164 個，隨資料附）**。`ASD/subjects_final.txt` 是 08-23 的舊版，不要再用。
-- 切分：ASD train 148 / test 16。
-- 🔒 個資（出生日期／身高／體重／精確掃描日）**不進公開版控**，只記判定依據的種類。
-
-**對舊結果的影響**：asd_exp1 的 17 顆 test 裡，A0131 反而是最低的（0.740）。
-排除它之後平均只升 +0.0026，小於標準誤 0.0038 → **這次洩漏沒有把分數灌高**，但方法學已經修正。
-
-### 15.2 用影像找同一人：`find_duplicate_scans.py`
-
-DICOM 的人口學欄位在這批**不可全信**：技師會複製上一位的登錄資料（D023/D024、T029/T028 都是實例）。
-所以另外用影像檢查：兩顆腦 affine 到 atlas 之後，量 30 個結構的標籤 Dice。
-
-| 配對 | 標籤 Dice | 判定 |
-|---|---|---|
-| A0131 / YT13 | 0.9793 | 同一次掃描（重複匯出）|
-| D015 / D037 | 0.8561 | 同一人，相隔 3 個月 |
-| D038 / DGM002 | 0.8528 | 同一人，相隔 9 個月 |
-| A0131 / A0132 | 0.7318 | 同一人（5 歲），相隔 23 天 |
-| D018 / DGM001 | 0.6995 | 不同人（DICOM 定案）|
-| VNT027 / VNT028 | 0.6609 | 不同人（複製登錄）|
-
-不同人的分布：ASD 13,366 對（中位數 0.663、第 99 百分位 0.721、最大 0.747）、
-DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
-
-- **抓得到**：同一次掃描（0.98）、成人同一人（0.85）
-- **抓不到**：5 歲兒童相隔 23 天只有 0.73，落在不同人的分布裡面
-- 🔴 **教訓**：一開始拿 1 對同人 vs 8 對不同人定門檻 0.70，全掃之後誤報幾百對。小樣本定的門檻不能用。
-- 判不出來時採保守做法：**當成同一人放在一起**（錯了只損失一點切分自由度，反過來錯就是 leakage）。
-
-### 15.3 DGM 與 VNT
-
-- **DGM**：D015 / D037、D038 / DGM002 是同一人 → 54 個掃描 = **52 人**，寫成 `ASD/DGM_groups.txt` 給 `--group-map`。
-  D015 / D037 的性別欄相反，至少一邊是錯的，**這兩顆的性別欄不要用於分析**。
-- **VNT**：68 顆確認是 68 個獨立個體。
+跟 VoxelMorph 這邊有關、留在這裡的：
+- **現行清單是 `data/{ASD,DGM,VNT}_data/fs_stats/subjects.txt`（164 / 54 / 68，隨資料附）**。`ASD/subjects_final.txt` 是 08-23 的舊版，不要再用。
+- 🔒 個資（出生日期／身高／體重／精確掃描日）**不進公開版控**。
+- **對舊結果的影響**：asd_exp1 的 17 顆 test 裡，A0131 是最低的（0.740）。排除它之後平均只升 +0.0026，小於標準誤 0.0038。
 - `preprocess_fs.py` 的檔名歸戶規則已收緊：原本 VNT001～VNT009 會被誤判成同一人（字根 VNT00）。
 
 ---
@@ -1014,7 +917,7 @@ DGM 1,431 對（0.656 / 0.722）、VNT 2,278 對（0.653 / 0.719）。
 
 ```powershell
 # 當時用的是舊的 --dataset 寫法，以下換成 2026-09-13 起「直接給路徑」的寫法
-python ASD\run_preprocess.py --src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1   # 自動套用 ASD\DGM_groups.txt
+python ASD\run_preprocess.py --src-dir data\DGM_data --out-dir data\DGM_preprocessed_v1
 python ASD\run_preprocess.py --src-dir data\VNT_data --out-dir data\VNT_preprocessed_v1
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 data\VNT_preprocessed_v1 `
     --out data\mixed_preprocessed_v1
@@ -1068,7 +971,7 @@ python ASD\make_atlas_seg.py --src data\tigerbx\atlas\mni152_09c_t1_padded256_as
 python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-dir data\tigerbx_data\fs_for_vxm\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\tigerbx_preprocessed_v1 `
     --subject-list data\tigerbx_data\fs_stats\subjects.txt --list-is-final --grouping none `
-    --group-map ASD\DGM_groups.txt --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
+    --split-from data\mixed_preprocessed_v1\mixed_manifest.json --n4
 
 # 評估一定要換 atlas 分割
 python ASD\test_dice.py --test-dir data\tigerbx_preprocessed_v1\test `
@@ -1311,6 +1214,8 @@ python ASD\test_dice.py --model models\vxm_dense_brain_T1_3D_mse.h5 --test-dir o
 
 ### 20.2 新資料：`data/fs_subjects_data`（234 顆）
 
+📁 **個案紀錄見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`**（四包資料唯一的一份，2026-09-17 整併）。
+
 - 結構同前三包：`fs_for_vxm/{norm,aseg}` + `fs_stats/`；編號前綴 `sub-`(72)、`PILOT`(61)、`HP`(59)、`EDP`(26)、`CP`(15)、`A`(1)
 - QC（皮質面積 < 中位數 75% 或破洞 > 80）：**0 顆需排除**（最低的皮質面積是中位數的 78%，破洞最多 79）
 - 🔴 **沒有 `demographics.tsv`**（沒有年齡／性別）→「排除小孩」這條對這 234 顆做不到
@@ -1334,7 +1239,7 @@ python ASD\preprocess_fs.py `
 
 **2026-09-16 使用者決定：就照拿到的資料分，不做重複／相似度的判定。**
 所以切分不帶歸戶表，每一個掃描各自算一位受試者；原本的歸戶表已刪除。
-（判定過程與證據仍保留在 `log/dupcheck_mixed_v2*.*`，老師之後若要追再拿出來看。）
+（先前的比對輸出已依規定刪除。）
 
 ```powershell
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 `
@@ -1359,6 +1264,30 @@ seed=42，切完會複驗沒有人橫跨兩邊，紀錄寫進 `split.json`。
 
 ⚠️ `test_dice.py` 原本不管評估哪個資料夾都寫同一個 `dice_curve.csv`，先跑 val 再跑 test 會安靜蓋掉。
 2026-09-16 改成資料夾名不是 `test` 就自動加後綴（`dice_curve_val.csv`、`dice_baseline_val.csv`）。
+
+### 20.3.1 同一人：不做判定（2026-09-16 使用者決定）
+
+> 🔴 **2026-09-16 使用者規定**：判斷「是不是同一個人」**禁止用影像相似度**。
+> 允許的只有：① 逐張影像內容完全相同 ② DICOM 檔頭欄位（出生日期／性別／年齡／體重／掃描日期）。
+> 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，也不要重建。
+> 重複與身分的問題由老師判斷。相關腳本（`find_duplicate_scans.py`）、比對輸出（`log/dupcheck_*`）
+> 與歸戶表（`DGM_groups.txt`、`mixed_v2_groups.txt`）**已刪除**。
+
+所以 `mixed_preprocessed_v2` 的切分**沒有做歸戶**：每個掃描各自算一位受試者，隨機分配。
+
+🔴 **後果要照實寫**：同一個人若有兩筆掃描，可能一筆在 train、一筆在 test，
+分數會因此偏高一點。這是知情下的決定。
+
+### 20.3.2 曲線圖：`ASD/plot_dice_curve.py`
+
+```powershell
+python ASD\plot_dice_curve.py --model-dir models\mix_exp2 --label "ncc, lambda=1.0"
+```
+
+讀 `dice_curve.csv`（有 `dice_curve_val.csv` 會一起畫），輸出 `dice_curve_analysis.png`：
+上格 Dice vs epoch + 基準線 + 最佳 epoch，下格折疊率 vs epoch + 論文兩條參考線。
+mix_exp1 / tiger_exp1 已補畫。
+⚠️ 舊版 asd_exp1 那張圖上的「±2 SEM」藍帶是錯的（用基準線的標準誤去比 epoch），新腳本已拿掉。
 
 ### 20.4 這台筆電訓練不動這個設定
 

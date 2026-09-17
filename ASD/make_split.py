@@ -1,23 +1,19 @@
 # -*- coding: utf-8 -*-
 """把一份已經前處理好的資料重新切成 train / val / test 三段。
 
-跟 make_val_split.py 的差別
----------------------------
-`make_val_split.py` 只從 train 挖一塊當 val，**test 不動**（要跟舊實驗比時用這支）。
-這一支是**整批重抽**：把 train/ val/ test/ 底下的 npz 全部倒回來，照比例重新分。
-切分會改變，所以跟舊實驗的數字不能再直接比 —— 這是使用這支的代價。
-
-保證
+做法
 ----
-① 以「人」為單位：同一個人的多次掃描整組在同一邊（`--group-map`，格式 <受試者><TAB><人>）
-② 依來源資料集分層：各包都照比例出人，不會整個 val 都來自同一個 cohort
-③ 切完自動複驗有沒有人橫跨兩邊，有就直接中止
+把 train\\ val\\ test\\ 底下的 npz 全部倒回來，**依來源資料集分層**後按比例重新分配。
+每一個掃描各自算一位受試者，固定 seed，重跑結果一樣。
+
+🔴 沒有歸戶（2026-09-16 使用者規定）
+-----------------------------------
+不做「這兩筆是不是同一個人」的判定，也沒有 `--group-map`。就照拿到的資料分。
+（唯一允許的同一人判定是「逐張影像完全相同」，那種情況應該在資料階段就處理掉。）
 
 用法
-    python ASD\\make_split.py --prep-dir data\\mixed_preprocessed_v2 \\
-        --val-frac 0.10 --test-frac 0.10 --group-map ASD\\mixed_v2_groups.txt --dry-run
-    python ASD\\make_split.py --prep-dir data\\mixed_preprocessed_v2 \\
-        --val-frac 0.10 --test-frac 0.10 --group-map ASD\\mixed_v2_groups.txt
+    python ASD\\make_split.py --prep-dir data\\mixed_preprocessed_v2 --val-frac 0.10 --test-frac 0.10 --dry-run
+    python ASD\\make_split.py --prep-dir data\\mixed_preprocessed_v2 --val-frac 0.10 --test-frac 0.10
 """
 import os
 import sys
@@ -37,8 +33,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--prep-dir', required=True)
 ap.add_argument('--val-frac', type=float, default=0.10)
 ap.add_argument('--test-frac', type=float, default=0.10)
-ap.add_argument('--group-map', default=None,
-                help='歸戶表 TSV：<受試者><TAB><人>，同一人整組一起走')
 ap.add_argument('--include', nargs='*', default=['_excluded'],
                 help='額外納入的子資料夾（預設把 _excluded\\ 裡的也收回來重切）')
 ap.add_argument('--seed', type=int, default=42)
@@ -60,7 +54,7 @@ for sub in list(SPLITS) + list(args.include):
 if not pool:
     sys.exit('[X] %s 底下沒有 npz' % PREP)
 subjects = sorted(pool)
-print('收集到 %d 個掃描' % len(subjects))
+print('收集到 %d 個掃描（每一個各自算一位受試者）' % len(subjects))
 
 manifest = None
 if os.path.exists(MANIFEST):
@@ -70,60 +64,35 @@ ds_of = {s: (manifest['members'][s + '.npz']['dataset']
              if manifest and (s + '.npz') in manifest['members'] else '(單一來源)')
          for s in subjects}
 
-# ── 歸戶 ─────────────────────────────────────────────────────────────
-group_of = {}
-if args.group_map:
-    with open(args.group_map, encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            parts = line.split('\t')
-            if len(parts) != 2:
-                sys.exit('[X] 歸戶表這行不是 <受試者><TAB><人>：%s' % line)
-            group_of[parts[0].strip()] = parts[1].strip()
-
-persons = {}
-for s in subjects:
-    persons.setdefault(group_of.get(s, s), []).append(s)
-print('歸戶後 %d 人（歸戶表 %d 筆）' % (len(persons), len(group_of)))
-
 by_ds = {}
-for pid, ss in persons.items():
-    by_ds.setdefault(ds_of[sorted(ss)[0]], []).append(pid)
+for s in subjects:
+    by_ds.setdefault(ds_of[s], []).append(s)
 
-# ── 抽樣 ─────────────────────────────────────────────────────────────
+# ── 抽樣（各來源內部各自抽）──────────────────────────────────────────
 rng = random.Random(args.seed)
-assign = {}
+target = {}
 print('\n分層抽樣（seed=%d，val %.0f%% / test %.0f%%）：'
       % (args.seed, args.val_frac * 100, args.test_frac * 100))
-print('  %-14s %5s %6s %5s %6s' % ('來源', '人數', 'train', 'val', 'test'))
+print('  %-14s %5s %6s %5s %6s' % ('來源', '筆數', 'train', 'val', 'test'))
 for ds in sorted(by_ds):
-    pool_ids = sorted(by_ds[ds])
-    rng.shuffle(pool_ids)
-    n = len(pool_ids)
+    ids = sorted(by_ds[ds])
+    rng.shuffle(ids)
+    n = len(ids)
     n_te = max(1, int(round(n * args.test_frac)))
     n_va = max(1, int(round(n * args.val_frac)))
-    for pid in pool_ids[:n_te]:
-        assign[pid] = 'test'
-    for pid in pool_ids[n_te:n_te + n_va]:
-        assign[pid] = 'val'
-    for pid in pool_ids[n_te + n_va:]:
-        assign[pid] = 'train'
+    for s in ids[:n_te]:
+        target[s] = 'test'
+    for s in ids[n_te:n_te + n_va]:
+        target[s] = 'val'
+    for s in ids[n_te + n_va:]:
+        target[s] = 'train'
     print('  %-14s %5d %6d %5d %6d' % (ds, n, n - n_te - n_va, n_va, n_te))
 
-target = {s: assign[pid] for pid, ss in persons.items() for s in ss}
 cnt = {sp: sum(1 for v in target.values() if v == sp) for sp in SPLITS}
 tot = len(target)
-print('\n掃描數：train %d（%.1f%%）/ val %d（%.1f%%）/ test %d（%.1f%%）'
+print('\n合計：train %d（%.1f%%）/ val %d（%.1f%%）/ test %d（%.1f%%）'
       % (cnt['train'], 100.0 * cnt['train'] / tot, cnt['val'], 100.0 * cnt['val'] / tot,
          cnt['test'], 100.0 * cnt['test'] / tot))
-
-# ── 複驗：同一個人不可以橫跨 ─────────────────────────────────────────
-leak = [(pid, ss) for pid, ss in persons.items() if len({target[s] for s in ss}) > 1]
-if leak:
-    sys.exit('[X] 這些人橫跨兩邊，切分有誤：%s' % leak[:5])
-print('[v] 沒有人橫跨 train/val/test')
 
 moved = sum(1 for s in subjects
             if os.path.basename(os.path.dirname(pool[s])) != target[s])
@@ -160,16 +129,14 @@ with open(os.path.join(PREP, 'split.json'), 'w', encoding='utf-8') as f:
         'seed': args.seed,
         'val_frac': args.val_frac,
         'test_frac': args.test_frac,
-        'group_map': args.group_map,
-        'n_person': len(persons),
+        'grouping': 'none',
         'counts': cnt,
         'split_of': target,
     }, f, ensure_ascii=False, indent=2)
 
-for f_ in ('val_split.json',):
-    p = os.path.join(PREP, f_)
-    if os.path.exists(p):
-        os.remove(p)          # 舊的 val 切分紀錄已經失效
+old_record = os.path.join(PREP, 'val_split.json')
+if os.path.exists(old_record):
+    os.remove(old_record)          # 舊的 val 切分紀錄已經失效
 
 print('\n  切分紀錄 -> %s' % os.path.join(args.prep_dir, 'split.json'))
 print('  接著：python ASD\\run_train.py --train-dir %s --exp-name <實驗名>'

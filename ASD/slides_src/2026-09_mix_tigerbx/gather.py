@@ -29,7 +29,12 @@ man = json.load(io.open(ROOT + r'\data\mixed_preprocessed_v1\mixed_manifest.json
 dem = {}
 for ds in ('ASD', 'DGM', 'VNT'):
     hdr = None
-    for l in io.open(ROOT + r'\data\%s_data\fs_stats\demographics.tsv' % ds, encoding='utf-8'):
+    path = ROOT + r'\data\%s_data\fs_stats\demographics.tsv' % ds
+    # 2026-09-16 FreeSurfer 端已把 demographics.tsv 刪掉；檔案不在就沒有年齡，不要當掉
+    if not os.path.exists(path):
+        print('[!] 沒有 %s，年齡欄位留空' % path)
+        continue
+    for l in io.open(path, encoding='utf-8'):
         if l.startswith('#') or not l.strip():
             continue
         p = l.rstrip('\n').split('\t')
@@ -159,26 +164,17 @@ for l in (18, 54, 12, 53):
                          'fs_others': per(fa, l, 'A0131.npz'),
                          'tg_others': per(ta, l, 'A0131.npz')}
 
-# ── 同人偵測（先前實測，數字直接記錄）───────────────────────────────
-D['dup_dist'] = {
-    'ASD': {'pairs': 13366, 'median': 0.6631, 'p99': 0.7208, 'max': 0.7473},
-    'DGM': {'pairs': 1431, 'median': 0.6563, 'p99': 0.7218, 'max': 0.8561},
-    'VNT': {'pairs': 2278, 'median': 0.6533, 'p99': 0.7191, 'max': 0.7371},
-}
-D['dup_pairs'] = [
-    ['A0131 / YT13', 0.9793, '同一次掃描（重複匯出）'],
-    ['D015 / D037', 0.8561, '同一人，相隔 3 個月'],
-    ['D038 / DGM002', 0.8528, '同一人，相隔 9 個月'],
-    ['A0131 / A0132', 0.7318, '同一人（5 歲），相隔 23 天'],
-    ['D018 / DGM001', 0.6995, '不同人（DICOM 定案）'],
-    ['VNT027 / VNT028', 0.6609, '不同人（複製登錄）'],
-]
+# 同人偵測的數字已移除（2026-09-16：只允許「影像完全相同」這一種判定）
 
 # 人口學
 D['demo'] = {}
 for ds in ('ASD', 'DGM', 'VNT'):
     ages = [float(v['age']) for k, v in dem.items()
             if any(m.get('dataset') == ds and kk[:-4] == k for kk, m in man.items())]
+    if not ages:
+        D['demo'][ds] = {'n': 0, 'age_median': None, 'age_min': None, 'age_max': None,
+                         'under18': None}
+        continue
     D['demo'][ds] = {'n': len(ages), 'age_median': float(np.median(ages)),
                      'age_min': min(ages), 'age_max': max(ages),
                      'under18': int(sum(a < 18 for a in ages))}
