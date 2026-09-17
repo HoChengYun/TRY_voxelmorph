@@ -1243,7 +1243,7 @@ python ASD\preprocess_fs.py `
 
 ```powershell
 python ASD\make_mixed_set.py --sources data\ASD_preprocessed_v1 data\DGM_preprocessed_v1 `
-    data\VNT_preprocessed_v1 datas_subjects_preprocessed_v1 --out data\mixed_preprocessed_v2
+    data\VNT_preprocessed_v1 data\fs_subjects_preprocessed_v1 --out data\mixed_preprocessed_v2
 python ASD\make_split.py --prep-dir data\mixed_preprocessed_v2 --val-frac 0.10 --test-frac 0.10
 ```
 
@@ -1301,14 +1301,121 @@ mix_exp1 / tiger_exp1 已補畫。
 搬資料：`data/mixed_preprocessed_v2`（4.0 GB，520 顆）已產 `dataset_manifest.json`，
 到目標機器後跑 `python ASD\check_dataset.py --dirs data\mixed_preprocessed_v2 --check` 驗證。
 
-### 20.5 mix_exp2 的跑法（待執行，在另一台）
+### 20.5 mix_exp2 / mix_exp3 結果（2026-09-18，機器「AI」訓練）
+
+兩顆都是 NCC、λ=1.0、250 epoch、同一份 `mixed_preprocessed_v2`，只差版本：
+
+| 實驗 | 版本 | `--int-steps` | `--int-downsize` |
+|---|---|---|---|
+| mix_exp2 | repo 預設的微分同胚版（跟 mix_exp1 / tiger_exp1 同版本）| 7 | 2 |
+| mix_exp3 | 位移場版 = **論文 Table I 的版本** | 0 | 1 |
+
+指令記錄在 `log/mix_exp2_script.txt`、`log/mix_exp3_script.txt`（已確認參數如上）。
+
+**挑 epoch（val，每 10 個 epoch 評一次）：兩顆都是 240**
+
+| | val 最佳 | 第二名 | 差距 |
+|---|---|---|---|
+| mix_exp2 | 240 → 0.7934 | 230 → 0.7920 | 0.0014 |
+| mix_exp3 | 240 → 0.8027 | 190 → 0.8001 | 0.0026 |
+
+兩顆剛好同一個 epoch 是正常的：只有 26 個選項，兩條曲線都一路緩升到最後，頂端是平台。
+已確認不是評到同一顆模型（每個 epoch 分數都不同，exp3 有折疊、exp2 全程 0）。
+epoch 0 兩邊都是 0.6817 也正常：還沒訓練的模型 = 只做 affine 的起點。
+
+**test（51 位，只跑一次）**
+
+| | Dice | 折疊率 |
+|---|---|---|
+| 起點（只做 affine）| 0.6882 ± 0.0327 | 0% |
+| **mix_exp2** | **0.7972** ± 0.0137 | 0% |
+| **mix_exp3** | **0.8062** ± 0.0148 | 平均 0.199%，最高 0.316% |
+| 論文 Table I VoxelMorph (CC) | 0.753 | 0.366% |
+
+- exp3 − exp2 逐人配對差：**+0.0090**（標準誤 0.0005），51 人裡 **49 人** exp3 比較高
+- 🔴 **折疊率的疑問有答案了**：換成論文版本就出現 0.2% 的折疊，跟論文 0.366% 同量級
+  → 之前 mix_exp1 / tiger_exp1 的 0% 確實是「微分同胚版本」造成的，不是模型比論文好
+- val 上的折疊率：epoch 20–50 衝到 0.37%，之後慢慢降、穩定在 0.2–0.25%
+
+⚠️ **exp3 比較高不能全歸給「位移場版本」**：`train.py` 是 `Grad('l2', loss_mult=int_downsize)`，
+`--int-downsize 1` 同時把平滑懲罰砍半。exp3 一次改了兩件事（積分方式 + 平滑權重），報告時要一起講。
+
+⚠️ 論文數字仍不能直接比：資料、atlas、起點都不同（§18）。
+
+**訓練 loss**（`ASD/plot_loss_curve.py`，每個 epoch 取 100 步平均）
+
+| | 總 loss | 影像項（NCC）| 平滑項 | 平滑項換算回同基準（÷ loss_mult）|
+|---|---|---|---|---|
+| mix_exp2（最後一個 epoch）| -0.1767 | -0.2052 | 0.0285 | 0.0143 |
+| mix_exp3（最後一個 epoch）| -0.2115 | -0.2360 | 0.0245 | 0.0245 |
+
+- 兩顆都正常收斂；**250 epoch 時還在緩慢下降**，跟 val Dice 最後還在爬一致
+- exp3 影像項一直比較低（對得比較準）
+- 換算回同基準後 exp3 的形變梯度約是 exp2 的 **1.7 倍**，跟它出現折疊一致
+- ⚠️ 這是訓練集 loss，挑 epoch 還是看 val Dice
 
 ```powershell
-python ASD
-un_train.py --train-dir data\mixed_preprocessed_v2	rain --exp-name mix_exp2 `
-    --image-loss ncc --lambda 1.0 --epochs 250 --gpu 0
-python ASD	est_dice.py --model-dir models\mix_exp2 --test-dir data\mixed_preprocessed_v2al --step 10
-python ASD	est_dice.py --model models\mix_exp2\<val 最高那個>.pt --test-dir data\mixed_preprocessed_v2	est
+python ASD\plot_loss_curve.py --logs log\mix_exp2.txt
+python ASD\plot_loss_curve.py --logs log\mix_exp2.txt log\mix_exp3.txt `
+    --labels "mix_exp2 (int_steps=7)" "mix_exp3 (int_steps=0)" --out models\mix_exp3\loss_exp2_vs_exp3.png
+python ASD\plot_dice_curve.py --model-dir models\mix_exp3 --label "ncc, lambda=1.0, int_steps=0"
 ```
 
-超參數與 mix_exp1 相同，但資料與切分都換了，兩者不是同一批 test。
+**視覺化**：四包各挑一位 test 分數最接近中位數的（ASD `T054`、DGM `D031`、VNT `VNT045`、第四包 `sub-0043`），
+兩顆模型都畫，放在 `models\mix_exp2\vis_<受試者>`、`models\mix_exp3\vis_<受試者>`。
+
+```powershell
+python ASD\visualize_dice.py --model models\mix_exp3\0240.pt --test-dir data\mixed_preprocessed_v2\test `
+    --subject T054 --out-dir models\mix_exp3\vis_T054
+python draw-img\visualize_reg_ixi.py --model models\mix_exp3\0240.pt --atlas IXI\atlas_mni152_09c_v3.npz `
+    --test-dir data\mixed_preprocessed_v2\test --subject T054 --out-dir models\mix_exp3\vis_T054
+```
+⚠️ `visualize_reg_ixi.py` 的 `--atlas` 是必填；兩支都要給同一個 `--subject`，不給會各自隨機挑人。
+
+**`models\mix_exp2`、`models\mix_exp3` 裡有什麼**：`0240.pt`、`dice_0240.csv`（test）、`dice_curve_val.csv`、
+`dice_baseline.csv` / `dice_baseline_val.csv`（exp3 的是從 exp2 複製的：起點只跟資料有關、跟模型無關）、
+`dice_curve_analysis.png`、`loss_curve.png`、`vis_*`。
+
+完整流程（在訓練機上）：
+
+```powershell
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp3 `
+    --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 0 --int-downsize 1 --gpu 0
+python ASD\test_dice.py --model-dir models\mix_exp3 --test-dir data\mixed_preprocessed_v2\val --step 10 --gpu 0
+python ASD\test_dice.py --model models\mix_exp3\0240.pt --test-dir data\mixed_preprocessed_v2\test --gpu 0
+```
+（`run_train.py` 的 `--int-steps` / `--int-downsize` 是 2026-09-17 才加的，之前傳不進去。）
+
+### 20.6 FSS_A001 與 A001
+
+- 使用者告知兩者是同一顆。**兩顆剛好都在 val** → 訓練、test 都不受影響，只有 val 多算一次同一顆腦
+- **下次訓練前直接刪 `data\mixed_preprocessed_v2\val\FSS_A001.npz`，不要重跑 `make_split.py`**
+  （少一顆會讓分層洗牌整個改變，test 會換人，就不能跟 exp2 / exp3 比了）
+- tigerbx 組的 `FSS_A001` 是直接複製 A001 的原始 T1 跑的；FreeSurfer 組兩個檔案不是逐體素相同。
+  → **刪的時候 FreeSurfer 組和 tigerbx 組一起刪**
+
+### 20.7 tigerbx 組跟上 520 顆：tiger_exp2（進行中）
+
+- 2026-09-18 tigerbx 端把 `data\tigerbx_data` 更新成 **520 顆，名單與 `mixed_preprocessed_v2` 完全相同**
+  （新 234 顆是 dcm2niix 轉的；其中 20 顆斜切已先線性轉正；前處理仍要 `--n4`）
+- `data\tigerbx\`（最早的交接資料夾）沒更新，img/seg 還是 286 顆，只有 `atlas\` 還在用
+- `preprocess_fs.py --split-from` 原本只認得 train / test，沿用 mixed_v2 時 val 會存檔失敗、列印把 val 算進 train。
+  2026-09-17 修好，兩段切分的舊用法不受影響
+
+```powershell
+# 前處理（CPU，筆電可跑，約 16 秒一顆）
+python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-dir data\tigerbx_data\fs_for_vxm\aseg `
+    --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\tigerbx_preprocessed_v2 `
+    --subject-list data\tigerbx_data\fs_stats\subjects.txt --grouping none --n4 --list-is-final `
+    --split-from data\mixed_preprocessed_v2\mixed_manifest.json
+
+# 訓練（訓練機）
+python ASD\run_train.py --train-dir data\tigerbx_preprocessed_v2\train --exp-name tiger_exp2 `
+    --image-loss ncc --lambda 1.0 --epochs 250 --gpu 0
+
+# 評估：一定要換 --atlas-seg，否則 Dice 會安靜地低掉約 0.14
+python ASD\test_dice.py --model-dir models\tiger_exp2 --test-dir data\tigerbx_preprocessed_v2\val `
+    --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz --step 10 --gpu 0
+python ASD\test_dice.py --model models\tiger_exp2\<val最高>.pt --test-dir data\tigerbx_preprocessed_v2\test `
+    --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz --gpu 0
+```

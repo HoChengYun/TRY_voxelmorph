@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-09-13**（ASD 線：三包混合訓練、tigerbx 對照、跟論文逐項對照）
+> 最後更新：**2026-09-18**（ASD 線：四包 520 顆、train/val/test、mix_exp2 / mix_exp3 結果）
 
 ---
 
@@ -12,7 +12,7 @@
 | 文件 | 涵蓋範圍 | 內容停在 | 狀態 |
 |------|---------|---------|------|
 | **`CLAUDE.md`（本文）** | 專案總覽、IXI 主線 | 2026/08，v3 / exp8 | ✅ **唯一事實來源** |
-| **`ASD/ASD相關手冊.md`** | **ASD 資料集（老師提供）那條線** | 2026/09，mix_exp1 / tiger_exp1 | ✅ **ASD 相關一律看這份** |
+| **`ASD/ASD相關手冊.md`** | **ASD 資料集（老師提供）那條線** | 2026/09，mix_exp2 / mix_exp3 | ✅ **ASD 相關一律看這份** |
 | `IXI/ixi相關手冊.md` | IXI 操作細節 | 2026/04，v2 / resample 時期 | 🟡 已加更正框，仍需小心 |
 | `VoxelMorph_PyTorch_實作指南.md` | VoxelMorph 原理 / OASIS 時期 | 2026/03 | 🔴 最舊，多處失效 |
 
@@ -40,7 +40,9 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 | asd_exp1（舊，167 顆清單）| ASD train 149 / test 17 | 0.6760 | 0.7811 | +0.105 | 0.000% |
 | **mix_exp1** | 三包 train 258 / test 28，FreeSurfer 標籤 | 0.6753 | **0.7874** | +0.112 | 0.000% |
 | **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
-| mix_exp2（待跑）| 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同）| 0.6882 | — | — | — |
+| **mix_exp2** | 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同），val 挑 epoch 240 | 0.6882 | **0.7972** | +0.109 | 0.000% |
+| **mix_exp3** | 同 mix_exp2，**位移場版**（int_steps 0 / int_downsize 1 = 論文 Table I 版本）| 0.6882 | **0.8062** | +0.118 | 0.199% |
+| tiger_exp2（進行中）| 同一個 520 切分，tigerbx 標籤 | — | — | — | — |
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
 **§20（第四包資料 + train/val/test 三段切分，2026-09-16）**。
@@ -50,11 +52,13 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，相關腳本已刪除，不要重建。
 mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 
-🔴 **三件從 §20 來、會影響怎麼解讀舊結果的事**：
+🔴 **四件從 §20 來、會影響怎麼解讀結果的事**：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
 2. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.4）。
 3. **mixed_v2 的 test 換人了**（80/10/10 重切），mix_exp2 不能再跟 mix_exp1 的 0.7874 直接比。
+4. **折疊率 0% 是版本造成的**：mix_exp3 換成論文的位移場版後折疊率 0.199%（論文 0.366%）。
+   但 exp3 同時把平滑懲罰砍半，Dice +0.009 不能全歸給版本（§20.5）。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ 三個實驗都是 repo 預設的**微分同胚版**（`int_steps=7`）＋ λ=1.0。折疊率 0 主要來自這個版本，
@@ -119,6 +123,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
+│   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
@@ -136,7 +141,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_subjects_preprocessed_v1\    # train 234 / test 0（--test-frac 0）
 │   ├── mixed_preprocessed_v1\          # 三包併起來 train 258 / test 28 + mixed_manifest.json
 │   ├── mixed_preprocessed_v2\          # ⭐ 四包 train 418 / val 51 / test 51（80/10/10）+ split.json
-│   └── tigerbx_preprocessed_v1\        # tigerbx arm：同一個切分 train 258 / test 28
+│   ├── tigerbx_preprocessed_v1\        # tigerbx arm：同一個切分 train 258 / test 28
+│   └── tigerbx_preprocessed_v2\        # tigerbx arm 520 顆，沿用 mixed_v2 切分 418/51/51（--n4）
 ├── IXI\
 │   ├── IXI-T1\                         # 原始 IXI T1（581 張 .nii.gz）
 │   ├── mni_icbm152_nlin_asym_09c_nifti\ # 下載的 MNI152 2009c
@@ -158,7 +164,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1\  tiger_exp1\   # ASD 線：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1\  mix_exp2\  mix_exp3\  tiger_exp1\   # ASD 線：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重
