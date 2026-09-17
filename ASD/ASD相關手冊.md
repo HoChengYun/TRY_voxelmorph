@@ -1342,6 +1342,54 @@ epoch 0 兩邊都是 0.6817 也正常：還沒訓練的模型 = 只做 affine �
 
 ⚠️ 論文數字仍不能直接比：資料、atlas、起點都不同（§18）。
 
+**逐包：四包都是 exp3 較高，不是某一包拉上來的**
+
+| 包 | n | 起點 | exp2 | exp3 | 差 | exp3 贏 | exp3 折疊率 |
+|---|---|---|---|---|---|---|---|
+| ASD | 16 | 0.6851 | 0.7890 | 0.7991 | +0.010 | 15/16 | 0.208% |
+| DGM | 5 | 0.6703 | 0.7892 | 0.7981 | +0.009 | 5/5 | 0.177% |
+| VNT | 7 | 0.6846 | 0.8000 | 0.8083 | +0.008 | 7/7 | 0.198% |
+| fs_subjects | 23 | 0.6954 | 0.8037 | 0.8122 | +0.008 | 22/23 | 0.197% |
+
+- 輸的兩位：PILOT051（0.7927 → 0.7905）、T013（0.7852 → 0.7840），差距都在 0.002 以內
+- 兩顆最差的都是 A0131（exp2 0.7283、exp3 0.7304）
+
+**逐結構：進步集中在皮質和白質**（30 個結構有 19 個變好）
+
+| 結構 | 起點 | exp2 | exp3 | 差 |
+|---|---|---|---|---|
+| 左／右皮質 | 0.542 | 0.716 | 0.772 | **+0.056** |
+| 右白質 / 左白質 | 0.672 / 0.670 | 0.835 / 0.834 | 0.869 / 0.867 | +0.034 / +0.032 |
+| 右側腦室 | 0.661 | 0.847 | 0.872 | +0.025 |
+| 第三腦室 | 0.650 | 0.777 | 0.802 | +0.024 |
+| 右脈絡叢 | 0.273 | 0.411 | 0.399 | −0.012 |
+| 右／左杏仁核 | 0.733 / 0.725 | 0.818 / 0.809 | 0.811 / 0.805 | −0.008 / −0.004 |
+
+皮質又薄又彎，最需要細緻的形變：exp3 全解析度、平滑懲罰又小，正好補到這裡；小的深部結構略差。
+Jacobian 圖（`vis_T054\jacobian_*`）上看得出來：exp2 一塊一塊圓滑，exp3 紋路細碎、貼著腦溝腦迴走。
+
+**折疊到底是版本造成還是 λ 造成？兩個都有關，作用不同**
+
+- **速度場**（int_steps > 0）：積分出來的形變在數學上傾向不折疊 → 折疊「很難發生」
+- **位移場**（int_steps 0）：沒有任何保證，折疊多少直接取決於形變場皺不皺，也就是 λ
+- 速度場的保證不是絕對的：**IXI exp4（速度場、NCC λ=0.005）ep477 折疊率 2.26%**，比論文的位移場還高
+
+| 實驗 | 版本 | 平滑懲罰實際權重（λ × int_downsize）| 折疊率 |
+|---|---|---|---|
+| mix_exp2 | 速度場 | 1.0 × 2 = **2** | 0% |
+| mix_exp3 | 位移場 | 1.0 × 1 = **1** | 0.199% |
+| IXI exp4 ep477 | 速度場 | 0.005 × 2 = 0.01 | 2.26% |
+
+→ exp3 的 0.199% 裡，多少來自「換成位移場」、多少來自「懲罰砍半」，**目前分不出來**。
+
+📌 **要分開的話：mix_exp4** = 位移場 + `--lambda 2.0`（實際權重 2.0 × 1 = 2，跟 exp2 一樣），
+兩顆就只剩版本不同。尚未跑。
+
+```powershell
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp4 `
+    --image-loss ncc --lambda 2.0 --epochs 250 --int-steps 0 --int-downsize 1 --gpu 0
+```
+
 **訓練 loss**（`ASD/plot_loss_curve.py`，每個 epoch 取 100 步平均）
 
 | | 總 loss | 影像項（NCC）| 平滑項 | 平滑項換算回同基準（÷ loss_mult）|
@@ -1394,28 +1442,56 @@ python ASD\test_dice.py --model models\mix_exp3\0240.pt --test-dir data\mixed_pr
 - tigerbx 組的 `FSS_A001` 是直接複製 A001 的原始 T1 跑的；FreeSurfer 組兩個檔案不是逐體素相同。
   → **刪的時候 FreeSurfer 組和 tigerbx 組一起刪**
 
-### 20.7 tigerbx 組跟上 520 顆：tiger_exp2（進行中）
+### 20.7 tigerbx 組跟上 520 顆：tiger_exp2 / tiger_exp3（前處理完成，待訓練）
 
+目的：用**同一批人、同一個切分**比 FreeSurfer 標籤 vs tigerbx 標籤，並各自比兩個版本。
+
+| 實驗 | 標籤 | 版本 | 對照 |
+|---|---|---|---|
+| tiger_exp2 | tigerbx | 速度場（int_steps 7 / int_downsize 2）| mix_exp2 |
+| tiger_exp3 | tigerbx | 位移場（int_steps 0 / int_downsize 1）| mix_exp3 |
+
+**資料**
 - 2026-09-18 tigerbx 端把 `data\tigerbx_data` 更新成 **520 顆，名單與 `mixed_preprocessed_v2` 完全相同**
-  （新 234 顆是 dcm2niix 轉的；其中 20 顆斜切已先線性轉正；前處理仍要 `--n4`）
+  （新 234 顆是 dcm2niix 轉的；其中 20 顆斜切已先線性轉正；`FSS_A001` 是直接複製 A001 的原始 T1 跑的）
 - `data\tigerbx\`（最早的交接資料夾）沒更新，img/seg 還是 286 顆，只有 `atlas\` 還在用
-- `preprocess_fs.py --split-from` 原本只認得 train / test，沿用 mixed_v2 時 val 會存檔失敗、列印把 val 算進 train。
-  2026-09-17 修好，兩段切分的舊用法不受影響
+
+**前處理：2026-09-18 在筆電完成**（CPU，約 16 秒一顆，520 顆約 2.5 小時；log 在 `log\tigerbx_preprocess_v2.txt`）
 
 ```powershell
-# 前處理（CPU，筆電可跑，約 16 秒一顆）
 python ASD\preprocess_fs.py --img-dir data\tigerbx_data\fs_for_vxm\norm --seg-dir data\tigerbx_data\fs_for_vxm\aseg `
     --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\tigerbx_preprocessed_v2 `
     --subject-list data\tigerbx_data\fs_stats\subjects.txt --grouping none --n4 --list-is-final `
     --split-from data\mixed_preprocessed_v2\mixed_manifest.json
+```
 
-# 訓練（訓練機）
+| 檢查 | 結果 |
+|---|---|
+| 成功 | **520 / 520**，0 失敗 |
+| 標籤數有變少的 | 0 |
+| 切分 | train 418 / val 51 / test 51 |
+| 每一顆的位置跟 `mixed_preprocessed_v2` 比 | **0 顆不一致** |
+| 大小 | 3.7 GB，已產 `dataset_manifest.json` |
+
+- `preprocess_fs.py --split-from` 原本只認得 train / test，沿用 mixed_v2 時 val 會存檔失敗、列印把 val 算進 train。
+  2026-09-17 修好，兩段切分的舊用法不受影響
+
+**訓練與評估（訓練機）**：完整指令也存在 `D:\google\h4524\我的雲端硬碟\傳輸站\reg\tiger_exp2_exp3\指令.txt`
+
+```powershell
+python ASD\check_dataset.py --dirs data\tigerbx_preprocessed_v2 --check
+
 python ASD\run_train.py --train-dir data\tigerbx_preprocessed_v2\train --exp-name tiger_exp2 `
     --image-loss ncc --lambda 1.0 --epochs 250 --gpu 0
+python ASD\run_train.py --train-dir data\tigerbx_preprocessed_v2\train --exp-name tiger_exp3 `
+    --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 0 --int-downsize 1 --gpu 0
 
 # 評估：一定要換 --atlas-seg，否則 Dice 會安靜地低掉約 0.14
 python ASD\test_dice.py --model-dir models\tiger_exp2 --test-dir data\tigerbx_preprocessed_v2\val `
     --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz --step 10 --gpu 0
-python ASD\test_dice.py --model models\tiger_exp2\<val最高>.pt --test-dir data\tigerbx_preprocessed_v2\test `
+python ASD\test_dice.py --model models\tiger_exp2\XXXX.pt --test-dir data\tigerbx_preprocessed_v2\test `
     --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz --gpu 0
 ```
+（tiger_exp3 同上，把 `tiger_exp2` 換掉。`XXXX` 換成 val 選出來的 epoch。）
+
+視覺化用跟 mix 組一樣的四位（T054、D031、VNT045、sub-0043），`visualize_dice.py` 同樣要帶 `--atlas-seg ..._tigerbx.npz`。
