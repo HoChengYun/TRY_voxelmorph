@@ -85,7 +85,13 @@ cd C:\Users\h4524\claude_cheng
 .\vxm_env\Scripts\activate
 ```
 
-⚠️ `requirements.txt` 裡**沒有 torch**（CUDA wheel 另外裝的）。重建環境時要另外裝對應 CUDA 版本的 PyTorch。
+⚠️ `requirements.txt` 裡**沒有 torch**（CUDA wheel 另外裝的，版本號帶 `+cu130`，PyPI 上找不到）。
+2026-09-18 重新產生，改成 **UTF-8**，開頭註解寫了 torch 的安裝指令。重建環境：
+
+```powershell
+pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cu130
+pip install -r requirements.txt
+```
 
 ---
 
@@ -505,7 +511,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 
 ### 🔧 給 Claude 的操作注意事項
 
-- **`log/` 的編碼混用兩種**，見上一節。`requirements.txt` 是 UTF-16LE。
+- **`log/` 的編碼混用兩種**，見上一節。（`requirements.txt` 原本是 UTF-16LE，2026-09-18 已改成 UTF-8。）
 - **`models/`、`IXI/`、`draw-img/`、`oasis/`、`meeting報告/` 都在 `.gitignore` 裡**（只保留 `*.py`/`*.md`）。
 - `models/exp1` 有 201 個 `.pt`、`exp4` 有 501 個——**不要遍歷讀取**，只讀 `epoch_curve.csv`。
   （exp5–exp8 已清理，各只留最佳 epoch 的 `.pt` + `epoch_curve.csv/png`。）
