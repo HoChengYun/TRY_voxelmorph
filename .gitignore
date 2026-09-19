@@ -34,5 +34,8 @@ __pycache__/
 !/ASD/slides_src/2026-09_mix_tigerbx/package.json
 !/ASD/slides_src/2026-09_mix_tigerbx/package-lock.json
 !/ASD/slides_src/2026-09_mix_tigerbx/bench.json
+# 2026-09-20 簡報產生器：同上（借用上面那份的 node_modules，這邊沒有自己的）
+!/ASD/slides_src/2026-09-20_cross/*.js
+
 # 放最後：!*.md 會把 node_modules 裡的 README 撈回來，整個目錄排除才擋得住
 /ASD/slides_src/2026-09_mix_tigerbx/node_modules/
