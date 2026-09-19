@@ -1442,7 +1442,7 @@ python ASD\test_dice.py --model models\mix_exp3\0240.pt --test-dir data\mixed_pr
 - tigerbx 組的 `FSS_A001` 是直接複製 A001 的原始 T1 跑的；FreeSurfer 組兩個檔案不是逐體素相同。
   → **刪的時候 FreeSurfer 組和 tigerbx 組一起刪**
 
-### 20.7 tigerbx 組跟上 520 顆：tiger_exp2 / tiger_exp3（前處理完成，待訓練）
+### 20.7 tigerbx 組跟上 520 顆：tiger_exp2 / tiger_exp3（前處理）
 
 目的：用**同一批人、同一個切分**比 FreeSurfer 標籤 vs tigerbx 標籤，並各自比兩個版本。
 
@@ -1495,3 +1495,75 @@ python ASD\test_dice.py --model models\tiger_exp2\XXXX.pt --test-dir data\tigerb
 （tiger_exp3 同上，把 `tiger_exp2` 換掉。`XXXX` 換成 val 選出來的 epoch。）
 
 視覺化用跟 mix 組一樣的四位（T054、D031、VNT045、sub-0043），`visualize_dice.py` 同樣要帶 `--atlas-seg ..._tigerbx.npz`。
+
+### 20.8 tiger_exp2 / tiger_exp3 結果（2026-09-19，機器「AI」訓練）
+
+參數已從 `log/tiger_exp2_script.txt`、`log/tiger_exp3_script.txt` 確認：
+兩顆都是 NCC、λ=1.0、250 epoch、`tigerbx_preprocessed_v2`，exp2 是 `--int-steps 7 --int-downsize 2`，
+exp3 是 `--int-steps 0 --int-downsize 1`。
+
+**挑 epoch（val，每 10 個）**
+
+| | val 最佳 | 前三名 | 折疊率 |
+|---|---|---|---|
+| tiger_exp2 | **250** → 0.8603 | 0.8603 / 0.8596 / 0.8591 | 0% |
+| tiger_exp3 | **210** → 0.8699 | 0.8699 / 0.8697 / 0.8697 | 0.233% |
+
+📌 兩顆選到不同的 epoch（250 / 210），**印證了 mix_exp2 / mix_exp3 都選 240 只是巧合**（§20.5）。
+兩邊 epoch 0 都是 0.7390，等於只做 affine 的起點。
+
+**test（51 位，只跑一次）**
+
+| 實驗 | 標籤 | 版本 | 起點 | test Dice | 模型貢獻 | 折疊率 |
+|---|---|---|---|---|---|---|
+| mix_exp2 | FreeSurfer | 速度場 | 0.6882 | 0.7972 ± 0.0137 | +0.109 | 0% |
+| mix_exp3 | FreeSurfer | 位移場 | 0.6882 | **0.8062** ± 0.0148 | +0.118 | 0.199% |
+| tiger_exp2 | tigerbx | 速度場 | 0.7453 | 0.8621 ± 0.0067 | +0.117 | 0% |
+| tiger_exp3 | tigerbx | 位移場 | 0.7453 | **0.8714** ± 0.0081 | +0.126 | 0.226% |
+
+（tigerbx 起點：val 0.7384、test 0.7453，2026-09-19 在筆電上補算。）
+
+**三件事兩組完全一致**
+
+1. **位移場版都比較高，幅度一樣**：FreeSurfer +0.0090（49/51 人）、tigerbx **+0.0093（49/51 人，SE 0.0005）**
+2. **折疊率**：速度場版都是 0%，位移場版都是 0.2% 上下（論文 0.366%）
+3. **最差的一位兩組都是 A0131**（5 歲，tiger_exp2 0.8362 / tiger_exp3 0.8344）
+
+**tigerbx vs FreeSurfer：絕對分數高 0.065，但主要來自起點**
+
+tigerbx 的 test Dice 高約 0.065，但**起點也高 0.057**（0.7453 vs 0.6882）。
+扣掉起點只看模型貢獻，逐人配對：
+
+| 比較 | 模型貢獻差 | SE | tigerbx 較高 |
+|---|---|---|---|
+| tiger_exp2 − mix_exp2 | **+0.0078** | 0.0018 | 37 / 51 |
+| tiger_exp3 − mix_exp3 | **+0.0082** | 0.0018 | 38 / 51 |
+
+→ tigerbx 標籤這一組的模型貢獻確實略高（約 +0.008），但**遠小於絕對分數的差距 0.065**。
+報告時要講：**tigerbx 的 Dice 看起來高很多，主要是它的標籤本身比較容易對齊，不是配準比較準。**
+
+**⚠️ 資料版本**：tiger_exp2 / tiger_exp3 是用 **09-18 版**（29 顆斜切先轉正）訓練與評估的，
+舊資料仍在機器「AI」上。筆電上的 `tigerbx_preprocessed_v2` 已於 09-19 更新成不轉正版（§20.9）。
+補算的起點是在**新版**上算的，test 裡有 2 顆屬於那 29 顆：`PILOT018` 0.8729、`VNT048` 0.8718（exp3），
+兩顆都高於平均，沒有異常跡象。
+
+**檔案**：`models/tiger_exp2/`（`0250.pt`、`dice_0250.csv`、`dice_curve_val.csv`、`dice_baseline*.csv`、
+`dice_curve_analysis.png`、`vis_*`）、`models/tiger_exp3/`（同上，epoch 0210，另有 `loss_tiger_exp2_vs_exp3.png`）。
+視覺化用跟 mix 組相同的四位：T054、D031、VNT045、sub-0043（都不在重跑的 29 顆裡）。
+
+**訓練 loss**（最後一個 epoch）：tiger_exp2 總 -0.1864（影像 -0.2123、平滑 0.0259）、
+tiger_exp3 總 -0.2215（影像 -0.2428、平滑 0.0213）。與 mix 組同樣的型態：位移場版影像項更低。
+
+### 20.9 tigerbx 資料 09-19 更新：29 顆改成「不轉正」
+
+使用者決定 tigerbx 一律不轉正，直接跑原始 T1。tigerbx 端重跑後替換了 `data/tigerbx_data` 裡
+這 29 顆斜切受試者的 norm/aseg，筆電上的 `tigerbx_preprocessed_v2` 也重跑了這 29 顆
+（其餘 491 顆沿用 09-18 的結果，29 顆全部成功、標籤沒掉、切分仍與 FreeSurfer 組逐顆一致）。
+
+- 名單與切分位置寫在 `data/tigerbx_preprocessed_v2/README.txt`（train 22 / val 5 / test 2）
+- 尺寸也跟著變回原始尺寸：tigerbx 的輸出一律等於輸入，先前尺寸奇怪是因為餵進去的是轉正過的檔案
+- **代價**：tigerbx 端以 FreeSurfer 當獨立參照，這 29 顆分割品質略低
+  （不轉正 0.8780 / 先轉正 0.8927 / 非斜切基準 0.9056）。轉正版備份在
+  `D:\MyHome\MRI\tigerbx\temp\straightened_kept\`
+- 🔴 **同名不同內容**：筆電是新版、機器「AI」是舊版（tiger_exp2/3 就是用它跑的，**不要刪**）。
+  `dataset_manifest.json` 已重新產生，搬檔案時 `--check` 會抓出版本不一致
