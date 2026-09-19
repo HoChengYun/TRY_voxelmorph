@@ -109,6 +109,11 @@ D['cross_paired'] = {
     'tg_v3': paired(models['tiger_exp3']['per_subject'], cross['mix_exp3_on_tg']['per_subject']),
 }
 
+# 交叉視覺化那頁用的單一受試者
+_own, _ = rd('models/mix_exp3/dice_0240.csv')
+_for, _ = rd(X + 'tiger_exp3_on_freesurfer.csv')
+D['per_subject_T054'] = {'own': _own['T054'], 'foreign': _for['T054']}
+
 for m in D['models'].values():
     m.pop('per_subject')
 for c in D['cross'].values():
