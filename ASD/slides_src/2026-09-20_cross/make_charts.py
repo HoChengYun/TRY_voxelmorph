@@ -4,6 +4,7 @@
 輸出到 models/deck_charts/：
     overview_four_models.png   四顆模型：起點 -> 配準後
     contribution.png           模型貢獻（配準後 減 起點），含 95% 信賴區間
+    cross_eval.png             交叉測試：模型用哪套影像訓練 × 拿哪套影像測試
 
 數字全部從 models/*/dice_*.csv 讀，不手打。
 """
@@ -84,3 +85,54 @@ for sp in ('top', 'right'):
 fig.tight_layout()
 fig.savefig(os.path.join(OUT, 'contribution.png'), dpi=130)
 print('->', os.path.join(OUT, 'contribution.png'))
+
+
+# ── 圖三：交叉測試 ────────────────────────────────────────────────────
+X = 'models/mix_exp2/cross_mix_tiger_exp2_exp3/'
+cross = {
+    'tiger_on_fs_v2': rd(X + 'tiger_exp2_on_freesurfer.csv'),
+    'tiger_on_fs_v3': rd(X + 'tiger_exp3_on_freesurfer.csv'),
+    'mix_on_tg_v2': rd(X + 'mix_exp2_on_tigerbx.csv'),
+    'mix_on_tg_v3': rd(X + 'mix_exp3_on_tigerbx.csv'),
+}
+mean = lambda d: float(np.mean([d[k] for k in K]))
+panels = [
+    ('測試：FreeSurfer 的影像', np.mean([base_fs[k] for k in K]), [
+        ('用 FreeSurfer\n影像訓練', mean(M[0][2]), C['teal']),
+        ('用 tigerbx\n影像訓練', mean(cross['tiger_on_fs_v2']), C['rust']),
+        ('用 FreeSurfer\n影像訓練', mean(M[1][2]), C['teal']),
+        ('用 tigerbx\n影像訓練', mean(cross['tiger_on_fs_v3']), C['rust']),
+    ]),
+    ('測試：tigerbx 的影像', np.mean([base_tg[k] for k in K]), [
+        ('用 FreeSurfer\n影像訓練', mean(cross['mix_on_tg_v2']), C['teal']),
+        ('用 tigerbx\n影像訓練', mean(M[2][2]), C['rust']),
+        ('用 FreeSurfer\n影像訓練', mean(cross['mix_on_tg_v3']), C['teal']),
+        ('用 tigerbx\n影像訓練', mean(M[3][2]), C['rust']),
+    ]),
+]
+fig, axes = plt.subplots(1, 2, figsize=(13, 5.4), sharey=True)
+for ax, (title, b0, bars) in zip(axes, panels):
+    for i, (lab, v, col) in enumerate(bars):
+        x = i + (0.25 if i >= 2 else 0)
+        ax.bar(x, v, color=col, width=.72)
+        ax.text(x, v + .004, '%.3f' % v, ha='center', fontsize=11, fontweight='bold')
+    ax.axhline(b0, ls='--', color='#C0392B', lw=1.3)
+    ax.text(-0.42, b0 + .004, '沒用模型、只做線性對位 %.3f' % b0, ha='left', color='#C0392B',
+            fontsize=9.5, bbox=dict(fc='white', ec='none', pad=1.5))
+    ax.set_xticks([0, 1, 2.25, 3.25])
+    ax.set_xticklabels([b[0] for b in bars], fontsize=10)
+    ax.set_title(title, fontsize=13, fontweight='bold')
+    ax.set_ylim(0.66, 0.90)
+    ax.grid(axis='y', alpha=.3)
+    ax.set_axisbelow(True)
+    for sp in ('top', 'right'):
+        ax.spines[sp].set_visible(False)
+    for xx, tt in ((0.5, '速度場版'), (2.75, '位移場版')):
+        ax.text(xx, 0.888, tt, ha='center', va='top', fontsize=12, fontweight='bold',
+                color=C['ink'], bbox=dict(fc='#EFEFEB', ec=C['rule'], pad=3))
+axes[0].set_ylabel('Dice（test 51 位）', fontsize=11)
+fig.suptitle('每一格裡，兩根柱子測的是同一批影像，只是模型訓練時看的影像不同',
+             fontsize=12, fontweight='bold')
+fig.tight_layout()
+fig.savefig(os.path.join(OUT, 'cross_eval.png'), dpi=130)
+print('->', os.path.join(OUT, 'cross_eval.png'))
