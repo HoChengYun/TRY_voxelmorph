@@ -60,6 +60,7 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 3. **mixed_v2 的 test 換人了**（80/10/10 重切），mix_exp2 不能再跟 mix_exp1 的 0.7874 直接比。
 4. **tigerbx 的 Dice 高 0.065，但起點也高 0.057**：扣掉起點後模型貢獻只差 +0.008（§20.8）。
    報告時要講「tigerbx 標籤本身比較好對」，不是配準比較準。
+   交叉評估（§20.10）再佐證一次：**換去顱骨工具只掉 0.002～0.008**，比標籤差異小一個數量級。
 5. **折疊率 0% 是版本造成的**：mix_exp3 換成論文的位移場版後折疊率 0.199%（論文 0.366%）。
    但 exp3 同時把平滑懲罰砍半（實際權重 = λ × int_downsize），Dice +0.009 與折疊都不能全歸給版本。
    要分開需再跑 mix_exp4（位移場 + `--lambda 2.0`）（§20.5）。
@@ -174,7 +175,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~3\  tiger_exp1~3\        # ASD 線：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1~3\  tiger_exp1~3\        # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重

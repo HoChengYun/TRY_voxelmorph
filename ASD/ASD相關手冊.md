@@ -1567,3 +1567,59 @@ tiger_exp3 總 -0.2215（影像 -0.2428、平滑 0.0213）。與 mix 組同樣�
   `D:\MyHome\MRI\tigerbx\temp\straightened_kept\`
 - 🔴 **同名不同內容**：筆電是新版、機器「AI」是舊版（tiger_exp2/3 就是用它跑的，**不要刪**）。
   `dataset_manifest.json` 已重新產生，搬檔案時 `--check` 會抓出版本不一致
+
+### 20.10 交叉評估：換一套去顱骨／標籤，模型還能用嗎（2026-09-20，紅筆第 6 項）
+
+老師紅筆第 6 項「用 FreeSurfer 的分割去對 tigerbx 的非線性結果」。做法是把四顆模型交叉評估：
+**模型固定，換另一套資料**（影像與標籤都換成另一組的），就能把「模型學到的東西」
+和「標籤／去顱骨工具本身好不好對」分開看。
+
+輸出：`models/mix_exp2/cross_mix_tiger_exp2_exp3/`（四個 CSV）
+
+```powershell
+# tiger 模型 -> FreeSurfer 的影像與標籤
+python ASD\test_dice.py --model models\tiger_exp2\0250.pt --test-dir data\mixed_preprocessed_v2\test `
+    --atlas-seg IXI\atlas_mni152_09c_v3_seg.npz `
+    --out-csv models\mix_exp2\cross_mix_tiger_exp2_exp3\tiger_exp2_on_freesurfer.csv --gpu 0
+
+# mix 模型 -> tigerbx 的影像與標籤
+python ASD\test_dice.py --model models\mix_exp2\0240.pt --test-dir data\tigerbx_preprocessed_v2\test `
+    --atlas-seg IXI\atlas_mni152_09c_v3_seg_tigerbx.npz `
+    --out-csv models\mix_exp2\cross_mix_tiger_exp2_exp3\mix_exp2_on_tigerbx.csv --gpu 0
+```
+
+**結果（test 51 位）**
+
+| 評估用的資料 | 模型 | Dice | 折疊率 |
+|---|---|---|---|
+| FreeSurfer（起點 0.6882）| mix_exp2（自家）| **0.7972** | 0% |
+| | tiger_exp2（外來）| 0.7919 | 0% |
+| | mix_exp3（自家）| **0.8062** | 0.199% |
+| | tiger_exp3（外來）| 0.7984 | 0.262% |
+| tigerbx（起點 0.7453）| tiger_exp2（自家）| **0.8621** | 0% |
+| | mix_exp2（外來）| 0.8589 | 0% |
+| | tiger_exp3（自家）| **0.8714** | 0.226% |
+| | mix_exp3（外來）| 0.8690 | 0.196% |
+
+**逐人配對（自家 − 外來）**
+
+| 評估資料 | 比較 | 差 | SE | 自家較高 |
+|---|---|---|---|---|
+| FreeSurfer | mix_exp2 − tiger_exp2 | +0.0052 | 0.0005 | 49 / 51 |
+| FreeSurfer | mix_exp3 − tiger_exp3 | +0.0078 | 0.0006 | **51 / 51** |
+| tigerbx | tiger_exp2 − mix_exp2 | +0.0031 | 0.0005 | 43 / 51 |
+| tigerbx | tiger_exp3 − mix_exp3 | +0.0024 | 0.0006 | 42 / 51 |
+
+**結論**
+
+1. **換去顱骨工具，模型仍然可用**：掉 0.002～0.008，而兩套標籤的絕對分數差是 **0.065**
+   → 去顱骨工具的影響比標籤來源小一個數量級（這也回答了紅筆第 7 項的一半）
+2. **但「用自家資料訓練」確實較好，而且穩定**：51 位裡自家贏 42～51 位，差距是標準誤的 4～13 倍，
+   不是隨機波動
+3. **掉幅不對稱**：tiger 模型搬到 FreeSurfer 資料掉較多（0.005～0.008），
+   mix 模型搬到 tigerbx 資料掉較少（0.002～0.003）。
+   ⚠️ 原因未經證實，只是推測（FreeSurfer 去顱骨的邊界可能較不一致），要下結論得再看影像
+
+⚠️ 兩點限制：
+- tiger_exp2 / exp3 是用 **09-18 版** tigerbx 資料訓練的，這裡是在**新版**上評估（test 裡有 2 顆屬於重跑的 29 顆，見 §20.9）
+- 兩個 arm 的影像各自做 affine 對到同一個 atlas，但用的是各自的去顱骨結果，所以同一位受試者在兩個 arm 的影像不會逐體素相同
