@@ -1,0 +1,7 @@
+# mix_exp4 訓練指令記錄
+# 執行時間: 2026-09-21 17:27:18
+# 機器: AI
+# 資料: mixed_preprocessed_v2 (train 418 / test 51, grouping=none)
+# 由 ASD/run_train.py 產生
+
+D:\chengyun\TRY_voxelmorph\vxm_env\Scripts\python.exe D:\chengyun\TRY_voxelmorph\voxelmorph-code\scripts\torch\train.py D:\chengyun\TRY_voxelmorph\data\mixed_preprocessed_v2\train --atlas D:\chengyun\TRY_voxelmorph\IXI\atlas_mni152_09c_v3.npz --model-dir D:\chengyun\TRY_voxelmorph\models\mix_exp4 --epochs 250 --steps-per-epoch 100 --gpu 0 --image-loss ncc --lambda 2.0 --int-steps 0 --int-downsize 1
