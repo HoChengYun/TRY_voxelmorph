@@ -42,6 +42,14 @@ ap.add_argument('--epochs', type=int, default=250)
 #    會把平滑懲罰的實際權重砍半 —— 這是論文版本本來的設定，不是失誤，但要知道。
 ap.add_argument('--int-steps', type=int, default=7)
 ap.add_argument('--int-downsize', type=int, default=2)
+# U-Net 的通道數。不給就是 train.py 的預設（編碼器 16 32 32 32、解碼器 32 32 32 32 32 16 16），
+# 也就是 2018 年論文的設定，只有約 30 萬個參數。加寬／加深要成對給，例如
+#   --enc 32 64 64 64  --dec 64 64 64 64 64 32 32      （通道加倍）
+# ⚠️ 解碼器的長度要跟編碼器對得上（VoxelMorph 的慣例是「層數 + 3」），不然 train.py 會報錯。
+# ⚠️ 加深（--enc 多一層）時影像每個維度要能被 2^層數 整除；
+#    192x224x192 最多 4 層（224 / 16 = 14），再深要改前處理。
+ap.add_argument('--enc', type=int, nargs='+', default=None, help='U-Net 編碼器通道數')
+ap.add_argument('--dec', type=int, nargs='+', default=None, help='U-Net 解碼器通道數')
 ap.add_argument('--steps-per-epoch', type=int, default=100)
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
@@ -152,6 +160,9 @@ print('      image-loss  : %s' % args.image_loss)
 print('      lambda      : %g   <- %s 建議 %s' % (args.weight, args.image_loss, hint))
 print('      epochs      : %d (從 %d 開始，還要跑 %d)' % (args.epochs, initial_epoch, remain))
 print('      steps/epoch : %d' % args.steps_per_epoch)
+if args.enc or args.dec:
+    print('      U-Net       : enc %s / dec %s  <- 非預設架構'
+          % (args.enc or '預設', args.dec or '預設'))
 print('      訓練資料    : %s' % DATA)
 print('      模型輸出    : %s' % MODEL_DIR)
 print('      記錄檔      : %s' % LOG_FILE)
@@ -176,6 +187,10 @@ cmd = [PY, TRAIN, DATA,
        '--lambda', str(args.weight),
        '--int-steps', str(args.int_steps),
        '--int-downsize', str(args.int_downsize)]
+if args.enc:
+    cmd += ['--enc'] + [str(x) for x in args.enc]
+if args.dec:
+    cmd += ['--dec'] + [str(x) for x in args.dec]
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]
