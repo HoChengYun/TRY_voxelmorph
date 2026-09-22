@@ -306,8 +306,9 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
 {
   const s = base('CROSS', '同一張影像，換一個模型來對，看得出差別嗎');
   const XD = path.join(MROOT, 'mix_exp2', 'cross_mix_tiger_exp2_exp3');
-  fitImage(s, VIS('mix_exp3', 'T054', 'contours', m.mix_exp3.epoch), M, 1.55, 5.9, 3.3, '用 FreeSurfer 影像訓練的模型');
-  fitImage(s, path.join(XD, 'vis_T054_tiger_exp3_on_freesurfer', 'contours_T054_' + m.tiger_exp3.epoch + '.png'),
+  fitImage(s, path.join(XD, 'vis_T054_bg_subject_mix_exp3', 'contours_T054_' + m.mix_exp3.epoch + '.png'),
+    M, 1.55, 5.9, 3.3, '用 FreeSurfer 影像訓練的模型');
+  fitImage(s, path.join(XD, 'vis_T054_bg_subject_tiger_exp3', 'contours_T054_' + m.tiger_exp3.epoch + '.png'),
     6.85, 1.55, 5.9, 3.3, '用 tigerbx 影像訓練的模型');
   txt(s, '模型：用 FreeSurfer 影像訓練', { x: M, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
   txt(s, '模型：用 tigerbx 影像訓練', { x: 6.85, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.RUST });
@@ -316,8 +317,9 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   txt(s, '兩邊完全一樣的條件：同一位受試者（T054）、FreeSurfer 去頭骨的影像、FreeSurfer 的結構標籤、'
         + '都是位移場版。只有「模型訓練時看的是哪一套影像」不同。',
     { x: M, y: 5.92, w: 12.13, h: 0.7, fontSize: 14.5, align: 'center' });
-  txt(s, '每張圖上排是配準前、下排是配準後；彩色實線＝模板上該結構的位置，虛線＝這顆腦的位置，貼合就是對準了。'
-        + '肉眼幾乎看不出差別，分數差 ' + f3(D.per_subject_T054.own - D.per_subject_T054.foreign) + '。',
+  txt(s, '底圖是這位受試者本人：上排配準前、下排配準後。實線＝模板上該結構的位置，虛線＝這顆腦的位置。'
+        + '上排看得出兩條線有差，下排就貼合了。兩顆模型的結果幾乎一樣，分數差 '
+        + f3(D.per_subject_T054.own - D.per_subject_T054.foreign) + '。',
     { x: M, y: 6.45, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
 }
 

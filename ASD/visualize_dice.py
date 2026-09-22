@@ -45,6 +45,10 @@ ap.add_argument('--test-dir', default=None,
                      '--subject 給的是 npz 完整路徑時可以省略')
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))
 ap.add_argument('--out-dir', default=None)
+# 輪廓圖的底圖要放誰。atlas＝模板（舊behaviour，兩排底圖一樣，只有輪廓在動）；
+# subject＝受試者本人（上排是配準前的、下排是配準後的），看得出這顆腦被捏成什麼樣。
+ap.add_argument('--contour-bg', choices=['atlas', 'subject'], default='atlas',
+                help='輪廓圖的底圖：atlas（預設）或 subject')
 ap.add_argument('--gpu', default='0')
 args = ap.parse_args()
 
@@ -216,10 +220,11 @@ KEY = [
     (8, 47, 'Cerebellum-Ctx',    '#30d158'),
 ]
 fig, ax = plt.subplots(2, 3, figsize=(14, 9.5))
+# 底圖：atlas 兩排都一樣；subject 則上排放配準前的受試者、下排放配準後的
+BG = {'atlas': (atlas_vol, atlas_vol), 'subject': (vol, moved)}[args.contour_bg]
 for c, (i, t) in enumerate(cuts):
-    bg = take(atlas_vol, c, i)
-    for r, (sg, tag) in enumerate([(seg, 'BEFORE'), (seg_w, 'AFTER')]):
-        ax[r][c].imshow(bg, cmap='gray', origin='lower', aspect='equal')
+    for r, (sg, tag, bgvol) in enumerate([(seg, 'BEFORE', BG[0]), (seg_w, 'AFTER', BG[1])]):
+        ax[r][c].imshow(take(bgvol, c, i), cmap='gray', origin='lower', aspect='equal')
         for li, ri, nm, col in KEY:
             am = np.isin(take(atlas_seg, c, i), [li, ri]).astype(float)
             bm = np.isin(take(sg, c, i), [li, ri]).astype(float)
@@ -250,8 +255,8 @@ handles += [Line2D([0], [0], color='k', lw=2, label='atlas (solid)'),
             Line2D([0], [0], color='k', lw=1.2, ls='dashed', label='subject (dashed)')]
 fig.legend(handles=handles, loc='lower center', ncol=6, fontsize=9,
            frameon=False, bbox_to_anchor=(0.5, -0.02))
-fig.suptitle('%s — structure outlines,  solid = atlas,  dashed = subject' % name,
-             fontsize=13, fontweight='bold')
+fig.suptitle('%s — structure outlines,  solid = atlas,  dashed = subject   |   background = %s'
+             % (name, args.contour_bg), fontsize=13, fontweight='bold')
 plt.tight_layout(rect=[0, 0.04, 1, 1])
 p2 = os.path.join(out_dir, 'contours_%s_%s.png' % (name, epoch))
 plt.savefig(p2, dpi=130, bbox_inches='tight')
