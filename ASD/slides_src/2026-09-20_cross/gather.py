@@ -117,6 +117,10 @@ D['cross_paired'] = {
 _own, _ = rd('models/mix_exp3/dice_0240.csv')
 _for, _ = rd(X + 'tiger_exp3_on_freesurfer.csv')
 D['per_subject_T054'] = {'own': _own['T054'], 'foreign': _for['T054']}
+# 兩套工具各自的成績（同一位受試者，各用自己那套影像 + 標籤 + 模型）
+_tg, _ = rd('models/tiger_exp3/dice_0210.csv')
+D['per_subject_T054']['fs_own'] = _own['T054']
+D['per_subject_T054']['tg_own'] = _tg['T054']
 
 for m in D['models'].values():
     m.pop('per_subject')
