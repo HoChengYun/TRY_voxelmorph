@@ -207,18 +207,14 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M, y: 5.95, w: 12.13, h: 1.0, fontSize: 13.5 });
 }
 
-// ───────────────────────────────────────────────────────── 06 訓練過程
+// ───────────────────────────────────────────────────────── 06 訓練過程（三顆）
 {
-  const s = base('METHOD', '訓練過程：兩種版本都正常收斂');
-  fitImage(s, path.join(MROOT, 'mix_exp3', 'loss_exp2_vs_exp3.png'), M, 1.45, 8.3, 5.3, '訓練 loss 曲線');
-  card(s, 9.2, 1.7, 3.55, 4.2);
-  txt(s, '怎麼看', { x: 9.45, y: 1.95, w: 3.1, h: 0.35, fontSize: 15, bold: true });
+  const s = base('METHOD', '訓練過程：三顆一起看');
+  fitImage(s, CH('curve_exp234.png'), M, 1.45, 12.13, 4.6, '三顆的驗證曲線與擠爆比例');
   bullets(s, [
-    '線往下＝對得越來越準',
-    '前 30 輪掉最快',
-    '跑到 250 輪還在緩慢下降，代表再練下去還有一點空間',
-    '位移場版（綠）一直比速度場版（藍）低，跟最後的成績一致',
-  ], { x: 9.45, y: 2.45, w: 3.1, h: 3.2, fontSize: 12.5 });
+    [{ text: '三顆都正常收斂，前 30 輪掉最快，250 輪時還在緩慢進步', options: { color: C.MUTED } }],
+    [{ text: '下半部：擠爆比例一開始衝高，之後被平滑限制壓下來；限制越鬆壓得越少', options: { color: C.MUTED } }],
+  ], { x: M, y: 6.25, w: 12.13, h: 0.9, fontSize: 13 });
 }
 
 // ───────────────────────────────────────────────────────── 05 總覽圖
@@ -240,35 +236,25 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M + 0.3, y: 5.85, w: 11.5, h: 0.8, fontSize: 14.5, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0 });
 }
 
-// ───────────────────────────────────────────────────────── 07 兩種版本
+// ───────────────────────────────────────────────────────── 07 三顆的形變
 {
-  const s = base('VERSION', '兩種版本：形變場可以「軟」一點或「硬」一點');
-  const ep = m.mix_exp2.epoch, ep3 = m.mix_exp3.epoch;
-  fitImage(s, VIS('mix_exp2', 'T054', 'jacobian', ep), M, 1.55, 6.0, 2.3, '速度場版的形變');
-  fitImage(s, VIS('mix_exp3', 'T054', 'jacobian', ep3), 6.9, 1.55, 6.0, 2.3, '位移場版的形變');
-  txt(s, '速度場版（原本的）', { x: M, y: 3.95, w: 6.0, h: 0.35, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
-  txt(s, '位移場版（論文用的）', { x: 6.9, y: 3.95, w: 6.0, h: 0.35, fontSize: 15, bold: true, align: 'center', color: C.RUST });
-  txt(s, '紋路平滑、變形保守（最保守的那顆）', { x: M, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
-  txt(s, '紋路細碎、貼著腦溝走（最放得開的那顆）', { x: 6.9, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
+  const s = base('VERSION', '同一顆腦，三種設定捏出來的形變');
+  fitImage(s, CH('jacobian_exp234.png'), M, 1.4, 12.13, 3.55, '三個版本的 Jacobian');
+  txt(s, '紅＝被撐大，藍＝被壓小。越往右紋路越細碎，代表捏得越用力。',
+    { x: M, y: 5.05, w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED, align: 'center' });
   table(s, [
     ['', '速度場版\n平滑權重 2', '位移場版\n平滑權重 2', '位移場版\n平滑權重 1'],
     ['Dice（FreeSurfer 標籤）', f3(m.mix_exp2.mean), f3(m.mix_exp4.mean), hl(f3(m.mix_exp3.mean))],
-    ['Dice（tigerbx 標籤）', f3(m.tiger_exp2.mean), '—', hl(f3(m.tiger_exp3.mean), C.RUST)],
-    ['打結的比例', pct(m.mix_exp2.jneg), pct(m.mix_exp4.jneg), pct(m.mix_exp3.jneg)],
-  ], { x: M, y: 4.85, w: 12.13, colW: [4.63, 2.5, 2.5, 2.5] });
+    ['擠爆的比例', pct(m.mix_exp2.jneg), pct(m.mix_exp4.jneg), pct(m.mix_exp3.jneg)],
+  ], { x: M, y: 5.5, w: 12.13, colW: [4.63, 2.5, 2.5, 2.5] });
 }
 
-// ───────────────────────────────────────────────────────── 形變網格：兩版對照
+// ───────────────────────────────────────────────────────── 形變網格：三版對照
 {
-  const s = base('VERSION', '形變網格：兩種版本把空間拉成什麼樣');
-  fitImage(s, VIS('mix_exp2', 'T054', 'grid', m.mix_exp2.epoch), M, 1.45, 9.6, 2.55, '速度場版的形變網格');
-  txt(s, '速度場版', { x: M, y: 4.08, w: 9.6, h: 0.3, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
-  fitImage(s, VIS('mix_exp3', 'T054', 'grid', m.mix_exp3.epoch), M, 4.45, 9.6, 2.55, '位移場版的形變網格');
-  txt(s, '位移場版', { x: M, y: 7.08, w: 9.6, h: 0.3, fontSize: 15, bold: true, align: 'center', color: C.RUST });
-  card(s, 10.45, 2.3, 2.3, 3.1);
-  txt(s, '怎麼看', { x: 10.65, y: 2.5, w: 1.9, h: 0.3, fontSize: 14, bold: true });
-  txt(s, '格線＝空間被拉扯成什麼形狀。\n\n上排線條柔順、變形保守。\n\n下排在腦溝附近拉得更用力，\n所以對得更準，\n也比較容易擠在一起。',
-    { x: 10.65, y: 2.9, w: 1.9, h: 2.4, fontSize: 12, color: C.MUTED, lineSpacing: 15 });
+  const s = base('VERSION', '形變網格：三顆把空間拉成什麼樣');
+  fitImage(s, CH('grid_exp234.png'), M, 1.5, 12.13, 4.3, '三個版本的形變網格');
+  txt(s, '格線＝空間被拉扯成的形狀。由左到右越拉越用力：左邊柔順，右邊在腦溝附近扭得最明顯。',
+    { x: M, y: 6.0, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 08 打結
@@ -316,19 +302,6 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M, y: 5.5, w: 12.13, h: 1.5, fontSize: 14 });
 }
 
-// ───────────────────────────────────────────────────────── 10 配準長怎樣
-{
-  const s = base('VISUAL', '配準做了什麼：一位受試者的實際結果');
-  fitImage(s, VIS('mix_exp3', 'T054', 'labels', m.mix_exp3.epoch), M, 1.5, 12.13, 4.1, '配準前後的結構重疊');
-  txt(s, '同一顆腦對到模板上。顏色越吻合代表對得越準。', { x: M, y: 5.8, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED });
-}
-{
-  const s = base('VISUAL', '結構邊界的貼合程度');
-  fitImage(s, VIS('mix_exp3', 'T054', 'contours', m.mix_exp3.epoch), M, 1.5, 12.13, 4.1, '結構輪廓比對');
-  txt(s, '線條＝模板的結構邊界，底圖＝配準後的受試者。線貼在對的位置上就是對準了。',
-    { x: M, y: 5.8, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED });
-}
-
 // ───────────────────────────────────────────────────────── 交叉：看得出差別嗎
 {
   const s = base('CROSS', '同一張影像，換一個模型來對，看得出差別嗎');
@@ -345,31 +318,6 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     { x: M, y: 5.95, w: 12.13, h: 0.5, fontSize: 15, align: 'center' });
   txt(s, '彩色線條＝模板上該結構應該在的位置，虛線＝這顆腦配準後的位置。兩者貼合就是對準了。',
     { x: M, y: 6.42, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
-}
-
-// ───────────────────────────────────────────────────────── 視覺化：三平面
-{
-  const s = base('VISUAL', '配準前後：模板、原本的腦、配準後的腦');
-  fitImage(s, VIS('mix_exp3', 'T054', 'reg', m.mix_exp3.epoch).replace('reg_T054_' + m.mix_exp3.epoch, 'reg_T054_' + m.mix_exp3.epoch + '_triplanar'),
-    M, 1.5, 12.13, 4.4, '三平面比較');
-  txt(s, '左起：原本的腦、模板、配準後的腦、最後一欄是配準後與模板的差異（越暗代表對得越準）。三排是三個切面方向。',
-    { x: M, y: 6.1, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED });
-}
-
-// ───────────────────────────────────────────────────────── 視覺化：棋盤格
-{
-  const s = base('VISUAL', '棋盤格：把模板和受試者交錯排列');
-  fitImage(s, VIS('mix_exp3', 'T054', 'checker', m.mix_exp3.epoch), M, 1.5, 12.13, 4.3, '棋盤格');
-  txt(s, '一格模板、一格受試者交錯拼起來。交界處的腦溝、腦室線條接得上，就代表對準了。',
-    { x: M, y: 6.1, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED });
-}
-
-// ───────────────────────────────────────────────────────── 視覺化：逐結構
-{
-  const s = base('VISUAL', '哪些結構對得好、哪些比較難');
-  fitImage(s, VIS('mix_exp3', 'T054', 'perstruct', m.mix_exp3.epoch), M, 1.5, 12.13, 4.4, '逐結構 Dice');
-  txt(s, '大的結構（白質、腦室、視丘）容易對；小又細的（脈絡叢、杏仁核）比較難，兩種版本都一樣。',
-    { x: M, y: 6.1, w: 12.13, h: 0.5, fontSize: 14, color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 12 資料把關
