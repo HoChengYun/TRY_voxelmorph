@@ -121,6 +121,8 @@ D['per_subject_T054'] = {'own': _own['T054'], 'foreign': _for['T054']}
 _tg, _ = rd('models/tiger_exp3/dice_0210.csv')
 D['per_subject_T054']['fs_own'] = _own['T054']
 D['per_subject_T054']['tg_own'] = _tg['T054']
+_tg_for, _ = rd(X + 'mix_exp3_on_tigerbx.csv')
+D['per_subject_T054']['tg_foreign'] = _tg_for['T054']
 
 for m in D['models'].values():
     m.pop('per_subject')

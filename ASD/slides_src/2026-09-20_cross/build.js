@@ -323,22 +323,23 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     { x: M, y: 6.45, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
 }
 
-// ───────────────────────────────────────────────────────── 兩套去頭骨工具
+// ───────────────────────────────────────────────────────── 換邊再測一次
 {
-  const s = base('CROSS', '同一位受試者，兩套工具處理出來的樣子');
+  const s = base('CROSS', '換成 tigerbx 那套資料，再測一次');
   const XD = path.join(MROOT, 'mix_exp2', 'cross_mix_tiger_exp2_exp3');
-  fitImage(s, path.join(XD, 'vis_T054_bg_subject_mix_exp3', 'contours_T054_' + m.mix_exp3.epoch + '.png'),
-    M, 1.5, 5.9, 3.25, 'FreeSurfer 那一套');
   fitImage(s, path.join(XD, 'vis_T054_bg_subject_tigerbx_data', 'contours_T054_' + m.tiger_exp3.epoch + '.png'),
-    6.85, 1.5, 5.9, 3.25, 'tigerbx 那一套');
-  txt(s, 'FreeSurfer 去頭骨 + FreeSurfer 標籤', { x: M, y: 4.92, w: 5.9, h: 0.36, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
-  txt(s, 'tigerbx 去頭骨 + tigerbx 標籤', { x: 6.85, y: 4.92, w: 5.9, h: 0.36, fontSize: 15, bold: true, align: 'center', color: C.RUST });
-  txt(s, 'Dice ' + f3(D.per_subject_T054.fs_own), { x: M, y: 5.32, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
-  txt(s, 'Dice ' + f3(D.per_subject_T054.tg_own), { x: 6.85, y: 5.32, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
-  bullets(s, [
-    [{ text: '同一顆腦、同一次掃描，只是被兩套工具各自去頭骨、各自分割', options: { bold: true } }],
-    [{ text: '右邊的結構邊界比較圓滑，配準前就已經比較接近模板（起點 0.745 vs 0.688）——這就是 tigerbx 分數高的來源', options: { color: C.MUTED } }],
-  ], { x: M, y: 5.9, w: 12.13, h: 1.1, fontSize: 13.5 });
+    M, 1.5, 5.9, 3.25, '用 tigerbx 影像訓練的模型');
+  fitImage(s, path.join(XD, 'vis_T054_bg_subject_mix_exp3_on_tigerbx', 'contours_T054_' + m.mix_exp3.epoch + '.png'),
+    6.85, 1.5, 5.9, 3.25, '用 FreeSurfer 影像訓練的模型');
+  txt(s, '模型：用 tigerbx 影像訓練', { x: M, y: 4.92, w: 5.9, h: 0.36, fontSize: 15, bold: true, align: 'center', color: C.RUST });
+  txt(s, '模型：用 FreeSurfer 影像訓練', { x: 6.85, y: 4.92, w: 5.9, h: 0.36, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
+  txt(s, 'Dice ' + f4(D.per_subject_T054.tg_own), { x: M, y: 5.32, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
+  txt(s, 'Dice ' + f4(D.per_subject_T054.tg_foreign), { x: 6.85, y: 5.32, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
+  txt(s, '這次兩邊都是 tigerbx 去頭骨的影像和 tigerbx 的標籤，同一位 T054，只有模型不同。',
+    { x: M, y: 5.88, w: 12.13, h: 0.45, fontSize: 14.5, align: 'center' });
+  txt(s, '前一頁換的是「用 FreeSurfer 的資料」，這頁換成「用 tigerbx 的資料」，兩邊結論一樣：換模型幾乎沒有差別（這次只差 '
+        + f3(D.per_subject_T054.tg_own - D.per_subject_T054.tg_foreign) + '）。',
+    { x: M, y: 6.33, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 12 資料把關
