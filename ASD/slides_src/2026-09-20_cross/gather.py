@@ -18,7 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 OUT = os.path.join(HERE, 'deck_data.json')
 
-EPOCH = {'mix_exp2': '0240', 'mix_exp3': '0240', 'tiger_exp2': '0250', 'tiger_exp3': '0210'}
+EPOCH = {'mix_exp2': '0240', 'mix_exp3': '0240', 'mix_exp4': '0230',
+         'tiger_exp2': '0250', 'tiger_exp3': '0210'}
 
 
 def rd(p):
@@ -89,6 +90,9 @@ for n2, n3 in (('mix_exp2', 'tiger_exp2'), ('mix_exp3', 'tiger_exp3')):
     g_m = {k: models[n2]['per_subject'][k] - b_fs[k] for k in K}
     g_t = {k: models[n3]['per_subject'][k] - b_tg[k] for k in K}
     ps['gain_%s_minus_%s' % (n3, n2)] = paired(g_t, g_m)
+# 消融：exp2 -> exp4 只差版本，exp4 -> exp3 只差 lambda
+ps['version_effect'] = paired(models['mix_exp4']['per_subject'], models['mix_exp2']['per_subject'])
+ps['lambda_effect'] = paired(models['mix_exp3']['per_subject'], models['mix_exp4']['per_subject'])
 D['paired'] = ps
 
 # ── 交叉評估 ─────────────────────────────────────────────────────────

@@ -111,6 +111,7 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     [{ text: '資料從 286 顆加到 520 顆', options: { bold: true } }, { text: '　多了一批 234 顆的外部資料' }],
     [{ text: '換成論文的「位移場版」，成績更好一點', options: { bold: true } }, { text: '　兩種標籤都是 +0.009，非常一致' }],
     [{ text: '模型拿去對另一套工具處理出來的影像，照樣對得準', options: { bold: true } }, { text: '　分數只掉 0.002～0.008' }],
+    [{ text: '再補一顆模型，把「版本」和「參數」的影響分開了', options: { bold: true } }, { text: '　擠爆主要是參數造成的，不是版本' }],
   ], { x: M, y: 4.1, w: 12.13, h: 2.6 });
 }
 
@@ -157,6 +158,43 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     [{ text: '以前：直接拿測試集挑最好的一輪', options: { bold: true } }, { text: '　等於考前看過答案，成績會偏高（實測高估約 0.004）' }],
     [{ text: '現在：驗證集挑、測試集只考一次', options: { bold: true, color: C.TEAL } }, { text: '　報出來的數字才算數' }],
   ], { x: M, y: 4.3, w: 12.13, h: 1.8 });
+}
+
+// ───────────────────────────────────────────────────────── 模型在做什麼
+{
+  const s = base('METHOD', '模型在學什麼：把一顆腦「捏」成模板的形狀');
+  fitImage(s, CH('formula_loss.png'), M, 1.5, 12.13, 4.0, '總損失的公式');
+  bullets(s, [
+    [{ text: '訓練時沒有人告訴模型「正確答案」', options: { bold: true } },
+     { text: '　它只是一邊讓影像對得更像，一邊被限制不要捏得太誇張' }],
+    [{ text: '這兩件事互相拉扯，λ 就是決定偏向哪一邊的旋鈕', options: { bold: true, color: C.TEAL } }],
+  ], { x: M, y: 5.7, w: 12.13, h: 1.3, fontSize: 14 });
+}
+
+// ───────────────────────────────────────────────────────── 兩項的定義
+{
+  const s = base('METHOD', '兩項各自怎麼算');
+  fitImage(s, CH('formula_terms.png'), M, 1.5, 12.13, 4.6, '相似度與平滑度的公式');
+  txt(s, '兩項都是「越小越好」。模型在訓練時只看得到這個數字，看不到 Dice。',
+    { x: M, y: 6.3, w: 12.13, h: 0.4, fontSize: 14, color: C.MUTED });
+}
+
+// ───────────────────────────────────────────────────────── 兩種版本（公式）
+{
+  const s = base('VERSION', '兩種版本：形變場怎麼描述');
+  fitImage(s, CH('formula_versions.png'), M, 1.5, 12.13, 4.0, '兩種版本的參數化');
+  bullets(s, [
+    [{ text: '論文 Table I 報的是位移場版；我們之前一直用程式預設的速度場版', options: { bold: true } }],
+    [{ text: '所以「我們完全沒擠爆、比論文好」其實是版本不同造成的，不是模型比較強', options: { bold: true, color: C.RUST } }],
+  ], { x: M, y: 5.7, w: 12.13, h: 1.3, fontSize: 14 });
+}
+
+// ───────────────────────────────────────────────────────── 怎麼評分
+{
+  const s = base('METRIC', '怎麼評分：一個看準不準，一個看有沒有擠爆');
+  fitImage(s, CH('formula_metrics.png'), M, 1.5, 12.13, 4.4, 'Dice 與擠爆比例的公式');
+  txt(s, 'Dice 是拿 FreeSurfer 或 tigerbx 的 30 個結構去比；擠爆比例只看形變場本身，不需要標籤。',
+    { x: M, y: 6.2, w: 12.13, h: 0.4, fontSize: 14, color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 05 怎麼挑「第幾輪」
@@ -210,14 +248,14 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   fitImage(s, VIS('mix_exp3', 'T054', 'jacobian', ep3), 6.9, 1.55, 6.0, 2.3, '位移場版的形變');
   txt(s, '速度場版（原本的）', { x: M, y: 3.95, w: 6.0, h: 0.35, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
   txt(s, '位移場版（論文用的）', { x: 6.9, y: 3.95, w: 6.0, h: 0.35, fontSize: 15, bold: true, align: 'center', color: C.RUST });
-  txt(s, '紋路平滑、變形保守', { x: M, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
-  txt(s, '紋路細碎、貼著腦溝走', { x: 6.9, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
+  txt(s, '紋路平滑、變形保守（最保守的那顆）', { x: M, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
+  txt(s, '紋路細碎、貼著腦溝走（最放得開的那顆）', { x: 6.9, y: 4.32, w: 6.0, h: 0.35, fontSize: 13, align: 'center', color: C.MUTED });
   table(s, [
-    ['', '速度場版', '位移場版'],
-    ['Dice（FreeSurfer 標籤）', f3(m.mix_exp2.mean), hl(f3(m.mix_exp3.mean))],
-    ['Dice（tigerbx 標籤）', f3(m.tiger_exp2.mean), hl(f3(m.tiger_exp3.mean), C.RUST)],
-    ['打結的比例', pct(m.mix_exp2.jneg), pct(m.mix_exp3.jneg)],
-  ], { x: M, y: 4.85, w: 12.13, colW: [5.13, 3.5, 3.5] });
+    ['', '速度場版\n平滑權重 2', '位移場版\n平滑權重 2', '位移場版\n平滑權重 1'],
+    ['Dice（FreeSurfer 標籤）', f3(m.mix_exp2.mean), f3(m.mix_exp4.mean), hl(f3(m.mix_exp3.mean))],
+    ['Dice（tigerbx 標籤）', f3(m.tiger_exp2.mean), '—', hl(f3(m.tiger_exp3.mean), C.RUST)],
+    ['打結的比例', pct(m.mix_exp2.jneg), pct(m.mix_exp4.jneg), pct(m.mix_exp3.jneg)],
+  ], { x: M, y: 4.85, w: 12.13, colW: [4.63, 2.5, 2.5, 2.5] });
 }
 
 // ───────────────────────────────────────────────────────── 形變網格：兩版對照
@@ -242,14 +280,29 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M, y: 1.65, w: 12.13, h: 1.4 });
   table(s, [
     ['', '打結比例', '說明'],
-    ['我們的速度場版', pct(m.mix_exp2.jneg), '完全沒有'],
-    [{ text: '我們的位移場版', options: { bold: true } }, hl(pct(m.mix_exp3.jneg)), '低於論文'],
+    ['速度場版（平滑權重 2）', pct(m.mix_exp2.jneg), '完全沒有'],
+    ['位移場版（平滑權重 2）', pct(m.mix_exp4.jneg), '換了版本就出現一點'],
+    [{ text: '位移場版（平滑權重 1）', options: { bold: true } }, hl(pct(m.mix_exp3.jneg)), '再放鬆限制，變成約 4 倍'],
     ['論文的同版本', '0.366%', 'VoxelMorph 原始論文 Table I'],
     ['論文比較的傳統方法', '0.185% ~ 0.793%', 'ANTs SyN / NiftyReg'],
   ], { x: M, y: 3.15, w: 12.13, colW: [4.2, 3.2, 4.73] });
   card(s, M, 5.6, 12.13, 1.0, 'E8F2F1');
   txt(s, '以前我們報「打結 0%」比論文好，現在知道那是版本不同造成的，不是模型比較強。',
     { x: M + 0.3, y: 5.85, w: 11.5, h: 0.5, fontSize: 15, bold: true, fontFace: F.SANS, lang: 'zh-TW' });
+}
+
+// ───────────────────────────────────────────────────────── 消融：拆開兩個因素
+{
+  const s = base('ABLATION', '一次只改一件事，才知道是誰的功勞');
+  fitImage(s, CH('ablation.png'), M, 1.45, 12.13, 4.15, '消融實驗');
+  const V = P.version_effect, L = P.lambda_effect;
+  bullets(s, [
+    [{ text: '換成論文的版本：Dice +' + f3(V.mean) + '（51 人裡 ' + V.win + ' 人變好）', options: { bold: true } },
+     { text: '　擠爆從 0% 變 ' + pct(m.mix_exp4.jneg) }],
+    [{ text: '再把平滑限制放鬆一半：Dice 又 +' + f3(L.mean) + '（' + L.win + ' 人變好）', options: { bold: true, color: C.RUST } },
+     { text: '　擠爆變成 ' + pct(m.mix_exp3.jneg) + '，大約 4 倍' }],
+    [{ text: '結論：捏得越用力對得越準，但越容易擠爆。λ 的影響比換版本大一倍', options: { bold: true } }],
+  ], { x: M, y: 5.75, w: 12.13, h: 1.5, fontSize: 13.5 });
 }
 
 // ───────────────────────────────────────────────────────── 09 交叉測試
