@@ -124,6 +124,34 @@ D['per_subject_T054']['tg_own'] = _tg['T054']
 _tg_for, _ = rd(X + 'mix_exp3_on_tigerbx.csv')
 D['per_subject_T054']['tg_foreign'] = _tg_for['T054']
 
+# ── 紅筆第 7 項：去頭骨乾不乾淨（ASD/check_skullstrip.py 掃出來的兩個指標）───
+# A0131 排除：起點 0.563，離其他 50 位一大截，會把分組平均拉歪
+SS_EXCLUDE = {'A0131'}
+_ss = {r['subject']: r for r in
+       csv.DictReader(open(os.path.join(ROOT, 'models', 'skullstrip_check',
+                                        'skullstrip_all520.csv'), encoding='utf-8'))
+       if r['split'] == 'test' and r['subject'] not in SS_EXCLUDE}
+_after, _ = rd('models/mix_exp3/dice_%s.csv' % EPOCH['mix_exp3'])
+_bef, _ = rd('models/mix_exp2/dice_baseline.csv')
+
+def _group(key, n=10):
+    s = sorted(_ss, key=lambda k: -float(_ss[k][key]))
+    x = np.array([float(_ss[k][key]) for k in s])
+    a = np.array([_after[k] for k in s])
+    b = np.array([_bef[k] for k in s])
+    def g(i):
+        return {'metric': float(x[i].mean()), 'before': float(b[i].mean()),
+                'after': float(a[i].mean()), 'gain': float((a - b)[i].mean())}
+    return {'lo': float(x.min()), 'hi': float(x.max()),
+            'dirty': g(slice(0, n)), 'clean': g(slice(-n, None)),
+            'r_after': float(np.corrcoef(x, a)[0, 1]),
+            'r_gain': float(np.corrcoef(x, a - b)[0, 1]),
+            'worst': [{'s': k, 'v': float(_ss[k][key]), 'before': _bef[k], 'after': _after[k]} for k in s[:3]],
+            'best': [{'s': k, 'v': float(_ss[k][key]), 'before': _bef[k], 'after': _after[k]} for k in s[-3:]]}
+
+D['skullstrip'] = {'n': len(_ss), 'excluded': sorted(SS_EXCLUDE),
+                   'top': _group('top_vertex_mm'), 'base': _group('base_blob10')}
+
 for m in D['models'].values():
     m.pop('per_subject')
 for c in D['cross'].values():

@@ -32,8 +32,9 @@
 atlas 為 **MNI152 ICBM 2009c Asymmetric**（自製，非官方 OASIS atlas）。
 
 **當前狀態**：IXI 線完成 8 組實驗（exp1–exp8），前處理／訓練／評估／視覺化都已跑通。
-ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 + DGM 54 + VNT 68 = 286）**，
-並加了一組 **tigerbx 標籤**的對照（同一批人、同一個切分）：
+ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 + DGM 54 + VNT 68 + 外部 234 = 520）**，
+並加了一組 **tigerbx 標籤**的對照（同一批人、同一個切分）。
+現行資料是 `data/mixed_preprocessed_v2`（train 418 / val 51 / test 51）與 `data/tigerbx_preprocessed_v2`：
 
 | 實驗 | 資料 | 基準線 | Dice | 模型貢獻 | 折疊率 |
 |---|---|---|---|---|---|
@@ -42,18 +43,20 @@ ASD（老師提供）那條線已擴充成**三包 FreeSurfer 資料（ASD 164 +
 | **tiger_exp1** | 同一批 286 位，tigerbx 標籤 | 0.7376 | **0.8594** | +0.122 | 0.000% |
 | **mix_exp2** | 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同），val 挑 epoch 240 | 0.6882 | **0.7972** | +0.109 | 0.000% |
 | **mix_exp3** | 同 mix_exp2，**位移場版**（int_steps 0 / int_downsize 1 = 論文 Table I 版本）| 0.6882 | **0.8062** | +0.118 | 0.199% |
+| **mix_exp4** | 位移場 + `--lambda 2.0`（平滑權重補回 2，用來把版本與參數分開）| 0.6882 | **0.8005** | +0.112 | 0.053% |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0.000% |
 | **tiger_exp3** | 同上，位移場版，val 挑 epoch 210 | 0.7453 | **0.8714** | +0.126 | 0.226% |
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
-**§20（第四包資料、三段切分、mix/tiger exp2 與 exp3 的結果，2026-09-16～19）**。
+**§20（第四包資料、三段切分、mix/tiger exp2 與 exp3 的結果，2026-09-16～19）**、
+**§21（去顱骨乾不乾淨對配準的影響，2026-09-22）**。
 
 🔴 **判斷「是不是同一個人」禁止用影像相似度**（使用者 2026-09-16 規定，見手冊 §15.2）。
 允許的只有：① 逐張影像內容完全相同 ② DICOM 檔頭欄位（出生日期／性別／年齡／體重／掃描日期）。
 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，相關腳本已刪除，不要重建。
 mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 
-🔴 **五件從 §20 來、會影響怎麼解讀結果的事**：
+🔴 **六件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21）：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
 2. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.4）。
@@ -61,13 +64,18 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 4. **tigerbx 的 Dice 高 0.065，但起點也高 0.057**：扣掉起點後模型貢獻只差 +0.008（§20.8）。
    報告時要講「tigerbx 標籤本身比較好對」，不是配準比較準。
    交叉評估（§20.10）再佐證一次：**換去顱骨工具只掉 0.002～0.008**，比標籤差異小一個數量級。
-5. **折疊率 0% 是版本造成的**：mix_exp3 換成論文的位移場版後折疊率 0.199%（論文 0.366%）。
-   但 exp3 同時把平滑懲罰砍半（實際權重 = λ × int_downsize），Dice +0.009 與折疊都不能全歸給版本。
-   要分開需再跑 mix_exp4（位移場 + `--lambda 2.0`）（§20.5）。
+5. ✅ **版本與參數已經分開了**（mix_exp4，§20.5）：exp3 比 exp2 高的 0.009，
+   **只有 +0.0033 來自「換成位移場」，+0.0057 來自「平滑懲罰砍半」**（實際權重 = λ × int_downsize）。
+   折疊率同理：0% →（換版本）0.053% →（再砍半懲罰）0.199%。**擠爆主要是參數造成的，不是版本。**
+6. **去顱骨殘留對 Dice 幾乎沒影響**（§21）：顱底 0.0004、上緣 0.011（方向符合預期：留越厚模型拉得越少）。
+   🔴 但**配準後的絕對 Dice 反而是「沒去乾淨」那組較高**（0.8119 vs 0.8024），那是起點就高帶來的。
+   **看模型貢獻欄，不要看絕對值。**
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
-⚠️ 三個實驗都是 repo 預設的**微分同胚版**（`int_steps=7`）＋ λ=1.0。折疊率 0 主要來自這個版本，
-**不代表模型比論文好**（論文 Table I 是非微分同胚版，見手冊 §18）。
+⚠️ **折疊率 0% 的那幾顆（asd_exp1、mix_exp1/2、tiger_exp1/2）都是 repo 預設的微分同胚版**
+（`int_steps=7`）＋ λ=1.0。0% 主要來自這個版本，**不代表模型比論文好**
+（論文 Table I 是非微分同胚的位移場版，折疊率 0.366%，見手冊 §18）。
+位移場版的 mix_exp3 / tiger_exp3 折疊率 0.199% / 0.226%，才是跟論文同一個基準。
 
 ⚠️ **本專案不含 TransMorph**。TransMorph 在 `D:\MyHome\MRI\TransMorph\`，有自己的 `CLAUDE.md`。
 根目錄的 `TransMorph_Report.docx` 只是報告備份，與本專案程式碼無關。
@@ -131,6 +139,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_split.py                   # ⭐ 整批重切 train/val/test（依來源分層）
 │   ├── author_model.py                 # 作者的 Keras 模型（.h5）搬進 PyTorch（手冊 §19）
 │   ├── orient.py                       # 依 atlas 標籤判斷方向，視覺化前轉成 RAS
+│   ├── check_skullstrip.py             # ⭐ 去顱骨殘留：掃描 + 對照圖 + 算法說明圖（手冊 §21）
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
@@ -140,7 +149,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
-│   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器
+│   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
+│                                       #   2026-09-20_cross\ 是現行 25 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -175,7 +185,9 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~3\  tiger_exp1~3\        # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1~4\  tiger_exp1~3\        # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── deck_charts\                        # meeting 簡報用的圖（由 slides_src\2026-09-20_cross\make_*.py 產生）
+│   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重

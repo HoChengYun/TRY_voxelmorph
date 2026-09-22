@@ -342,7 +342,63 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     { x: M, y: 6.33, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
 }
 
-// ───────────────────────────────────────────────────────── 12 資料把關
+// ───────────────────────────────────────────────────────── 12 去頭骨品質：怎麼找的
+const SS = D.skullstrip;
+const SSD = path.join(MROOT, 'skullstrip_check');
+const mm = (x) => x.toFixed(2) + ' mm';
+const vox = (x) => Math.round(x).toLocaleString('en-US') + ' 顆';
+{
+  const s = base('QUALITY', '老師問的：去頭骨沒去乾淨，影響大嗎');
+  txt(s, '先要能把「沒去乾淨」找出來。「腦」的定義用 FreeSurfer 自己標出來的結構，影像還亮著、但沒被標成任何結構的地方，就是留下來的東西。',
+    { x: M, y: 1.42, w: 12.13, h: 0.4, fontSize: 14.5, color: C.MUTED });
+  fitImage(s, CH('ss_method.png'), 6.5, 1.95, 6.23, 4.9, '兩種殘留的算法');
+  txt(s, '上緣：硬腦膜貼著皮質', { x: M, y: 2.05, w: 5.6, h: 0.4, fontSize: 18, bold: true, color: C.RUST });
+  bullets(s, [
+    '每一欄往上找，最高的腦組織在哪（黃線）',
+    '黃線以上還有幾格是「組織」，就是留了幾 mm',
+    [{ text: '亮度門檻用這個人自己的灰質一半', options: {} },
+     { text: '\n　太低會把腦脊髓液也算進去', options: { color: C.MUTED, fontSize: 13 } }],
+  ], { x: M, y: 2.6, w: 5.6, h: 1.9, fontSize: 14 });
+  txt(s, '顱底：一整塊留在小腦下方', { x: M, y: 4.6, w: 5.6, h: 0.4, fontSize: 18, bold: true, color: C.RUST });
+  bullets(s, [
+    '先算每個點離腦組織多遠',
+    '離腦 10mm 以外還亮著的，一定不是腦',
+    [{ text: '只取最大的一坨', options: {} },
+     { text: '\n　零星雜點灌不了水', options: { color: C.MUTED, fontSize: 13 } }],
+  ], { x: M, y: 5.15, w: 5.6, h: 1.9, fontSize: 14 });
+}
+
+// ───────────────────────────────────────────────────────── 13 長什麼樣
+{
+  const s = base('QUALITY', `${SS.n} 位測試受試者裡，最極端的長這樣`);
+  fitImage(s, CH('ss_examples.png'), M, 1.4, 12.13, 5.2, '沒去乾淨與去得乾淨的例子');
+  txt(s, '上緣差 7 倍、顱底差 29 倍，但四個人配準後的 Dice 都落在 0.79～0.81。',
+    { x: M, y: 6.75, w: 12.13, h: 0.45, fontSize: 14.5, align: 'center' });
+}
+
+// ───────────────────────────────────────────────────────── 14 有影響嗎
+{
+  const s = base('QUALITY', '結論：幾乎沒有影響');
+  fitImage(s, CH('ss_effect.png'), M, 1.38, 12.13, 3.55, '殘留與模型進步幅度的關係');
+  table(s, [
+    ['位置', '分組（各 10 位）', '殘留', '起點 Dice', '配準後', '模型讓它進步'],
+    ['上緣', '沒去乾淨', mm(SS.top.dirty.metric), f4(SS.top.dirty.before), f4(SS.top.dirty.after),
+      hl('+' + f4(SS.top.dirty.gain), C.RUST)],
+    ['上緣', '去得乾淨', mm(SS.top.clean.metric), f4(SS.top.clean.before), f4(SS.top.clean.after),
+      hl('+' + f4(SS.top.clean.gain))],
+    ['顱底', '沒去乾淨', vox(SS.base.dirty.metric), f4(SS.base.dirty.before), f4(SS.base.dirty.after),
+      hl('+' + f4(SS.base.dirty.gain), C.RUST)],
+    ['顱底', '去得乾淨', vox(SS.base.clean.metric), f4(SS.base.clean.before), f4(SS.base.clean.after),
+      hl('+' + f4(SS.base.clean.gain))],
+  ], { x: M, y: 4.75, w: 12.13, colW: [1.0, 2.5, 1.9, 2.0, 1.9, 2.83], fontSize: 12.5 });
+  txt(s, '顱底完全沒差（' + f4(SS.base.dirty.gain) + ' vs ' + f4(SS.base.clean.gain)
+        + '）。上緣留越厚，模型能拉回來的幅度確實小一點（差 '
+        + (SS.top.clean.gain - SS.top.dirty.gain).toFixed(4)
+        + '），方向符合預期，但比兩種版本之間的差距還小。',
+    { x: M, y: 6.62, w: 12.13, h: 0.6, fontSize: 14, align: 'center' });
+}
+
+// ───────────────────────────────────────────────────────── 15 資料把關
 {
   const s = base('DATA', '資料把關：這次處理掉的事');
   bullets(s, [
@@ -356,7 +412,7 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     { x: M + 0.3, y: 5.55, w: 11.5, h: 0.6, fontSize: 15, bold: true, fontFace: F.SANS, lang: 'zh-TW' });
 }
 
-// ───────────────────────────────────────────────────────── 13 進度
+// ───────────────────────────────────────────────────────── 16 進度
 {
   const s = base('PROGRESS', '上次交代的事項');
   const ok = { text: '完成', options: { color: C.TEAL, bold: true } };
@@ -370,12 +426,12 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     ['4', '整理奇怪資料給老師', half, '內容已整併，要用時再產出'],
     ['5', '加外面的資料集', ok, '286 → 520 顆'],
     ['6', '用另一套分割互相驗證', ok, '這次的交叉測試'],
-    ['7', '去頭骨品質的影響', half, '已知影響約 0.002～0.008'],
+    ['7', '去頭骨品質的影響', ok, '上緣／顱底都量了，幾乎沒影響'],
     ['8', '兩種版本的差別', half, '四顆模型跑完，還差一顆確認原因'],
   ], { x: M, y: 1.65, w: 12.13, colW: [0.6, 4.4, 1.9, 5.23], fontSize: 12.5 });
 }
 
-// ───────────────────────────────────────────────────────── 14 下一步
+// ───────────────────────────────────────────────────────── 17 下一步
 {
   const s = base('NEXT', '下一步');
   bullets(s, [
