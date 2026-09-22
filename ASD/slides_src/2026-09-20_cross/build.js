@@ -309,15 +309,16 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   fitImage(s, VIS('mix_exp3', 'T054', 'contours', m.mix_exp3.epoch), M, 1.55, 5.9, 3.3, '用 FreeSurfer 影像訓練的模型');
   fitImage(s, path.join(XD, 'vis_T054_tiger_exp3_on_freesurfer', 'contours_T054_' + m.tiger_exp3.epoch + '.png'),
     6.85, 1.55, 5.9, 3.3, '用 tigerbx 影像訓練的模型');
-  txt(s, '用 FreeSurfer 影像訓練的模型', { x: M, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
-  txt(s, '用 tigerbx 影像訓練的模型', { x: 6.85, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.RUST });
+  txt(s, '模型：用 FreeSurfer 影像訓練', { x: M, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.TEAL });
+  txt(s, '模型：用 tigerbx 影像訓練', { x: 6.85, y: 5.0, w: 5.9, h: 0.38, fontSize: 15, bold: true, align: 'center', color: C.RUST });
   txt(s, 'Dice ' + f3(D.per_subject_T054.own), { x: M, y: 5.4, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
   txt(s, 'Dice ' + f3(D.per_subject_T054.foreign), { x: 6.85, y: 5.4, w: 5.9, h: 0.38, fontFace: F.MONO, fontSize: 16, bold: true, align: 'center' });
-  txt(s, '兩邊對的是同一位受試者的同一張影像，只換模型。肉眼幾乎看不出差別，分數差 '
-        + f3(D.per_subject_T054.own - D.per_subject_T054.foreign) + '。',
-    { x: M, y: 5.95, w: 12.13, h: 0.5, fontSize: 15, align: 'center' });
-  txt(s, '彩色線條＝模板上該結構應該在的位置，虛線＝這顆腦配準後的位置。兩者貼合就是對準了。',
-    { x: M, y: 6.42, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
+  txt(s, '兩邊完全一樣的條件：同一位受試者（T054）、FreeSurfer 去頭骨的影像、FreeSurfer 的結構標籤、'
+        + '都是位移場版。只有「模型訓練時看的是哪一套影像」不同。',
+    { x: M, y: 5.92, w: 12.13, h: 0.7, fontSize: 14.5, align: 'center' });
+  txt(s, '每張圖上排是配準前、下排是配準後；彩色實線＝模板上該結構的位置，虛線＝這顆腦的位置，貼合就是對準了。'
+        + '肉眼幾乎看不出差別，分數差 ' + f3(D.per_subject_T054.own - D.per_subject_T054.foreign) + '。',
+    { x: M, y: 6.45, w: 12.13, h: 0.5, fontSize: 13, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 12 資料把關
