@@ -24,6 +24,12 @@
 折疊率也一樣：0% →（換版本）0.053% →（再砍半懲罰）0.199%。
 👉 **擠爆主要是參數造成的，不是版本。**
 
+**準備中（還沒跑）**
+
+| 資料夾 | 這顆在做什麼 | 狀態 |
+|---|---|---|
+| `mix_wide/` | 同 mix_exp3，只把 U-Net 每層通道數加倍（參數 4 倍），看容量是不是瓶頸 | 操作單在 `ASD/指令_mix_wide.md`；要 16 GB 以上的卡（手冊 §23）|
+
 ⚠️ `asd_exp1` 和 `mix_exp1` 的最佳 epoch 是**在 test 上挑的**（當時還沒切驗證集），
 偏樂觀約 0.004，不能跟 exp2 之後的直接比。而且 `mix_exp1` 的 test 是另一批人。
 
@@ -77,7 +83,7 @@
 | `author_exp1/` | 作者釋出的 Keras 模型搬進 PyTorch，在 4 位 OASIS 上的結果（0.598 → 0.753）|
 | `deck_charts/` | meeting 簡報用的圖，由 `ASD/slides_src/2026-09-20_cross/make_*.py` 產生 |
 | `skullstrip_check/` | 去顱骨殘留分析：520 顆的 CSV + 對照圖（手冊 §21）|
-| `overfit_explained.png` | 教學圖：overfit 怎麼看 |
+| （已搬走）| 教學圖 `overfit_explained.png`、`unet_explained.png` 搬到 `ASD/img/`，跟手冊放一起（§22、§23）|
 | `*.h5` | 官方釋出的 TensorFlow 版預訓練權重，兩顆 |
 
 ---
@@ -107,3 +113,4 @@ mix_exp2/
 - **tigerbx 組評估一定要換 `--atlas-seg`**，忘了的話 Dice 會安靜地低掉約 0.14
 - **`--image-loss` 預設是 `mse` 不是 ncc**，想跑 NCC 一定要明寫
 - **這台筆電（8 GB）訓練不動這個設定**（25 秒/步），要在機器「AI」上跑
+- **位移場版的 `--int-downsize` 只是藏起來的 λ 倍數**，不會改網路、也省不到顯存，一律維持 1（手冊 §23.4）

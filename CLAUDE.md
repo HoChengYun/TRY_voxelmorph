@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-09-19**（ASD 線：四包 520 顆、train/val/test、mix 與 tigerbx 各兩個版本共四顆模型）
+> 最後更新：**2026-09-26**（mix_exp4 拆解完成、去顱骨殘留分析、`--int-downsize` 的真正作用、mix_wide 準備中）
 
 ---
 
@@ -49,7 +49,9 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
 **§20（第四包資料、三段切分、mix/tiger exp2 與 exp3 的結果，2026-09-16～19）**、
-**§21（去顱骨乾不乾淨對配準的影響，2026-09-22）**。
+**§21（去顱骨乾不乾淨對配準的影響，2026-09-22）**、
+**§22（有沒有 overfit、訓練夠不夠久，2026-09-23）**、
+**§23（U-Net 加寬 mix_wide 的準備：架構、顯存實測、`--int-downsize` 的真正作用，2026-09-26）**。
 
 🔴 **判斷「是不是同一個人」禁止用影像相似度**（使用者 2026-09-16 規定，見手冊 §15.2）。
 允許的只有：① 逐張影像內容完全相同 ② DICOM 檔頭欄位（出生日期／性別／年齡／體重／掃描日期）。
@@ -127,6 +129,7 @@ C:\Users\h4524\claude_cheng\
 │       └── train\train_NCCPatchSize.py # 可調 --ncc-win 的訓練變體（⚠️ 目前尚未用它跑過任何實驗）
 ├── ASD\                                # ⭐ FreeSurfer 這條線的程式與筆記（**不放資料**）
 │   ├── ASD相關手冊.md                  # ⭐ 這條線的完整操作手冊，先讀這個
+│   ├── img\                            # 手冊用的圖 + 產生它們的 make_*.py（skullstrip_*.png 含受試者切片，使用者同意公開；新增前先問）
 │   ├── preprocess_fs.py                # FreeSurfer 產物 → npz（含 seg）
 │   ├── verify_seg_transform.py         # 驗證 affine 共用 + 最近鄰內插（已實測 6/6 通過）
 │   ├── verify_one_subject.py           # 單顆量化驗證（含左右翻轉檢查）
@@ -145,7 +148,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
-│   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume）
+│   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume / --enc / --dec）
+│   ├── 指令_mix_wide.md                # mix_wide（U-Net 加寬 2 倍）的操作單，Drive 傳輸站\reg\mix_wide\ 也有一份（手冊 §23）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -446,10 +450,22 @@ exp8: train.py ... --epochs 250 --gpu 0 --image-loss ncc --int-steps 3 --int-dow
 
 ### ⚠️ exp8 一次動了三個變因
 
-`train.py:143` 是 `Grad('l2', loss_mult=args.int_downsize)`。
+`train.py:139` 是 `Grad('l2', loss_mult=args.int_downsize)`。
 `--int-downsize 1` 讓 `loss_mult` 從 2 變 1，**等於把平滑懲罰的實際權重砍半**。
 所以 exp8 同時改了：積分步數（7→3）、形變場解析度（半解析度→全解析度）、正則化強度（砍半）。
 **不是單一變因實驗，結果無法歸因。**
+
+### 🔴 `--int-downsize` 同時改兩件事，位移場版只剩一件（2026-09-26 查原始碼確認）
+
+| | 改什麼 | 哪裡 | 什麼時候有效 |
+|---|---|---|---|
+| ① | 速度場**先縮小 N 倍再積分**，積完放大回來（省時間，代價是細節少一點）| `networks.py:157` `resize = int_steps > 0 and int_downsize > 1` | **只有 `int_steps > 0`** |
+| ② | 平滑懲罰**乘上 N** | `train.py:139` `loss_mult=args.int_downsize` | **永遠有效** |
+
+👉 **位移場版（`--int-steps 0`）根本不積分，① 不存在，`--int-downsize` 只是「藏起來的 λ 倍數」。**
+- 要調平滑就調 `--lambda`，位移場版的 `--int-downsize` 一律維持 **1**
+- **它省不到顯存**：網路完全沒變（實測加寬版加了 `--int-downsize 2` 還是 13.5 GB）
+- 實際平滑權重 = λ × int_downsize，這就是 mix_exp3 比 exp2 「平滑懲罰砍半」的來源
 
 ### 📌 exp6 其實是「作者預設跑法」
 
@@ -491,17 +507,25 @@ train_IXI.txt   train_oasis.log
 - 👉 之後每跑一個實驗，**指令一定要存成 `log/expN_script.txt`**。
 
 🔴 **編碼陷阱**：`log/*.txt` **混用兩種編碼**——
-`exp3–exp6` 的 stdout 是 **UTF-16LE**，但 `exp*_script.txt` 是 **UTF-8**。
+`exp3–exp6` 的 stdout 是 **UTF-16LE**，但 `exp*_script.txt` 和 `mix_*` / `tiger_*` 的 stdout 是 **UTF-8**。
 不要假設全部是 UTF-16，用下面這種偵測式讀法：
 
 ```python
 raw = open(path, 'rb').read()
+t = None
 for enc in ('utf-16', 'utf-8', 'cp950'):
     try:
-        t = raw.decode(enc)
-        if '\ufffd' not in t: break
-    except Exception: pass
+        cand = raw.decode(enc)
+    except Exception:
+        continue
+    if '\ufffd' not in cand and 'epoch' in cand:   # ← 兩個條件都要
+        t = cand
+        break
 ```
+
+⚠️ **只檢查 `'\ufffd' not in t` 不夠**（2026-09-23 踩到）：UTF-8 的檔案拿 UTF-16 去解，
+**不會**產生 `\ufffd`，而是解出一整行看似合法的中日韓亂碼，舊寫法會當成成功、安靜地讀到垃圾。
+一定要再檢查「解出來含有預期的字」（訓練 log 就找 `epoch`）。`ASD/plot_loss_curve.py` 已經是對的寫法。
 
 ---
 
@@ -513,7 +537,9 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | 訓練跑出來 loss 是正的、很小 | 忘了 `--image-loss ncc`，跑成 MSE | 明寫 `--image-loss ncc`（NCC loss 是負值） |
 | NCC 訓練出來會折疊 / 形變過激 | λ 對 NCC 而言小了兩個數量級 | 見「超參數」節，λ 試 0.5–2 |
 | `RuntimeError: size XXX not divisible` | 影像維度不能被 16 整除（U-Net 4 層下採樣） | **在 `make_atlas.py` 指定 `--target-shape`**（不是 preprocess_ixi.py，它已移除該旗標） |
-| `CUDA out of memory` | 192×224×192 在 8GB GPU 上很緊 | `--batch-size 1`，或改用更小的 target shape |
+| `CUDA out of memory`（OOM ＝顯存不夠）| 192×224×192 在 8GB GPU 上很緊 | `--batch-size 1`，或改用更小的 target shape。**加寬 U-Net 的實測顯存與對策見手冊 §23** |
+| 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯 | 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下 |
+| `--check-only` 通過，開跑還是爆 | 它**只印出卡有多大，不會真的建模型試跑**；警告門檻 7.5 GB 是為預設寬度設的 | 加寬版要自己拿卡的容量對手冊 §23 的表 |
 | 視覺化 / 推論卡住很久 | 沒加 `--gpu 0`，走 CPU 跑 3D U-Net | 一律加 `--gpu 0` |
 | `test_oasis.py` 讀 `atlas['seg']` 報 KeyError | IXI atlas 沒有 seg | 改用 `test_ixi.py` |
 | NCC loss 報 CUDA 錯誤 | `losses.py:28` 的 `sum_filt` 寫死 `.to("cuda")` | NCC 訓練必須有 GPU |
