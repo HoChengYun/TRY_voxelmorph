@@ -98,8 +98,8 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   const w = (12.13 - 0.4 * 3) / 4;
   const items = [
     [`${D.n_total}`, '顆腦\n（上次 286）', C.TEAL],
-    ['4', '顆模型\n兩種標籤 × 兩種版本', C.TEAL],
-    [f3(m.mix_exp3.mean), 'FreeSurfer 標籤\n最好的成績', C.TEAL],
+    ['6', '顆模型\n4 顆主要 + 2 顆拆解用', C.TEAL],
+    [f3(m.mix_wide.mean), 'FreeSurfer 標籤\n最好的成績（加寬版）', C.TEAL],
     [f3(m.tiger_exp3.mean), 'tigerbx 標籤\n最好的成績', C.RUST],
   ];
   items.forEach((it, i) => {
@@ -112,7 +112,9 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
     [{ text: '換成論文的「位移場版」，成績更好一點', options: { bold: true } }, { text: '　兩種標籤都是 +0.009，非常一致' }],
     [{ text: '模型拿去對另一套工具處理出來的影像，照樣對得準', options: { bold: true } }, { text: '　分數只掉 0.002～0.008' }],
     [{ text: '再補一顆模型，把「版本」和「參數」的影響分開了', options: { bold: true } }, { text: '　擠爆主要是參數造成的，不是版本' }],
-  ], { x: M, y: 4.1, w: 12.13, h: 2.6 });
+    [{ text: 'U-Net 加寬 2 倍，再 +' + f3(P.width_effect.mean), options: { bold: true } },
+     { text: '　' + P.width_effect.n + ' 位裡 ' + P.width_effect.win + ' 位變好，越難對的人幫越多' }],
+  ], { x: M, y: 3.95, w: 12.13, h: 3.0, fontSize: 14.5, paraSpaceAfter: 8 });
 }
 
 // ───────────────────────────────────────────────────────── 03 資料
@@ -291,6 +293,54 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M, y: 5.75, w: 12.13, h: 1.5, fontSize: 13.5 });
 }
 
+// ───────────────────────────────────────────────────────── 加寬 1：這次動了什麼
+const WD = D.wide, WE = P.width_effect;
+{
+  const s = base('CAPACITY', '再補一顆：把 U-Net 加寬 2 倍');
+  fitImage(s, CH('wide_unet.png'), M, 1.4, 8.1, 5.75, 'U-Net 各層通道數，預設與加寬後');
+  const X0 = 8.95, WW = 3.78;
+  card(s, X0, 1.55, WW, 1.75, 'F6E7DC');
+  txt(s, '只動一件事', { x: X0 + 0.25, y: 1.72, w: WW - 0.4, h: 0.4, fontSize: 17, bold: true, color: C.RUST });
+  txt(s, '每一層的通道數 × 2', { x: X0 + 0.25, y: 2.2, w: WW - 0.4, h: 0.4, fontSize: 15, bold: true });
+  txt(s, '參數 30 萬 → 120 萬（4 倍）\n輸入 2 張、輸出 3 張不變',
+    { x: X0 + 0.25, y: 2.62, w: WW - 0.4, h: 0.6, fontSize: 12.5, color: C.MUTED });
+  txt(s, '其他全部跟 mix_exp3 一樣', { x: X0, y: 3.55, w: WW, h: 0.4, fontSize: 15, bold: true, color: C.TEAL });
+  bullets(s, ['同一批資料', '同樣縮小 4 次、放大 4 次', '位移場版、λ = 1.0', '250 輪、同樣的學習率'],
+    { x: X0, y: 4.0, w: WW, h: 1.7, fontSize: 13, paraSpaceAfter: 4 });
+  txt(s, '在問：模型是不是太小、裝不下？', { x: X0, y: 5.85, w: WW, h: 0.8, fontSize: 14.5, bold: true });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 2：結果
+{
+  const s = base('CAPACITY', '加寬有用：' + WE.n + ' 位裡 ' + WE.win + ' 位變好');
+  const w = (12.13 - 0.4 * 2) / 3;
+  const items = [
+    [f3(m.mix_exp3.mean) + ' → ' + f3(m.mix_wide.mean), '測試集 Dice\n預設寬度 → 加寬', C.RUST],
+    [WE.win + ' / ' + WE.n, '位受試者變好\n平均 +' + f4(WE.mean), C.RUST],
+    [pct(m.mix_exp3.jneg) + ' → ' + pct(m.mix_wide.jneg), '擠爆的比例\n沒有變多，還少一點', C.TEAL],
+  ];
+  items.forEach((it, i) => {
+    const x = M + i * (w + 0.4);
+    card(s, x, 1.5, w, 1.8);
+    txt(s, it[0], { x, y: 1.72, w, h: 0.62, fontFace: F.MONO, fontSize: 27, bold: true, color: it[2], align: 'center' });
+    txt(s, it[1], { x, y: 2.42, w, h: 0.7, fontSize: 12.5, color: C.MUTED, align: 'center' });
+  });
+  fitImage(s, CH('wide_steps.png'), M, 3.5, 12.13, 2.95, '三個改動各讓 Dice 進步多少');
+  txt(s, '模型大小的影響跟平滑權重差不多大，而且沒有多擠爆 → 模型太小確實是瓶頸之一。',
+    { x: M, y: 6.55, w: 12.13, h: 0.45, fontSize: 15, bold: true, align: 'center' });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 3：誰受益最多
+{
+  const s = base('CAPACITY', '越難對的人，加寬幫越多');
+  fitImage(s, CH('wide_difficulty.png'), M, 1.4, 12.13, 4.65, '起點 Dice 與加寬後多進步多少');
+  txt(s, '每個點是一位測試受試者。起點越低（只做線性對位時對得越差），加寬後多進步越多。',
+    { x: M, y: 6.15, w: 12.13, h: 0.4, fontSize: 14.5, align: 'center' });
+  txt(s, '分組用的是「起點」，兩顆模型都沒碰過，不會有統計上的假象。排除最難的 A0131 結果也一樣（相關 '
+        + WD.r_base_no_A0131.toFixed(2) + '）。',
+    { x: M, y: 6.55, w: 12.13, h: 0.4, fontSize: 12.5, align: 'center', color: C.MUTED });
+}
+
 // ───────────────────────────────────────────────────────── 09 交叉測試
 {
   const s = base('CROSS', '模型拿去對「另一套處理出來的影像」，還對得準嗎');
@@ -427,7 +477,7 @@ const vox = (x) => Math.round(x).toLocaleString('en-US') + ' 顆';
     ['5', '加外面的資料集', ok, '286 → 520 顆'],
     ['6', '用另一套分割互相驗證', ok, '這次的交叉測試'],
     ['7', '去頭骨品質的影響', ok, '上緣／顱底都量了，幾乎沒影響'],
-    ['8', '兩種版本的差別', half, '四顆模型跑完，還差一顆確認原因'],
+    ['8', '兩種版本的差別', ok, '補一顆 mix_exp4 拆開：換版本 +0.003、平滑權重 +0.006'],
   ], { x: M, y: 1.65, w: 12.13, colW: [0.6, 4.4, 1.9, 5.23], fontSize: 12.5 });
 }
 
@@ -435,10 +485,10 @@ const vox = (x) => Math.round(x).toLocaleString('en-US') + ' 顆';
 {
   const s = base('NEXT', '下一步');
   bullets(s, [
-    [{ text: '再訓練一顆，把「版本」和「參數」分開', options: { bold: true } },
-     { text: '\n　位移場版同時改了兩件事，目前分不出哪個造成差異。改一個參數再跑一次就知道。', options: { color: C.MUTED } }],
-    [{ text: '去頭骨品質的完整比較', options: { bold: true } },
-     { text: '\n　目前「去頭骨工具」和「標籤來源」還綁在一起，要再拆開。', options: { color: C.MUTED } }],
+    [{ text: '在 tigerbx 那組也做一次拆解', options: { bold: true } },
+     { text: '\n　確認「換版本 vs 平滑權重」的拆法換一套標籤也成立，不是 FreeSurfer 那批的特例。', options: { color: C.MUTED } }],
+    [{ text: '平滑權重再放鬆一點（λ = 0.5）', options: { bold: true } },
+     { text: '\n　現在有 λ = 1、2 兩個點，補第三個點看會繼續變好，還是擠爆失控。', options: { color: C.MUTED } }],
     [{ text: '要老師確認的事', options: { bold: true } },
      { text: '\n　新資料的年齡表、幾筆編號對不上的資料以哪邊為準。', options: { color: C.MUTED } }],
   ], { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16 });

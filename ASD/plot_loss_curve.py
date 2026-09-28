@@ -28,6 +28,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# --labels 常給中文（例如「加寬」「預設寬度」），預設的 DejaVu Sans 沒有中文字，會畫成方框
+plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False
+
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding='utf-8', errors='replace')

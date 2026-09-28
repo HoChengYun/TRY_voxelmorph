@@ -31,6 +31,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# --label 常給中文，預設的 DejaVu Sans 沒有中文字，會畫成方框
+plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False
+
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding='utf-8', errors='replace')

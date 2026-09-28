@@ -70,6 +70,25 @@ python ASD\run_train.py `
 它的大小是「通道數 × 192×224×192」，**只跟通道數成正比 → 2 倍**。
 參數是「輸入通道 × 輸出通道 × 3×3×3」，兩邊都加倍才會變 4 倍。
 
+### 什麼時候要換成 1.5 倍
+
+⚠️ **程式不會自己換。** 放不下也不會自動改小，要你看到下面任何一個狀況，自己停掉、改跑另一行。
+
+| 時機 | 你會看到 |
+|---|---|
+| **開跑前**（最省事） | `--check-only` 印出 `GPU: …（XX GB VRAM）`，**小於 16 GB** |
+| 開跑後當掉 | 噴 `CUDA out of memory`，程式停止 |
+| 開跑後沒當，但很慢 | 第一個 epoch 的 `time:` 每步**超過 5 秒** |
+
+第三種最容易漏掉：正常應該在 **2～3 秒/步**（mix_exp3 實測 1.49 秒 × 1.58 倍 ≈ 2.4 秒）。
+超過 5 秒就是顯存塞不下、偷借系統記憶體硬撐，跑完要好幾天。
+
+**換的步驟**：
+1. `Ctrl + C` 停掉正在跑的
+2. 把跑到一半的 `models\mix_wide\`、`log\mix_wide.txt`、`log\mix_wide_script.txt` **刪掉或改名**，
+   免得跟正式結果搞混
+3. 跑下面那行（`--exp-name mix_wide15`）
+
 ### 卡不夠大：改跑 1.5 倍寬
 
 ```powershell
@@ -122,6 +141,7 @@ python ASD\run_train.py `
 **要跑多久**：mix_exp3 在 AI 上是每步 1.49 秒 → 250 epoch 約 10.3 小時。
 加寬版實測每步慢 1.58 倍 → **約 16 小時**（1.5 倍寬約 15 小時）。
 這個倍數是在筆電上量的，AI 的卡不同可能有出入，**以第一個 epoch 印出來的 `time:` 為準**。
+🔴 **每步超過 5 秒 → 塞不下，照第 1 步「什麼時候要換成 1.5 倍」處理。**
 
 **中斷了怎麼辦**：同一行指令加 `--resume`，會從最後一個 `.pt` 接著跑。
 
@@ -142,12 +162,21 @@ python ASD\test_dice.py `
 畫成圖：
 
 ```powershell
-python ASD\plot_dice_curve.py --model-dir models\mix_wide --baseline 0.6817 --label "寬度 2 倍"
-python ASD\plot_loss_curve.py --logs log\mix_wide.txt log\mix_exp3.txt --labels 加寬 預設寬度
+copy models\mix_exp2\dice_baseline.csv models\mix_wide\
+copy models\mix_exp2\dice_baseline_val.csv models\mix_wide\
+python ASD\plot_dice_curve.py --model-dir models\mix_wide --label "寬度 2 倍"
+python ASD\plot_loss_curve.py --logs log\mix_wide.txt log\mix_exp3.txt --labels 加寬 預設寬度 --out models\mix_wide\loss_wide_vs_exp3.png
 ```
 
-（`--baseline 0.6817` 是**驗證集**的起點；test 的起點是 0.6882，兩個不要搞混。
-第二行順便把 mix_exp3 的 loss 疊上來，可以直接看兩顆收斂得一不一樣。）
+（起點＝只做線性對位的 Dice，跟模型無關，mix_exp2 那兩份直接複製過來。
+`plot_dice_curve.py` 會自己讀：`dice_baseline.csv` 畫 test 起點 0.6882、`dice_baseline_val.csv` 畫驗證集起點 0.6817。
+最後一行順便把 mix_exp3 的 loss 疊上來，可以直接看兩顆收斂得一不一樣。）
+
+🔴 **不要把 0.6817 塞進 `--baseline`**：那個參數是給 **test** 起點用的，圖上會把驗證集的 0.6817 標成 test（2026-09-28 踩到）。
+
+⚠️ **第二行一定要有 `--out`**：同時畫兩份 log 時程式不知道要存在誰的資料夾，沒給會直接停（`[X] 多份 log 要用 --out`）。
+⚠️ 中文標籤要 **2026-09-28 之後的版本**才顯示得出來（之前沒設中文字型，會畫成方框）。
+AI 那台還沒 `git pull` 的話，標籤先用英文：`--labels wide default`。
 
 **挑法**：取 `dice_mean` 最大的那個 epoch。
 ⚠️ 相鄰 epoch 的抖動有 ±0.003，曲線平的時候別太在意差 0.001 的名次。
@@ -157,11 +186,7 @@ python ASD\plot_loss_curve.py --logs log\mix_wide.txt log\mix_exp3.txt --labels 
 
 ## 4. 起點（baseline）
 
-只做線性對位、還沒過模型的 Dice。**跟 mix_exp3 同一批 test，所以可以直接複製過來**：
-
-```powershell
-copy models\mix_exp2\dice_baseline.csv models\mix_wide\dice_baseline.csv
-```
+只做線性對位、還沒過模型的 Dice。**第 3 步已經從 mix_exp2 複製過了**（跟 mix_exp3 同一批 test / val）。
 
 想自己重算也可以（結果會一樣，因為跟模型無關）：
 

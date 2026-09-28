@@ -19,6 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 OUT = os.path.join(HERE, 'deck_data.json')
 
 EPOCH = {'mix_exp2': '0240', 'mix_exp3': '0240', 'mix_exp4': '0230',
+         'mix_wide': '0225',
          'tiger_exp2': '0250', 'tiger_exp3': '0210'}
 
 
@@ -93,7 +94,39 @@ for n2, n3 in (('mix_exp2', 'tiger_exp2'), ('mix_exp3', 'tiger_exp3')):
 # 消融：exp2 -> exp4 只差版本，exp4 -> exp3 只差 lambda
 ps['version_effect'] = paired(models['mix_exp4']['per_subject'], models['mix_exp2']['per_subject'])
 ps['lambda_effect'] = paired(models['mix_exp3']['per_subject'], models['mix_exp4']['per_subject'])
+# 加寬：mix_exp3 -> mix_wide 只差 U-Net 通道數（手冊 §23）
+ps['width_effect'] = paired(models['mix_wide']['per_subject'], models['mix_exp3']['per_subject'])
 D['paired'] = ps
+
+# ── 加寬對誰幫最多 ─────────────────────────────────────────────────────
+# 用「起點 Dice」分組：兩顆模型都沒碰過。
+# 不能用 mix_exp3 自己的分數分組 —— 它的誤差會同時出現在分組依據和進步幅度兩邊（回歸平均的假象）
+_w, _e = models['mix_wide']['per_subject'], models['mix_exp3']['per_subject']
+_b = np.array([b_fs[k] for k in K])
+_d = np.array([_w[k] - _e[k] for k in K])
+_o = np.argsort(_b)
+_keep = np.array([k != 'A0131' for k in K])
+
+
+def _labels(p):
+    with open(os.path.join(ROOT, p), encoding='utf-8') as f:
+        rows = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    cols = [c for c in next(iter(rows.values())) if c.startswith('label_')]
+    return {c: np.array([float(rows[k][c]) for k in K]) for c in cols}
+
+
+_lw = _labels('models/mix_wide/dice_%s.csv' % EPOCH['mix_wide'])
+_le = _labels('models/mix_exp3/dice_%s.csv' % EPOCH['mix_exp3'])
+_sd = {c: float(np.nanmean(_lw[c]) - np.nanmean(_le[c])) for c in _lw}
+D['wide'] = {
+    'r_base': float(np.corrcoef(_b, _d)[0, 1]),
+    'r_base_no_A0131': float(np.corrcoef(_b[_keep], _d[_keep])[0, 1]),
+    'hard10': float(_d[_o[:10]].mean()),      # 起點最差 10 位的平均進步
+    'easy10': float(_d[_o[-10:]].mean()),     # 起點最好 10 位
+    'struct_up': int(sum(v > 0 for v in _sd.values())), 'struct_n': len(_sd),
+    'subjects': {s: {'base': b_fs[s], 'exp3': _e[s], 'wide': _w[s]}
+                 for s in ('T054', 'D031', 'VNT045', 'sub-0043', 'A0131')},
+}
 
 # ── 交叉評估 ─────────────────────────────────────────────────────────
 X = 'models/mix_exp2/cross_mix_tiger_exp2_exp3/'

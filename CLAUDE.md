@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-09-26**（mix_exp4 拆解完成、去顱骨殘留分析、`--int-downsize` 的真正作用、mix_wide 準備中）
+> 最後更新：**2026-09-28**（mix_wide 完成：U-Net 加寬 2 倍 +0.0053；去顱骨殘留分析；`--int-downsize` 的真正作用）
 
 ---
 
@@ -44,6 +44,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_exp2** | 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同），val 挑 epoch 240 | 0.6882 | **0.7972** | +0.109 | 0.000% |
 | **mix_exp3** | 同 mix_exp2，**位移場版**（int_steps 0 / int_downsize 1 = 論文 Table I 版本）| 0.6882 | **0.8062** | +0.118 | 0.199% |
 | **mix_exp4** | 位移場 + `--lambda 2.0`（平滑權重補回 2，用來把版本與參數分開）| 0.6882 | **0.8005** | +0.112 | 0.053% |
+| **mix_wide** | 同 mix_exp3，**U-Net 每層通道數 ×2**（參數 4 倍），val 挑 epoch 225 | 0.6882 | **0.8114** | +0.123 | 0.187% |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0.000% |
 | **tiger_exp3** | 同上，位移場版，val 挑 epoch 210 | 0.7453 | **0.8714** | +0.126 | 0.226% |
 
@@ -51,14 +52,14 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 **§20（第四包資料、三段切分、mix/tiger exp2 與 exp3 的結果，2026-09-16～19）**、
 **§21（去顱骨乾不乾淨對配準的影響，2026-09-22）**、
 **§22（有沒有 overfit、訓練夠不夠久，2026-09-23）**、
-**§23（U-Net 加寬 mix_wide 的準備：架構、顯存實測、`--int-downsize` 的真正作用，2026-09-26）**。
+**§23（U-Net 加寬 mix_wide：架構、顯存實測、`--int-downsize` 的真正作用、結果，2026-09-26～28）**。
 
 🔴 **判斷「是不是同一個人」禁止用影像相似度**（使用者 2026-09-16 規定，見手冊 §15.2）。
 允許的只有：① 逐張影像內容完全相同 ② DICOM 檔頭欄位（出生日期／性別／年齡／體重／掃描日期）。
 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，相關腳本已刪除，不要重建。
 mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 
-🔴 **六件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21）：
+🔴 **七件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21，7 出自 §23）：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
 2. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.4）。
@@ -72,6 +73,9 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 6. **去顱骨殘留對 Dice 幾乎沒影響**（§21）：顱底 0.0004、上緣 0.011（方向符合預期：留越厚模型拉得越少）。
    🔴 但**配準後的絕對 Dice 反而是「沒去乾淨」那組較高**（0.8119 vs 0.8024），那是起點就高帶來的。
    **看模型貢獻欄，不要看絕對值。**
+7. **U-Net 容量是瓶頸之一**（mix_wide，§23.6）：加寬 2 倍 +0.0053（50/51 位變好），跟平滑權重的 +0.0057 差不多大，
+   折疊率沒變高。**越難的人幫越多**：起點最差 10 位 +0.0114、最好 10 位 +0.0024。
+   ⚠️ 分組要用「起點 Dice」，用其中一顆模型自己的分數分組會有回歸平均的假象。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ **折疊率 0% 的那幾顆（asd_exp1、mix_exp1/2、tiger_exp1/2）都是 repo 預設的微分同胚版**
@@ -189,7 +193,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~4\  tiger_exp1~3\        # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1~4\  mix_wide\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── deck_charts\                        # meeting 簡報用的圖（由 slides_src\2026-09-20_cross\make_*.py 產生）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
