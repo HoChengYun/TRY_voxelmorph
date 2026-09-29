@@ -139,10 +139,12 @@ print('->', os.path.join(OUT, 'cross_eval.png'))
 
 
 # ── 圖四：消融（exp2 / exp4 / exp3 拆開兩個因素）──────────────────────
+# ⚠️ exp2 -> exp4 不只換版本：exp2 的速度場是在一半解析度上積分（--int-downsize 2），
+#    exp4 是全尺寸的位移場。這兩件事綁在一起，分不開（手冊 §20.5，2026-09-29 更正）
 A = [
-    ('mix_exp2', '速度場版\n平滑權重 2', rd('models/mix_exp2/dice_0240.csv'), C['teal']),
-    ('mix_exp4', '位移場版\n平滑權重 2', rd('models/mix_exp4/dice_0230.csv'), C['rust_l']),
-    ('mix_exp3', '位移場版\n平滑權重 1', rd('models/mix_exp3/dice_0240.csv'), C['rust']),
+    ('mix_exp2', '速度場・半解析度\n平滑權重 2', rd('models/mix_exp2/dice_0240.csv'), C['teal']),
+    ('mix_exp4', '位移場・全尺寸\n平滑權重 2', rd('models/mix_exp4/dice_0230.csv'), C['rust_l']),
+    ('mix_exp3', '位移場・全尺寸\n平滑權重 1', rd('models/mix_exp3/dice_0240.csv'), C['rust']),
 ]
 
 
@@ -165,7 +167,7 @@ ax.axhline(b0, ls='--', color='#C0392B', lw=1.3)
 ax.text(-0.42, b0 + .0018, '沒用模型、只做線性對位 %.3f' % b0, ha='left', color='#C0392B',
         fontsize=10, bbox=dict(fc='white', ec='none', pad=1.5))
 TOP = 0.8135
-for i, t in enumerate(('換版本  +%.3f' % (vals[1] - vals[0]),
+for i, t in enumerate(('版本＋解析度  +%.3f' % (vals[1] - vals[0]),
                        '放鬆 λ  +%.3f' % (vals[2] - vals[1]))):
     ax.annotate('', xy=(i + 1, TOP), xytext=(i, TOP),
                 arrowprops=dict(arrowstyle='->', color=C['ink'], lw=1.6))

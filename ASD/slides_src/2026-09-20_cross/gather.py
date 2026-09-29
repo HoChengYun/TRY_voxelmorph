@@ -91,7 +91,8 @@ for n2, n3 in (('mix_exp2', 'tiger_exp2'), ('mix_exp3', 'tiger_exp3')):
     g_m = {k: models[n2]['per_subject'][k] - b_fs[k] for k in K}
     g_t = {k: models[n3]['per_subject'][k] - b_tg[k] for k in K}
     ps['gain_%s_minus_%s' % (n3, n2)] = paired(g_t, g_m)
-# 消融：exp2 -> exp4 只差版本，exp4 -> exp3 只差 lambda
+# 消融：exp2 -> exp4 差「版本＋解析度」（exp2 的速度場在一半解析度上積分，分不開），
+#       exp4 -> exp3 只差 lambda
 ps['version_effect'] = paired(models['mix_exp4']['per_subject'], models['mix_exp2']['per_subject'])
 ps['lambda_effect'] = paired(models['mix_exp3']['per_subject'], models['mix_exp4']['per_subject'])
 # 加寬：mix_exp3 -> mix_wide 只差 U-Net 通道數（手冊 §23）

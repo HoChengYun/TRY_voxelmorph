@@ -191,6 +191,22 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   ], { x: M, y: 5.7, w: 12.13, h: 1.3, fontSize: 14 });
 }
 
+// ───────────────────────────────────────────────────────── 速度場版怎麼算（縮放再平方）
+{
+  const s = base('VERSION', '速度場版怎麼算：走 128 小步，其實只算 7 次');
+  fitImage(s, CH('formula_integrate.png'), M, 1.4, 12.13, 5.15, '縮放再平方的公式與驗算');
+  txt(s, '程式就是這兩行（voxelmorph/torch/layers.py 的 VecInt）。第二項讀的是「走到的地方」的箭頭，所以每一步都重新看方向，點不會穿過去。',
+    { x: M, y: 6.62, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
+}
+
+// ───────────────────────────────────────────────────────── --int-downsize：縮小一半 → 積分 → 放大
+{
+  const s = base('VERSION', '速度場版為了省時間：縮小一半再積分，積完放大回來');
+  fitImage(s, CH('formula_downsize.png'), M, 1.35, 12.13, 5.3, '縮小一半、積分、放大的流程與代價');
+  txt(s, '這就是 --int-downsize 2。格子少 8 倍，積分快很多；代價是 2 mm 以內的細節會被抹平，形變比較平滑。',
+    { x: M, y: 6.72, w: 12.13, h: 0.4, fontSize: 13, color: C.MUTED, align: 'center' });
+}
+
 // ───────────────────────────────────────────────────────── 怎麼評分
 {
   const s = base('METRIC', '怎麼評分：一個看準不準，一個看有沒有擠爆');
@@ -214,7 +230,7 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   const s = base('METHOD', '訓練過程：三顆一起看');
   fitImage(s, CH('curve_exp234.png'), M, 1.45, 12.13, 4.6, '三顆的驗證曲線與擠爆比例');
   bullets(s, [
-    [{ text: '三顆都正常收斂，前 30 輪掉最快，250 輪時還在緩慢進步', options: { color: C.MUTED } }],
+    [{ text: '三顆都正常收斂：前 30 輪升最快，150 輪之後基本持平（上下抖動約 ±0.003）', options: { color: C.MUTED } }],
     [{ text: '下半部：擠爆比例一開始衝高，之後被平滑限制壓下來；限制越鬆壓得越少', options: { color: C.MUTED } }],
   ], { x: M, y: 6.25, w: 12.13, h: 0.9, fontSize: 13 });
 }
@@ -285,60 +301,12 @@ const m = D.models, X = D.cross, XP = D.cross_paired, P = D.paired;
   fitImage(s, CH('ablation.png'), M, 1.45, 12.13, 4.15, '消融實驗');
   const V = P.version_effect, L = P.lambda_effect;
   bullets(s, [
-    [{ text: '換成論文的版本：Dice +' + f3(V.mean) + '（51 人裡 ' + V.win + ' 人變好）', options: { bold: true } },
+    [{ text: '換成論文的版本（位移場＋全解析度）：Dice +' + f3(V.mean) + '（51 人裡 ' + V.win + ' 人變好）', options: { bold: true } },
      { text: '　擠爆從 0% 變 ' + pct(m.mix_exp4.jneg) }],
     [{ text: '再把平滑限制放鬆一半：Dice 又 +' + f3(L.mean) + '（' + L.win + ' 人變好）', options: { bold: true, color: C.RUST } },
      { text: '　擠爆變成 ' + pct(m.mix_exp3.jneg) + '，大約 4 倍' }],
     [{ text: '結論：捏得越用力對得越準，但越容易擠爆。λ 的影響比換版本大一倍', options: { bold: true } }],
   ], { x: M, y: 5.75, w: 12.13, h: 1.5, fontSize: 13.5 });
-}
-
-// ───────────────────────────────────────────────────────── 加寬 1：這次動了什麼
-const WD = D.wide, WE = P.width_effect;
-{
-  const s = base('CAPACITY', '再補一顆：把 U-Net 加寬 2 倍');
-  fitImage(s, CH('wide_unet.png'), M, 1.4, 8.1, 5.75, 'U-Net 各層通道數，預設與加寬後');
-  const X0 = 8.95, WW = 3.78;
-  card(s, X0, 1.55, WW, 1.75, 'F6E7DC');
-  txt(s, '只動一件事', { x: X0 + 0.25, y: 1.72, w: WW - 0.4, h: 0.4, fontSize: 17, bold: true, color: C.RUST });
-  txt(s, '每一層的通道數 × 2', { x: X0 + 0.25, y: 2.2, w: WW - 0.4, h: 0.4, fontSize: 15, bold: true });
-  txt(s, '參數 30 萬 → 120 萬（4 倍）\n輸入 2 張、輸出 3 張不變',
-    { x: X0 + 0.25, y: 2.62, w: WW - 0.4, h: 0.6, fontSize: 12.5, color: C.MUTED });
-  txt(s, '其他全部跟 mix_exp3 一樣', { x: X0, y: 3.55, w: WW, h: 0.4, fontSize: 15, bold: true, color: C.TEAL });
-  bullets(s, ['同一批資料', '同樣縮小 4 次、放大 4 次', '位移場版、λ = 1.0', '250 輪、同樣的學習率'],
-    { x: X0, y: 4.0, w: WW, h: 1.7, fontSize: 13, paraSpaceAfter: 4 });
-  txt(s, '在問：模型是不是太小、裝不下？', { x: X0, y: 5.85, w: WW, h: 0.8, fontSize: 14.5, bold: true });
-}
-
-// ───────────────────────────────────────────────────────── 加寬 2：結果
-{
-  const s = base('CAPACITY', '加寬有用：' + WE.n + ' 位裡 ' + WE.win + ' 位變好');
-  const w = (12.13 - 0.4 * 2) / 3;
-  const items = [
-    [f3(m.mix_exp3.mean) + ' → ' + f3(m.mix_wide.mean), '測試集 Dice\n預設寬度 → 加寬', C.RUST],
-    [WE.win + ' / ' + WE.n, '位受試者變好\n平均 +' + f4(WE.mean), C.RUST],
-    [pct(m.mix_exp3.jneg) + ' → ' + pct(m.mix_wide.jneg), '擠爆的比例\n沒有變多，還少一點', C.TEAL],
-  ];
-  items.forEach((it, i) => {
-    const x = M + i * (w + 0.4);
-    card(s, x, 1.5, w, 1.8);
-    txt(s, it[0], { x, y: 1.72, w, h: 0.62, fontFace: F.MONO, fontSize: 27, bold: true, color: it[2], align: 'center' });
-    txt(s, it[1], { x, y: 2.42, w, h: 0.7, fontSize: 12.5, color: C.MUTED, align: 'center' });
-  });
-  fitImage(s, CH('wide_steps.png'), M, 3.5, 12.13, 2.95, '三個改動各讓 Dice 進步多少');
-  txt(s, '模型大小的影響跟平滑權重差不多大，而且沒有多擠爆 → 模型太小確實是瓶頸之一。',
-    { x: M, y: 6.55, w: 12.13, h: 0.45, fontSize: 15, bold: true, align: 'center' });
-}
-
-// ───────────────────────────────────────────────────────── 加寬 3：誰受益最多
-{
-  const s = base('CAPACITY', '越難對的人，加寬幫越多');
-  fitImage(s, CH('wide_difficulty.png'), M, 1.4, 12.13, 4.65, '起點 Dice 與加寬後多進步多少');
-  txt(s, '每個點是一位測試受試者。起點越低（只做線性對位時對得越差），加寬後多進步越多。',
-    { x: M, y: 6.15, w: 12.13, h: 0.4, fontSize: 14.5, align: 'center' });
-  txt(s, '分組用的是「起點」，兩顆模型都沒碰過，不會有統計上的假象。排除最難的 A0131 結果也一樣（相關 '
-        + WD.r_base_no_A0131.toFixed(2) + '）。',
-    { x: M, y: 6.55, w: 12.13, h: 0.4, fontSize: 12.5, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 09 交叉測試
@@ -448,18 +416,86 @@ const vox = (x) => Math.round(x).toLocaleString('en-US') + ' 顆';
     { x: M, y: 6.62, w: 12.13, h: 0.6, fontSize: 14, align: 'center' });
 }
 
-// ───────────────────────────────────────────────────────── 15 資料把關
+// （「資料把關」那頁 2026-09-29 拿掉：「新資料沒有年齡、排除兒童做不到」在進度表和下一步都有講）
+
+// ───────────────────────────────────────────────────────── 加寬 1：這次動了什麼
+const WD = D.wide, WE = P.width_effect;
 {
-  const s = base('DATA', '資料把關：這次處理掉的事');
+  const s = base('CAPACITY', '再補一顆：把 U-Net 加寬 2 倍');
+  fitImage(s, CH('wide_unet.png'), M, 1.4, 8.1, 5.75, 'U-Net 各層通道數，預設與加寬後');
+  const X0 = 8.95, WW = 3.78;
+  card(s, X0, 1.55, WW, 1.75, 'F6E7DC');
+  txt(s, '只動一件事', { x: X0 + 0.25, y: 1.72, w: WW - 0.4, h: 0.4, fontSize: 17, bold: true, color: C.RUST });
+  txt(s, '每一層的通道數 × 2', { x: X0 + 0.25, y: 2.2, w: WW - 0.4, h: 0.4, fontSize: 15, bold: true });
+  txt(s, '參數 30 萬 → 120 萬（4 倍）\n輸入 2 張、輸出 3 張不變',
+    { x: X0 + 0.25, y: 2.62, w: WW - 0.4, h: 0.6, fontSize: 12.5, color: C.MUTED });
+  txt(s, '其他全部照論文的參數', { x: X0, y: 3.55, w: WW, h: 0.4, fontSize: 15, bold: true, color: C.TEAL });
+  bullets(s, ['同一批資料', '同樣縮小 4 次、放大 4 次', '位移場版、λ = 1.0', '250 輪、同樣的學習率'],
+    { x: X0, y: 4.0, w: WW, h: 1.7, fontSize: 13, paraSpaceAfter: 4 });
+  txt(s, '在問：模型是不是太小、裝不下？', { x: X0, y: 5.85, w: WW, h: 0.8, fontSize: 14.5, bold: true });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 1.5：訓練過程
+{
+  const s = base('CAPACITY', '訓練過程：加寬版在訓練資料上對得更像');
+  fitImage(s, path.join(MROOT, 'mix_wide', 'loss_wide_vs_exp3.png'), M, 1.35, 6.6, 5.85, '加寬與預設寬度的訓練 loss');
+  const X0 = 7.55, WW = 5.18;
+  txt(s, '藍線＝加寬　綠線＝論文參數', { x: X0, y: 1.6, w: WW, h: 0.4, fontSize: 16, bold: true });
   bullets(s, [
-    [{ text: '兩組用完全相同的 520 人、相同的切分', options: { bold: true } }, { text: '　比較才有意義' }],
-    [{ text: '29 顆掃描角度歪的，改成不先轉正', options: { bold: true } }, { text: '　少一次影像重取樣，保留原始細節' }],
-    [{ text: '有一顆在兩批資料裡重複，已標記', options: { bold: true } }, { text: '　它落在驗證集，不影響測試成績' }],
-    [{ text: '每一批資料都有指紋檔', options: { bold: true } }, { text: '　換機器搬資料時可以驗證有沒有搬錯版本' }],
-  ], { x: M, y: 1.7, w: 12.13, h: 3.4 });
-  card(s, M, 5.2, 12.13, 1.3, C.SURF);
-  txt(s, '還缺的：新增那批 234 顆沒有年齡資料，所以「排除兒童」這項還做不到。',
-    { x: M + 0.3, y: 5.55, w: 11.5, h: 0.6, fontSize: 15, bold: true, fontFace: F.SANS, lang: 'zh-TW' });
+    [{ text: '中間那格：影像像不像（越低越好）', options: { bold: true } },
+     { text: '\n　加寬版從頭到尾都比較低，前 20 輪就拉開距離', options: { color: C.MUTED } }],
+    [{ text: '下面那格：平滑項', options: { bold: true } },
+     { text: '\n　兩顆幾乎疊在一起 → 不是靠捏得更用力換來的', options: { color: C.MUTED } }],
+  ], { x: X0, y: 2.25, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
+  card(s, X0, 5.1, WW, 1.05, 'FFF3E8');
+  txt(s, '但這是「訓練資料」上的成績。對得更像不代表比較準，要看下一頁的驗證集。',
+    { x: X0 + 0.25, y: 5.28, w: WW - 0.45, h: 0.75, fontSize: 14.5, bold: true, fontFace: F.SANS, lang: 'zh-TW' });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 1.6：驗證曲線
+{
+  const s = base('CAPACITY', '驗證集：第 ' + m.mix_wide.val_best_epoch + ' 輪最好，大約第 100 輪就到頂');
+  fitImage(s, path.join(MROOT, 'mix_wide', 'dice_curve_analysis.png'), M, 1.35, 7.4, 5.85, '加寬版的驗證曲線與擠爆比例');
+  const X0 = 8.25, WW = 4.48;
+  bullets(s, [
+    [{ text: '上：驗證集 Dice', options: { bold: true } },
+     { text: '\n　星號是選中的第 ' + m.mix_wide.val_best_epoch + ' 輪（' + f3(m.mix_wide.val_best) + '）', options: { color: C.MUTED } }],
+    [{ text: '大約第 100 輪就到頂', options: { bold: true, color: C.TEAL } },
+     { text: '\n　之後只是上下抖動\n　沒有過度擬合，也不用再跑更久', options: { color: C.MUTED } }],
+    [{ text: '下：擠爆比例', options: { bold: true } },
+     { text: '\n　一開始衝高，之後壓下來\n　一直在論文的 0.366%（紅虛線）以下', options: { color: C.MUTED } }],
+  ], { x: X0, y: 1.7, w: WW, h: 4.8, fontSize: 14.5, paraSpaceAfter: 14 });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 2：結果
+{
+  const s = base('CAPACITY', '加寬有用：' + WE.n + ' 位裡 ' + WE.win + ' 位變好');
+  const w = (12.13 - 0.4 * 2) / 3;
+  const items = [
+    [f3(m.mix_exp3.mean) + ' → ' + f3(m.mix_wide.mean), '測試集 Dice\n論文參數 → 論文參數＋加寬', C.RUST],
+    [WE.win + ' / ' + WE.n, '位受試者變好\n平均 +' + f4(WE.mean), C.RUST],
+    [pct(m.mix_exp3.jneg) + ' → ' + pct(m.mix_wide.jneg), '擠爆的比例\n沒有變多，還少一點', C.TEAL],
+  ];
+  items.forEach((it, i) => {
+    const x = M + i * (w + 0.4);
+    card(s, x, 1.5, w, 1.8);
+    txt(s, it[0], { x, y: 1.72, w, h: 0.62, fontFace: F.MONO, fontSize: 27, bold: true, color: it[2], align: 'center' });
+    txt(s, it[1], { x, y: 2.42, w, h: 0.7, fontSize: 12.5, color: C.MUTED, align: 'center' });
+  });
+  fitImage(s, CH('wide_paired.png'), M, 3.5, 12.13, 3.0, '每位受試者加寬後多了多少');
+  txt(s, '同樣照論文的參數，只把網路加寬：幾乎每一位都變好，擠爆也沒有變多 → 模型太小是瓶頸之一。',
+    { x: M, y: 6.6, w: 12.13, h: 0.45, fontSize: 15, bold: true, align: 'center' });
+}
+
+// ───────────────────────────────────────────────────────── 加寬 3：誰受益最多
+{
+  const s = base('CAPACITY', '越難對的人，加寬幫越多');
+  fitImage(s, CH('wide_difficulty.png'), M, 1.4, 12.13, 4.65, '起點 Dice 與加寬後多進步多少');
+  txt(s, '每個點是一位測試受試者。起點越低（只做線性對位時對得越差），加寬後多進步越多。',
+    { x: M, y: 6.15, w: 12.13, h: 0.4, fontSize: 14.5, align: 'center' });
+  txt(s, '分組用的是「起點」，兩顆模型都沒碰過，不會有統計上的假象。排除最難的 A0131 結果也一樣（相關 '
+        + WD.r_base_no_A0131.toFixed(2) + '）。',
+    { x: M, y: 6.55, w: 12.13, h: 0.4, fontSize: 12.5, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 16 進度

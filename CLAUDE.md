@@ -68,7 +68,9 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
    報告時要講「tigerbx 標籤本身比較好對」，不是配準比較準。
    交叉評估（§20.10）再佐證一次：**換去顱骨工具只掉 0.002～0.008**，比標籤差異小一個數量級。
 5. ✅ **版本與參數已經分開了**（mix_exp4，§20.5）：exp3 比 exp2 高的 0.009，
-   **只有 +0.0033 來自「換成位移場」，+0.0057 來自「平滑懲罰砍半」**（實際權重 = λ × int_downsize）。
+   **只有 +0.0033 來自「換成位移場＋全解析度」，+0.0057 來自「平滑懲罰砍半」**（實際權重 = λ × int_downsize）。
+   ⚠️ 那 +0.0033 是兩件事綁在一起：mix_exp2 的速度場是**在一半解析度上積分**（`--int-downsize 2`），
+   mix_exp4 是全尺寸位移場，分不開。可以說「換成論文的版本 +0.0033」，**不能說「位移場本身」+0.0033**（2026-09-29 更正）。
    折疊率同理：0% →（換版本）0.053% →（再砍半懲罰）0.199%。**擠爆主要是參數造成的，不是版本。**
 6. **去顱骨殘留對 Dice 幾乎沒影響**（§21）：顱底 0.0004、上緣 0.011（方向符合預期：留越厚模型拉得越少）。
    🔴 但**配準後的絕對 Dice 反而是「沒去乾淨」那組較高**（0.8119 vs 0.8024），那是起點就高帶來的。
@@ -154,11 +156,12 @@ C:\Users\h4524\claude_cheng\
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume / --enc / --dec）
 │   ├── 指令_mix_wide.md                # mix_wide（U-Net 加寬 2 倍）的操作單，Drive 傳輸站\reg\mix_wide\ 也有一份（手冊 §23）
+│   ├── 指令_mix_exp5.md                # mix_exp5（速度場＋全解析度，拆開「版本」與「解析度」）的操作單，Drive 傳輸站\reg\mix_exp5\ 也有一份（手冊 §20.5）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
-│                                       #   2026-09-20_cross\ 是現行 25 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）
+│                                       #   2026-09-20_cross\ 是現行 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）

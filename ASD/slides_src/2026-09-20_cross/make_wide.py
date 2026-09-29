@@ -3,8 +3,9 @@
 
 輸出到 models/deck_charts/：
     wide_unet.png        只畫 U-Net 那塊、字放大（手冊的 ASD/img/unet_explained.png 整張放進投影片字太小）
-    wide_steps.png       三個改動各讓 Dice 進步多少（換版本 / 平滑權重砍半 / 加寬）
+    wide_steps.png       三個改動各讓 Dice 進步多少（換版本 / 平滑權重砍半 / 加寬）——目前簡報沒用，留著備用
     wide_difficulty.png  每位受試者：起點 Dice vs 加寬多進步多少
+    wide_paired.png      每位受試者：論文參數 → 加寬多了多少，由小排到大（「51 位裡 50 位變好」那頁）
 
 數字從 deck_data.json 讀（gather.py 算的）；散布圖要逐人的點，直接讀兩份 dice csv。
 """
@@ -49,7 +50,7 @@ plt.close(fig)
 print('->', os.path.join(OUT, 'wide_unet.png'))
 
 # ── 2. 三個改動各貢獻多少 ────────────────────────────────────────────
-steps = [('換成位移場版', 'mix_exp2 → mix_exp4', P['version_effect'], TEAL_L),
+steps = [('換成位移場＋全解析度', 'mix_exp2 → mix_exp4', P['version_effect'], TEAL_L),
          ('平滑權重砍半', 'mix_exp4 → mix_exp3', P['lambda_effect'], TEAL_L),
          ('U-Net 加寬 2 倍', 'mix_exp3 → mix_wide', P['width_effect'], RUST)]
 fig, ax = plt.subplots(figsize=(12, 3.4), facecolor=PAPER)
@@ -76,6 +77,7 @@ print('->', os.path.join(OUT, 'wide_steps.png'))
 
 
 # ── 3. 越難的人幫越多 ───────────────────────────────────────────────
+# （4. 逐人長條圖也用到這幾份，所以先讀）
 def dice_csv(p):
     with open(os.path.join(ROOT, p), encoding='utf-8') as f:
         return {r['file'][:-4]: float(r['dice_mean']) for r in csv.DictReader(f)}
@@ -114,3 +116,32 @@ fig.tight_layout()
 fig.savefig(os.path.join(OUT, 'wide_difficulty.png'), dpi=130, facecolor=PAPER)
 plt.close(fig)
 print('->', os.path.join(OUT, 'wide_difficulty.png'))
+
+
+# ── 4. 逐人：論文參數 → 加寬多了多少（由小排到大）────────────────────
+o = np.argsort(d)
+ds = d[o]
+names = [K[i] for i in o]
+fig, ax = plt.subplots(figsize=(12, 3.3), facecolor=PAPER)
+ax.set_facecolor(PAPER)
+cols = [RUST if v > 0 else '#9AA3A4' for v in ds]
+ax.bar(np.arange(len(ds)), ds, width=0.78, color=cols, zorder=3)
+ax.axhline(0, color=INK, lw=1)
+ax.axhline(ds.mean(), color=RUST, lw=1.4, ls='--', zorder=4)
+ax.text(0.5, ds.mean() + 0.0006, '平均 +%.4f' % ds.mean(), ha='left', va='bottom',
+        fontsize=12.5, color=RUST, fontweight='bold', bbox=dict(fc=PAPER, ec='none', pad=2), zorder=6)
+for i, s in enumerate(names):
+    if ds[i] <= 0 or s == 'A0131':
+        ax.annotate(s, (i, ds[i]), (0, -14 if ds[i] <= 0 else 6), textcoords='offset points',
+                    ha='center', fontsize=10.5, color=INK)
+ax.set_xticks([])
+ax.set_xlim(-0.8, len(ds) - 0.2)
+ax.set_ylabel('加寬後多了多少', fontsize=12)
+ax.set_xlabel('%d 位測試受試者（由小排到大）　橘＝變好 %d 位，灰＝變差 %d 位'
+              % (len(ds), int((ds > 0).sum()), int((ds <= 0).sum())), fontsize=12)
+clean(ax)
+ax.grid(axis='x', visible=False)
+fig.tight_layout()
+fig.savefig(os.path.join(OUT, 'wide_paired.png'), dpi=130, facecolor=PAPER)
+plt.close(fig)
+print('->', os.path.join(OUT, 'wide_paired.png'))
