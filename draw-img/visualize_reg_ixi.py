@@ -52,7 +52,8 @@ parser.add_argument('--test-dir', default=None)
 parser.add_argument('--out-dir',  required=True)
 parser.add_argument('--gpu',      default='0')
 parser.add_argument('--checker-block', type=int, default=16, help='Checkerboard 方塊大小（pixel）')
-parser.add_argument('--grid-spacing', type=int, default=4, help='Warped Grid 網格間距（pixel）')
+parser.add_argument('--grid-spacing', type=int, default=6,
+                    help='Warped Grid 網格間距（pixel）。2026-09-29 從 4 改成 6，線才不會擠成一片')
 parser.add_argument('--sag-offset', type=int, default=28,
                     help='矢狀面偏離中線幾個 voxel（0 = 正中線）。正中線切不到海馬迴與側腦室，'
                          '預設 28 跟 ASD/visualize_dice.py 一致')
@@ -225,23 +226,36 @@ def make_checkerboard(img_a, img_b, block_size=16):
                 result[y:yy, x:xx] = img_b[y:yy, x:xx]
     return result
 
-def draw_warped_grid(ax, flow_u, flow_v, spacing=4, color=ACCENT, linewidth=0.5):
-    """在 ax 上畫扭曲網格 (配合 imshow(sl.T) 轉置座標)"""
+GRID_COLOR = '#FFD23F'   # 黃色：暗底和灰色的腦上都看得清楚（2026-09-29 從深藍 0.5 粗改來）
+
+
+def draw_warped_grid(ax, flow_u, flow_v, spacing=6, color=GRID_COLOR, linewidth=1.0):
+    """在 ax 上畫扭曲網格 (配合 imshow(sl.T) 轉置座標)。
+    樣式跟簡報的 ASD/slides_src/2026-09-20_cross/make_compare.py 一致。"""
     H_dim, W_dim = flow_u.shape
-    
+
     # 畫水平線 (Y 軸固定，X 軸變動)
     for y_idx in range(0, W_dim, spacing):
         xs = np.arange(H_dim, dtype=float)
         dx = flow_u[:, y_idx]
         dy = flow_v[:, y_idx]
-        ax.plot(xs + dx, y_idx + dy, color=color, linewidth=linewidth, alpha=0.7)
-        
+        ax.plot(xs + dx, y_idx + dy, color=color, linewidth=linewidth, alpha=0.95)
+
     # 畫垂直線 (X 軸固定，Y 軸變動)
     for x_idx in range(0, H_dim, spacing):
         ys = np.arange(W_dim, dtype=float)
         dx = flow_u[x_idx, :]
         dy = flow_v[x_idx, :]
-        ax.plot(x_idx + dx, ys + dy, color=color, linewidth=linewidth, alpha=0.7)
+        ax.plot(x_idx + dx, ys + dy, color=color, linewidth=linewidth, alpha=0.95)
+
+
+def crop_to_brain(ax, sl, margin=6, thr=0.02):
+    """畫面只框腦的範圍，四周黑底裁掉，腦才放得大。sl 是還沒轉置的切面（imshow 畫的是 sl.T）。"""
+    a = np.nonzero(sl.max(axis=1) > thr)[0]      # 第 0 軸：畫在橫軸
+    b = np.nonzero(sl.max(axis=0) > thr)[0]      # 第 1 軸：畫在縱軸
+    if a.size and b.size:
+        ax.set_xlim(a.min() - margin, a.max() + margin)
+        ax.set_ylim(b.min() - margin, b.max() + margin)
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -357,7 +371,7 @@ print(f'[OK] 儲存：{out2}')
 
 # ════════════════════════════════════════════════════════════════════════
 # 圖 3：Warped Grid  (1 row × 3 cols: axial / coronal / sagittal)
-#   底圖 = Source（灰色），上面畫扭曲網格（綠色線條）
+#   底圖 = Source（灰色），上面畫扭曲網格（黃色線條，只框腦的範圍）
 # ════════════════════════════════════════════════════════════════════════
 print('繪製 Warped Grid...')
 fig3 = plt.figure(figsize=(16, 5.5))
@@ -376,10 +390,10 @@ for i, axis in enumerate(axes_list):
 
     ax = fig3.add_subplot(gs3[i])
     # 底圖：source 灰色（降低亮度讓網格更清楚）
-    ax.imshow(s_sl.T * 0.4, cmap='gray', origin='lower', aspect='equal', vmin=0, vmax=1)
+    ax.imshow(s_sl.T * 0.55, cmap='gray', origin='lower', aspect='equal', vmin=0, vmax=1)
     # 畫扭曲網格
-    draw_warped_grid(ax, fu, fv, spacing=args.grid_spacing,
-                     color=ACCENT, linewidth=0.5)
+    draw_warped_grid(ax, fu, fv, spacing=args.grid_spacing)
+    crop_to_brain(ax, s_sl)
     ax.set_title(f'{axis}  (slice={get_mid(axis)})', color=TEXT_MAIN,
                  fontsize=12, fontweight='bold', pad=6)
     ax.axis('off')

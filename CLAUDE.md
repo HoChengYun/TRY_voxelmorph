@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-09-28**（mix_wide 完成：U-Net 加寬 2 倍 +0.0053；去顱骨殘留分析；`--int-downsize` 的真正作用）
+> 最後更新：**2026-09-30**（`train_avg` 更正：是各標籤平均亮度；mix_exp5 準備中。09-28：mix_wide 完成、去顱骨殘留分析、`--int-downsize` 的真正作用）
 
 ---
 
@@ -121,7 +121,7 @@ C:\Users\h4524\claude_cheng\
 ├── voxelmorph-code\                    # VoxelMorph 官方 repo（含本地修改）
 │   ├── voxelmorph\                     # 套件本體（torch\losses.py、torch\networks.py 在這）
 │   ├── data\
-│   │   ├── atlas.npz                   # OASIS atlas：keys = vol / seg / train_avg
+│   │   ├── atlas.npz                   # OASIS atlas：keys = vol / seg / train_avg（各標籤平均亮度，沒有程式在用）
 │   │   ├── labels.npz                  # ⭐ Dice 評估用的 30 個 FreeSurfer 標籤 ID
 │   │   ├── generated_uncond_atlas.npz  prob_atlas.npz
 │   │   ├── prob_atlas_T1_stats.npz     prob_atlas_mapping.npz
@@ -690,7 +690,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 |---|---|
 | **整份是 Linux 語法** | `source vxm_env/bin/activate` → 應為 `.\vxm_env\Scripts\activate` |
 | **腳本全部改名了** | `test.py`→`test_oasis.py`/`test_ixi.py`；`batch_test.py`→`batch_test_*.py`；`visualize_registration.py`→`visualize_reg_*.py`（16 處提到 `test.py`）|
-| **`train_avg` 說明錯誤** | 指南 §2 說是「訓練集平均影像」→ ❌。實測 `atlas.npz` 的 `train_avg` 是 `shape=(256,) float64`，是**各標籤的平均 Dice**（256 = FreeSurfer label ID 範圍 0–255），手冊 §1.1 的說法才對 |
+| ~~**`train_avg` 說明錯誤**~~ | ✅ **2026-09-30 已改（指南 §2、`IXI/ixi相關手冊.md` §1.1 一起改）**。它**不是影像，也不是 Dice**，是**各標籤的平均亮度**：`shape=(256,)`，索引 = FreeSurfer 標籤編號。實測 atlas 裡 38 個腦內標籤，`train_avg[編號]` 跟 `vol` 在該標籤內的平均亮度一模一樣（最大差 6.9e-8）：白質 0.39、皮質 0.27、側腦室 0.09、背景 0.016。另有 7 個 atlas 沒有的標籤（72、80、251–255）也有值，來源從檔案看不出來。**沒有任何程式讀它**（`test_oasis.py` 也沒有）。本文舊版寫的「各標籤平均 Dice」是錯的 |
 | ~~`--lambda 1.0` 建議值誤導~~ | ✅ **這項不是錯的，反而是對的**。指南 §6 的指令是 `--image-loss ncc --lambda 1.0` 配套出現，正好命中論文對 CC 的最佳 λ（≈1–2）。稽核報告拿 `train.py` 預設 0.01 去比而未考慮損失類型，判斷有誤。**真正的問題是後續 exp3–exp8 偏離了這份最舊文件的正確設定** |
 | **沒寫 `--image-loss` 預設是 mse** | 指南的範例有明寫 `ncc`，但沒提「不寫就會變 mse」。exp6 就是踩這個 |
 | **完全沒有 IXI 這條線** | 主線早就轉到 IXI + MNI152 |
@@ -705,6 +705,9 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 `前一AI擔心的/前一AI擔心的.md` §2.5 說「exp7 / exp8 就是用 `train_NCCPatchSize.py` 跑的」
 ——**這是錯的**，已由 `log/exp*_script.txt` 與 `.pt` config 雙重推翻（見「實驗記錄」節）。
 該文件 §4.7 的 git status 也已過時。
+
+該文件 §4.4 判定 `train_avg` 是「各標籤的平均 Dice」——**也是錯的**。它只看了 shape（256）和最大值（0.42）就下結論；
+2026-09-30 逐標籤對過，是**各標籤的平均亮度**（見上表）。
 
 ---
 
