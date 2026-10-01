@@ -1,0 +1,578 @@
+掃到 70 個檔案：data\MRS_data\fs_for_vxm\norm
+    套用白名單：70 -> 70
+
+歸戶：70 個掃描 -> 70 位受試者
+  --grouping  : none（每個掃描各自成一人，不合併）
+  --group-map : 未提供
+
+切分（受試者層級，seed=42，test_frac=0.0）：
+  train   70 個掃描
+  test     0 個掃描
+  [v] 沒有受試者橫跨 train/test
+
+Atlas：IXI/atlas_mni152_09c_v3.nii.gz
+  shape=(192, 224, 192)  spacing=(1.0, 1.0, 1.0)
+
+[  1/70] 處理：MDMP001  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MDMP001.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  2/70] 處理：MRS0000  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0000.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  3/70] 處理：MRS0010  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0010.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  4/70] 處理：MRS0021-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0021-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  5/70] 處理：MRS0031-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/MRS_preprocessed_v1\train\MRS0031-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  6/70] 處理：MRS0040-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0040-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  7/70] 處理：MRS0051-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0051-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  8/70] 處理：MRS0061-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0061-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[  9/70] 處理：MRS0070  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0070.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 10/70] 處理：MRS0080-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0080-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 11/70] 處理：MRS0090  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0090.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 12/70] 處理：MRS0100-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0100-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 13/70] 處理：MRS0104-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0104-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 14/70] 處理：MRS0110-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/MRS_preprocessed_v1\train\MRS0110-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 15/70] 處理：MRS0121-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0121-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 16/70] 處理：MRS0130-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0130-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 17/70] 處理：MRS0140  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0140.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 18/70] 處理：MRS0150  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0150.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 19/70] 處理：MRS0200-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0200-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 20/70] 處理：MRS0211-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0211-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 21/70] 處理：MRS0220-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0220-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 22/70] 處理：MRS0231-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0231-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 23/70] 處理：MRS0240-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0240-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 24/70] 處理：MRS0250-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0250-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 25/70] 處理：MRS0261-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0261-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 26/70] 處理：MRS0271-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0271-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 27/70] 處理：MRS0280-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0280-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 28/70] 處理：MRS0290-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0290-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 29/70] 處理：MRS0301-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0301-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 30/70] 處理：MRS0311-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0311-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 31/70] 處理：MRS0321  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0321.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 32/70] 處理：MRS0331-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0331-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 33/70] 處理：MRS0341-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0341-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 34/70] 處理：MRS0351-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0351-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 35/70] 處理：MRS0361_3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0361_3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 36/70] 處理：MRS0370-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0370-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 37/70] 處理：MRS0381-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0381-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 38/70] 處理：MRS0391-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0391-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 39/70] 處理：MRS0401  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0401.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 40/70] 處理：MRS0411-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0411-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 41/70] 處理：MRS0421-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0421-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 42/70] 處理：MRS0431  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0431.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 43/70] 處理：MRS0440  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0440.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 44/70] 處理：MRS0470  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0470.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 45/70] 處理：MRS0481-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0481-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 46/70] 處理：MRS0490-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0490-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 47/70] 處理：MRS0500-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/MRS_preprocessed_v1\train\MRS0500-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 48/70] 處理：MRS0510  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0510.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 49/70] 處理：MRS0520  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0520.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 50/70] 處理：MRS0531-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0531-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 51/70] 處理：MRS0540-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0540-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 52/70] 處理：MRS0551-3  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0551-3.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 53/70] 處理：MRS0561-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0561-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 54/70] 處理：MRS0570-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0570-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 55/70] 處理：MRS0591  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0591.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 56/70] 處理：MRS0601-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：45 -> 45
+        [v] data/MRS_preprocessed_v1\train\MRS0601-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 57/70] 處理：MRS0611  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0611.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 58/70] 處理：MRS0620  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0620.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 59/70] 處理：MRS0630-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0630-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 60/70] 處理：MRS0641-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0641-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 61/70] 處理：MRS0651  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0651.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 62/70] 處理：MRS0670-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0670-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 63/70] 處理：MRS0680-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0680-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 64/70] 處理：MRS0690-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0690-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 65/70] 處理：MRS0701-1  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0701-1.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 66/70] 處理：MRS0710-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0710-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 67/70] 處理：MRS0721-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0721-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 68/70] 處理：MRS0730  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0730.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 69/70] 處理：MRS0740-1  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：43 -> 43
+        [v] data/MRS_preprocessed_v1\train\MRS0740-1.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+[ 70/70] 處理：MRS0751-2  (train)
+        原始：shape=(256, 256, 256)  spacing=(1.0, 1.0, 1.0)
+        Affine 對位到 atlas ...
+        搬 aseg 標籤（nearestNeighbor）...
+        標籤數：44 -> 44
+        [v] data/MRS_preprocessed_v1\train\MRS0751-2.npz
+            vol (192, 224, 192) float32 [0.000, 1.000] | seg (192, 224, 192) int16
+
+=======================================================
+完成！ 成功=70 略過=0 切分改變而搬移=0 失敗=0
+輸出：data/MRS_preprocessed_v1  （切分記錄：split.json）

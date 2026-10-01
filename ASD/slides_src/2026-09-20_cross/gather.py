@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 OUT = os.path.join(HERE, 'deck_data.json')
 
-EPOCH = {'mix_exp2': '0240', 'mix_exp3': '0240', 'mix_exp4': '0230',
+EPOCH = {'mix_exp2': '0240', 'mix_exp3': '0240', 'mix_exp4': '0230', 'mix_exp5': '0150',
          'mix_wide': '0225',
          'tiger_exp2': '0250', 'tiger_exp3': '0210'}
 
@@ -91,10 +91,14 @@ for n2, n3 in (('mix_exp2', 'tiger_exp2'), ('mix_exp3', 'tiger_exp3')):
     g_m = {k: models[n2]['per_subject'][k] - b_fs[k] for k in K}
     g_t = {k: models[n3]['per_subject'][k] - b_tg[k] for k in K}
     ps['gain_%s_minus_%s' % (n3, n2)] = paired(g_t, g_m)
-# 消融：exp2 -> exp4 差「版本＋解析度」（exp2 的速度場在一半解析度上積分，分不開），
-#       exp4 -> exp3 只差 lambda
+# 消融：exp2 -> exp4 差「版本＋解析度」（exp2 的速度場在一半解析度上積分），
+#       mix_exp5（速度場、全尺寸）把它拆成 exp2 -> exp5 只差解析度、exp5 -> exp4 只差版本；
+#       exp4 -> exp3 只差 lambda（手冊 §20.5）
 ps['version_effect'] = paired(models['mix_exp4']['per_subject'], models['mix_exp2']['per_subject'])
+ps['res_effect'] = paired(models['mix_exp5']['per_subject'], models['mix_exp2']['per_subject'])
+ps['ver_only_effect'] = paired(models['mix_exp4']['per_subject'], models['mix_exp5']['per_subject'])
 ps['lambda_effect'] = paired(models['mix_exp3']['per_subject'], models['mix_exp4']['per_subject'])
+ps['exp3_minus_exp5'] = paired(models['mix_exp3']['per_subject'], models['mix_exp5']['per_subject'])
 # 加寬：mix_exp3 -> mix_wide 只差 U-Net 通道數（手冊 §23）
 ps['width_effect'] = paired(models['mix_wide']['per_subject'], models['mix_exp3']['per_subject'])
 D['paired'] = ps
@@ -127,6 +131,19 @@ D['wide'] = {
     'struct_up': int(sum(v > 0 for v in _sd.values())), 'struct_n': len(_sd),
     'subjects': {s: {'base': b_fs[s], 'exp3': _e[s], 'wide': _w[s]}
                  for s in ('T054', 'D031', 'VNT045', 'sub-0043', 'A0131')},
+}
+
+# ── 全解析度幫在哪（mix_exp5 − mix_exp2，都是速度場）──────────────────────
+_L = {n: _labels('models/%s/dice_%s.csv' % (n, EPOCH[n])) for n in ('mix_exp2', 'mix_exp5', 'mix_exp4')}
+_pair = lambda l, a, b: float((np.nanmean(l[a]) + np.nanmean(l[b])) / 2)     # 左右平均
+_r = np.array([models['mix_exp5']['per_subject'][k] - models['mix_exp2']['per_subject'][k] for k in K])
+D['exp5'] = {
+    'cortex': {n: _pair(l, 'label_3', 'label_42') for n, l in _L.items()},
+    'wm': {n: _pair(l, 'label_2', 'label_41') for n, l in _L.items()},
+    'amyg': {n: _pair(l, 'label_18', 'label_54') for n, l in _L.items()},
+    'struct_up': int(sum(np.nanmean(_L['mix_exp5'][c]) > np.nanmean(_L['mix_exp2'][c]) for c in _L['mix_exp5'])),
+    'struct_n': len(_L['mix_exp5']),
+    'hard10': float(_r[_o[:10]].mean()), 'easy10': float(_r[_o[-10:]].mean()),   # 同樣用起點分組
 }
 
 # ── 交叉評估 ─────────────────────────────────────────────────────────
