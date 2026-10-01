@@ -172,7 +172,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
-│                                       #   2026-09-20_cross\ 是現行 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）
+│                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 14 頁（同一套做法，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -215,7 +216,7 @@ C:\Users\h4524\claude_cheng\
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
 │   ├── asd_exp1\  mix_exp1~5\  mix_wide\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
-│   ├── deck_charts\                        # meeting 簡報用的圖（由 slides_src\2026-09-20_cross\make_*.py 產生）
+│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
 │   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
@@ -615,6 +616,10 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
   殘留多的人標到的皮質一樣完整、一樣厚，紅色亮度只有皮質的 0.7 倍（腦膜，少數人連脂肪／骨髓都在）
 
 p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quantum annealing」是另一個計畫，**使用者說先不管**。
+
+**10/14 簡報**（2026-10-01 第一版）：`ASD/slides_src/2026-10-14_redpen/` → `meeting報告\ASD_老師紅字回覆_20261014.pptx`（14 頁）。
+mix_exp6、mix_exp7、mix_wide_vel 的結果帶回來放進 `models\<exp>\` 後，照該資料夾 README 重建就會自動補上（現在顯示「跑中」）。
+⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字。
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
