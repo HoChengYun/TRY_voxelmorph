@@ -16,6 +16,10 @@
                  10mm 以外不可能是腦或緊貼腦的硬腦膜，一定是留下來的。
                  （>4mm 抓到的是每個人都有的硬腦膜那圈，分不出好壞，所以不用）
 
+  back_occ_mm    後腦杓（老師 2026-09-30 紅字：「後腦杓也有沒切乾淨的也去看」）：
+                 跟上緣同一套做法，只是方向換成前後——每條前後方向的線找最後面的腦組織，
+                 往後數還有幾 mm 是「組織」。後腦杓區＝最後面那點落在全腦最後面 25mm 以內的線。
+
 ⚠️ 用 seg 當「腦組織」的定義，只能用在有 seg 的 npz（preprocess_fs.py 產生的）。
 ⚠️ 距離直接以體素數當 mm（前處理後是精確 1mm）。
 ⚠️ Dice 只有測試集有，所以出圖預設只挑測試集的人。
@@ -39,6 +43,7 @@ from scipy import ndimage as ndi
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERY_FAR = 10          # 顱底：離腦幾 mm 以外算殘留
 VERTEX_BAND = 25       # 上緣：顱頂區的範圍
+BACK_BAND = 25         # 後腦杓：最後面那一帶的範圍
 
 
 def measure_top(vol, seg):
@@ -56,6 +61,25 @@ def measure_top(vol, seg):
     m = dict(top_vertex_mm=round(float(thick[vertex].mean()), 3),
              top_all_mm=round(float(thick[has].mean()), 3),
              top_p95_mm=round(float(np.percentile(thick[vertex], 95)), 3))
+    return m, tissue, thick, has
+
+
+def measure_back(vol, seg):
+    """後腦杓：腦的最後面還留著多少組織（跟 measure_top 同一套，方向換成前後）。
+    回傳 (指標, 標記, 厚度地圖, 有腦的線)。陣列是 RAS：第 1 軸越大越前面。"""
+    gm = np.median(vol[np.isin(seg, [3, 42])])
+    thr = 0.5 * gm
+    brain = seg > 0
+    H = vol.shape[1]
+    y = np.arange(H)[None, :, None]
+    has = brain.any(axis=1)                                          # 每條前後方向的線 (x, z)
+    yback = np.where(has, np.where(brain, y, H).min(axis=1), -1)     # 最後面的腦組織
+    tissue = (y < yback[:, None, :]) & has[:, None, :] & (vol >= thr)
+    thick = tissue.sum(axis=1).astype(float)
+    band = has & (yback <= yback[has].min() + BACK_BAND)
+    m = dict(back_occ_mm=round(float(thick[band].mean()), 3),
+             back_all_mm=round(float(thick[has].mean()), 3),
+             back_p95_mm=round(float(np.percentile(thick[band], 95)), 3))
     return m, tissue, thick, has
 
 
@@ -92,7 +116,8 @@ def scan(root, out):
         vol, seg = d['vol'], d['seg']
         t, _, _, _ = measure_top(vol, seg)
         b, _ = measure_base(vol, seg)
-        rows.append(dict(subject=os.path.basename(p)[:-4], split=sp, **t, **b))
+        bk, _, _, _ = measure_back(vol, seg)
+        rows.append(dict(subject=os.path.basename(p)[:-4], split=sp, **t, **b, **bk))
         if (k + 1) % 50 == 0:
             print('%d/%d' % (k + 1, len(files)), flush=True)
     os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
@@ -114,7 +139,7 @@ def pick(csv_path, metric, n, split, exclude):
     with open(csv_path, encoding='utf-8') as f:
         rows = [r for r in csv.DictReader(f)
                 if (split in ('all', r['split'])) and r['subject'] not in exclude]
-    key = 'top_vertex_mm' if metric == 'top' else 'base_blob10'
+    key = {'top': 'top_vertex_mm', 'base': 'base_blob10', 'back': 'back_occ_mm'}[metric]
     rows.sort(key=lambda r: -float(r[key]))
     return rows[:n], rows[-n:]
 
@@ -143,6 +168,9 @@ def show(root, metric, worst, clean, out, dice, base, title):
         if metric == 'top':
             _, mark, thick, has = measure_top(vol, seg)
             note = '顱頂殘留 %.2f mm' % float(meta['top_vertex_mm'])
+        elif metric == 'back':
+            _, mark, thick, has = measure_back(vol, seg)
+            note = '後腦杓殘留 %.2f mm' % float(meta['back_occ_mm'])
         else:
             _, mark = measure_base(vol, seg)
             thick = has = None
@@ -150,18 +178,39 @@ def show(root, metric, worst, clean, out, dice, base, title):
         D, H, W = vol.shape
         ztop = np.argwhere(seg > 0)[:, 2].max()
         crop = int(W * 0.56) if metric == 'top' else 0
-        panels = [('矢狀（偏 30mm）', 0, D // 2 - 30, True),
-                  ('冠狀（中）', 1, H // 2, True),
-                  ('冠狀・沒塗色', 1, H // 2, False)]
+        if metric == 'back':
+            # 最後面的腦組織在哪一層，軸狀就切那一層；只留後半顆，腦才放得大
+            idx = np.argwhere(seg > 0)
+            yb = idx[:, 1].min()
+            zb = int(np.median(idx[idx[:, 1] <= yb + 3][:, 2]))
+            keep = int(H * 0.55)
+            panels = [('矢狀（偏 30mm）', 0, D // 2 - 30, True),
+                      ('軸狀（最後面那一層）', 2, zb, True),
+                      ('矢狀・沒塗色', 0, D // 2 - 30, False)]
+        else:
+            panels = [('矢狀（偏 30mm）', 0, D // 2 - 30, True),
+                      ('冠狀（中）', 1, H // 2, True),
+                      ('冠狀・沒塗色', 1, H // 2, False)]
         for c, (t, a_, i, paint) in enumerate(panels):
             rgb = np.dstack([take(vol, a_, i)] * 3)
             if paint:
                 rgb[take(mark, a_, i)] = [1.0, 0.15, 0.1]
-            ax[r][c].imshow(rgb[crop:, :], origin='lower')
+            if metric == 'back':
+                rgb = rgb[:, :keep] if a_ == 0 else rgb[:keep, :]    # 矢狀留後半的欄、軸狀留後半的列
+            else:
+                rgb = rgb[crop:, :]
+            ax[r][c].imshow(rgb, origin='lower')
             ax[r][c].axis('off')
             if r == 0:
                 ax[r][c].set_title(t, fontsize=13)
-        if metric == 'top':
+        if metric == 'back':
+            ax[r][3].imshow(take(vol, 2, zb)[:keep, :], cmap='gray', origin='lower', vmin=0, vmax=1)
+            t3 = '軸狀・沒塗色'
+            im = ax[r][4].imshow(np.where(has, thick, np.nan).T, origin='lower',
+                                 cmap='inferno', vmin=0, vmax=8)
+            plt.colorbar(im, ax=ax[r][4], fraction=0.046, label='mm')
+            t4 = '從後面往前看'
+        elif metric == 'top':
             ax[r][3].imshow(take(vol, 2, ztop - 12), cmap='gray', origin='lower', vmin=0, vmax=1)
             t3 = '軸狀・頭頂下 12mm'
             im = ax[r][4].imshow(np.where(has, thick, np.nan).T, origin='lower',
@@ -301,7 +350,7 @@ def explain(root, top_subject, base_subject, out):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--scan', metavar='DIR')
-    ap.add_argument('--show', choices=['top', 'base', 'how'])
+    ap.add_argument('--show', choices=['top', 'base', 'back', 'how'])
     ap.add_argument('--csv', help='--show 時讀這份掃描結果來挑人')
     ap.add_argument('--n', type=int, default=3, help='最嚴重／最乾淨各挑幾位')
     ap.add_argument('--split', default='test', choices=['train', 'val', 'test', 'all'])
@@ -322,7 +371,8 @@ if __name__ == '__main__':
             ap.error('--show 要配 --csv')
         w, c = pick(a.csv, a.show, a.n, a.split, set(a.exclude))
         head = {'top': '上緣：皮質上方還留著的組織（紅色）',
-                'base': '顱底：離腦 10mm 以外還留著的東西（紅色）'}[a.show]
+                'base': '顱底：離腦 10mm 以外還留著的東西（紅色）',
+                'back': '後腦杓：腦的最後面還留著的組織（紅色）'}[a.show]
         show(a.data_root, a.show, w, c, a.out, read_dice(a.dice), read_dice(a.baseline),
              head + '　—　測試集，上 %d 位沒去乾淨／下 %d 位去得乾淨' % (len(w), len(c)))
     else:

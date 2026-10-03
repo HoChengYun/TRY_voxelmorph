@@ -33,7 +33,7 @@ VoxelMorph 訓練用的 atlas 檔案（atlas.npz）包含三個 key：
 |-----|-------------|
 | `vol` | `(160, 192, 224)` 腦部 T1 影像，灰值正規化至 [0, 0.73] |
 | `seg` | `(160, 192, 224)` FreeSurfer 解剖標籤（39 個唯一值，使用 FreeSurfer ID） |
-| `train_avg` | `(256,)` 訓練集各標籤的平均 Dice，供 test_oasis.py 比較用 |
+| `train_avg` | 🔻 **更正（2026-09-30）**：`(256,)` **各標籤的平均亮度**（索引 = FreeSurfer 標籤編號），**不是 Dice**。實測跟 `vol` 在每個標籤內的平均亮度一模一樣（白質 0.39、皮質 0.27、側腦室 0.09）。**沒有任何程式讀它**，`test_oasis.py` 也沒有 |
 
 > **重點**：訓練時只讀 `vol`，`seg` 靜靜躺在 npz 裡不會被使用。`seg` 只在 `test_oasis.py`（原名 test.py）評估 Dice 時才被載入。
 

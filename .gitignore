@@ -36,6 +36,8 @@ __pycache__/
 !/ASD/slides_src/2026-09_mix_tigerbx/bench.json
 # 2026-09-20 簡報產生器：同上（借用上面那份的 node_modules，這邊沒有自己的）
 !/ASD/slides_src/2026-09-20_cross/*.js
+# 2026-10-14 簡報產生器（回覆老師紅字）：同上
+!/ASD/slides_src/2026-10-14_redpen/*.js
 
 # 手冊用的圖（ASD/img/）
 # 🔴 repo 是公開的。skullstrip_*.png 含受試者腦部切片與編號，使用者 2026-09-26 決定放。

@@ -5,6 +5,8 @@
     overview_four_models.png   四顆模型：起點 -> 配準後
     contribution.png           模型貢獻（配準後 減 起點），含 95% 信賴區間
     cross_eval.png             交叉測試：模型用哪套影像訓練 × 拿哪套影像測試
+    ablation.png               消融：exp2 / exp5 / exp4 / exp3 一次只改一件事
+    res_struct.png             全解析度幫在哪：皮質 / 白質 / 杏仁核
 
 數字全部從 models/*/dice_*.csv 讀，不手打。
 """
@@ -138,11 +140,13 @@ fig.savefig(os.path.join(OUT, 'cross_eval.png'), dpi=130)
 print('->', os.path.join(OUT, 'cross_eval.png'))
 
 
-# ── 圖四：消融（exp2 / exp4 / exp3 拆開兩個因素）──────────────────────
-# ⚠️ exp2 -> exp4 不只換版本：exp2 的速度場是在一半解析度上積分（--int-downsize 2），
-#    exp4 是全尺寸的位移場。這兩件事綁在一起，分不開（手冊 §20.5，2026-09-29 更正）
+# ── 圖四：消融（exp2 / exp5 / exp4 / exp3 一次只改一件事）─────────────────
+# exp2 -> exp5 只差解析度（都是速度場）、exp5 -> exp4 只差版本（都是全尺寸）、
+# exp4 -> exp3 只差平滑權重（手冊 §20.5，mix_exp5 2026-09-30 補上）
+C['teal_m'] = '#3A9E9C'
 A = [
     ('mix_exp2', '速度場・半解析度\n平滑權重 2', rd('models/mix_exp2/dice_0240.csv'), C['teal']),
+    ('mix_exp5', '速度場・全尺寸\n平滑權重 2', rd('models/mix_exp5/dice_0150.csv'), C['teal_m']),
     ('mix_exp4', '位移場・全尺寸\n平滑權重 2', rd('models/mix_exp4/dice_0230.csv'), C['rust_l']),
     ('mix_exp3', '位移場・全尺寸\n平滑權重 1', rd('models/mix_exp3/dice_0240.csv'), C['rust']),
 ]
@@ -153,11 +157,12 @@ def rd_j(p):
         return {r['file'][:-4]: float(r.get('jneg_pct') or 0) for r in csv.DictReader(f)}
 
 
-JN = [rd_j('models/mix_exp2/dice_0240.csv'), rd_j('models/mix_exp4/dice_0230.csv'),
-      rd_j('models/mix_exp3/dice_0240.csv')]
+JN = [rd_j('models/%s/dice_%s.csv' % (n, e)) for n, e in
+      (('mix_exp2', '0240'), ('mix_exp5', '0150'), ('mix_exp4', '0230'), ('mix_exp3', '0240'))]
 b0 = np.mean([base_fs[k] for k in K])
+NB = len(A)
 
-fig, axes = plt.subplots(1, 2, figsize=(13, 5.0))
+fig, axes = plt.subplots(1, 2, figsize=(14, 5.3), gridspec_kw={'width_ratios': [1.35, 1]})
 ax = axes[0]
 vals = [np.mean([d[k] for k in K]) for _, _, d, _ in A]
 for i, ((_, lab, _, col), v) in enumerate(zip(A, vals)):
@@ -166,18 +171,20 @@ for i, ((_, lab, _, col), v) in enumerate(zip(A, vals)):
 ax.axhline(b0, ls='--', color='#C0392B', lw=1.3)
 ax.text(-0.42, b0 + .0018, '沒用模型、只做線性對位 %.3f' % b0, ha='left', color='#C0392B',
         fontsize=10, bbox=dict(fc='white', ec='none', pad=1.5))
-TOP = 0.8135
-for i, t in enumerate(('版本＋解析度  +%.3f' % (vals[1] - vals[0]),
-                       '放鬆 λ  +%.3f' % (vals[2] - vals[1]))):
+TOP = 0.815
+for i, t in enumerate(('只換解析度\n%+.3f' % (vals[1] - vals[0]),
+                       '只換版本\n%+.3f' % (vals[2] - vals[1]),
+                       '放鬆 λ\n%+.3f' % (vals[3] - vals[2]))):
     ax.annotate('', xy=(i + 1, TOP), xytext=(i, TOP),
                 arrowprops=dict(arrowstyle='->', color=C['ink'], lw=1.6))
-    ax.text(i + .5, TOP + .0035, t, ha='center', fontsize=12.5, fontweight='bold',
+    ax.text(i + .5, TOP + .0035, t, ha='center', va='bottom', fontsize=12, fontweight='bold',
+            color='#C0392B' if vals[i + 1] < vals[i] else C['ink'],
             bbox=dict(fc='white', ec=C['rule'], pad=2.5))
     for x in (i, i + 1):
         ax.plot([x, x], [vals[x] + .003, TOP], color=C['rule'], lw=.9, ls=':')
-ax.set_xticks(range(3))
-ax.set_xticklabels([a[1] for a in A], fontsize=11)
-ax.set_ylim(0.68, 0.825)
+ax.set_xticks(range(NB))
+ax.set_xticklabels([a[1] for a in A], fontsize=10.5)
+ax.set_ylim(0.68, 0.84)
 ax.set_ylabel('Dice（test 51 位）', fontsize=11)
 ax.set_title('對得多準', fontsize=13, fontweight='bold')
 
@@ -185,11 +192,11 @@ ax = axes[1]
 jv = [np.mean([d[k] for k in K]) for d in JN]
 for i, ((_, lab, _, col), v) in enumerate(zip(A, jv)):
     ax.bar(i, v, color=col, width=.6)
-    ax.text(i, v + .006, '%.3f%%' % v, ha='center', fontsize=14, fontweight='bold')
+    ax.text(i, v + .006, '%.3f%%' % v, ha='center', fontsize=13, fontweight='bold')
 ax.axhline(0.366, ls='--', color='#C0392B', lw=1.3)
-ax.text(2.42, 0.375, '論文的同版本 0.366%', ha='right', color='#C0392B', fontsize=10)
-ax.set_xticks(range(3))
-ax.set_xticklabels([a[1] for a in A], fontsize=11)
+ax.text(NB - .58, 0.375, '論文的同版本 0.366%', ha='right', color='#C0392B', fontsize=10)
+ax.set_xticks(range(NB))
+ax.set_xticklabels([a[1] for a in A], fontsize=10)
 ax.set_ylim(0, 0.45)
 ax.set_ylabel('擠爆的比例', fontsize=11)
 ax.set_title('有沒有擠爆', fontsize=13, fontweight='bold')
@@ -199,7 +206,41 @@ for ax in axes:
     ax.set_axisbelow(True)
     for sp in ('top', 'right'):
         ax.spines[sp].set_visible(False)
-fig.suptitle('三顆模型一次只改一件事，就能算出各自的影響', fontsize=12.5, fontweight='bold')
+fig.suptitle('四顆模型一次只改一件事，就能算出各自的影響', fontsize=12.5, fontweight='bold')
 fig.tight_layout()
 fig.savefig(os.path.join(OUT, 'ablation.png'), dpi=130)
 print('->', os.path.join(OUT, 'ablation.png'))
+
+
+# ── 圖五：全解析度幫在哪（左右平均，速度場半解析度 / 速度場全尺寸 / 位移場全尺寸）────
+def rd_lab(p, labs):
+    with open(os.path.join(ROOT, p), encoding='utf-8') as f:
+        rows = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    return np.nanmean([[float(rows[k]['label_%d' % l]) for l in labs] for k in K])
+
+
+GROUPS = [('大腦皮質', (3, 42)), ('大腦白質', (2, 41)), ('杏仁核', (18, 54))]
+RS = [('速度場・半解析度', 'models/mix_exp2/dice_0240.csv', C['teal']),
+      ('速度場・全尺寸', 'models/mix_exp5/dice_0150.csv', C['teal_m']),
+      ('位移場・全尺寸', 'models/mix_exp4/dice_0230.csv', C['rust_l'])]
+fig, ax = plt.subplots(figsize=(12, 4.6))
+wbar = 0.26
+for j, (lab, p, col) in enumerate(RS):
+    ys = [rd_lab(p, labs) for _, labs in GROUPS]
+    xs = np.arange(len(GROUPS)) + (j - 1) * wbar
+    ax.bar(xs, ys, width=wbar * .92, color=col, label=lab + '（平滑權重都是 2）' if j == 0 else lab)
+    for x, y in zip(xs, ys):
+        ax.text(x, y + .003, '%.3f' % y, ha='center', fontsize=11.5, fontweight='bold')
+ax.set_xticks(range(len(GROUPS)))
+ax.set_xticklabels([g for g, _ in GROUPS], fontsize=13)
+ax.set_ylim(0.68, 0.88)
+ax.set_ylabel('Dice（左右平均，test 51 位）', fontsize=11)
+ax.legend(loc='upper left', fontsize=11, frameon=False, ncol=3)
+ax.grid(axis='y', alpha=.3)
+ax.set_axisbelow(True)
+for sp in ('top', 'right'):
+    ax.spines[sp].set_visible(False)
+ax.set_title('改在全尺寸積分，進步最多的是大腦皮質', fontsize=13, fontweight='bold')
+fig.tight_layout()
+fig.savefig(os.path.join(OUT, 'res_struct.png'), dpi=130)
+print('->', os.path.join(OUT, 'res_struct.png'))

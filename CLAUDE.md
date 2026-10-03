@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-09-28**（mix_wide 完成：U-Net 加寬 2 倍 +0.0053；去顱骨殘留分析；`--int-downsize` 的真正作用）
+> 最後更新：**2026-09-30**（mix_exp5：功勞全在解析度、換成位移場本身 −0.0021；mix_exp6 準備中；`train_avg` 更正。09-28：mix_wide 完成、去顱骨殘留分析、`--int-downsize` 的真正作用）
 
 ---
 
@@ -44,6 +44,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_exp2** | 四包 **train 418 / val 51 / test 51**（80/10/10 重切，test 與 mix_exp1 不同），val 挑 epoch 240 | 0.6882 | **0.7972** | +0.109 | 0.000% |
 | **mix_exp3** | 同 mix_exp2，**位移場版**（int_steps 0 / int_downsize 1 = 論文 Table I 版本）| 0.6882 | **0.8062** | +0.118 | 0.199% |
 | **mix_exp4** | 位移場 + `--lambda 2.0`（平滑權重補回 2，用來把版本與參數分開）| 0.6882 | **0.8005** | +0.112 | 0.053% |
+| **mix_exp5** | 同 mix_exp2，速度場但**全尺寸**積分（int_steps 7 / int_downsize 1 / λ 2.0），val 挑 epoch 150 | 0.6882 | **0.8026** | +0.114 | 0.000% |
 | **mix_wide** | 同 mix_exp3，**U-Net 每層通道數 ×2**（參數 4 倍），val 挑 epoch 225 | 0.6882 | **0.8114** | +0.123 | 0.187% |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0.000% |
 | **tiger_exp3** | 同上，位移場版，val 挑 epoch 210 | 0.7453 | **0.8714** | +0.126 | 0.226% |
@@ -62,16 +63,19 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 🔴 **七件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21，7 出自 §23）：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
-2. **這台筆電（8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。要在機器「AI」上跑（§20.4）。
+2. **這台筆電（RTX 4060 Laptop 8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。
+   要在機器「AI」上跑（§20.4）：**NVIDIA TITAN RTX 24 GB**（2026-09-30 用 `nvidia-smi` 查的），路徑 `D:\chengyun\TRY_voxelmorph`，用 cmd。
 3. **mixed_v2 的 test 換人了**（80/10/10 重切），mix_exp2 不能再跟 mix_exp1 的 0.7874 直接比。
 4. **tigerbx 的 Dice 高 0.065，但起點也高 0.057**：扣掉起點後模型貢獻只差 +0.008（§20.8）。
    報告時要講「tigerbx 標籤本身比較好對」，不是配準比較準。
    交叉評估（§20.10）再佐證一次：**換去顱骨工具只掉 0.002～0.008**，比標籤差異小一個數量級。
-5. ✅ **版本與參數已經分開了**（mix_exp4，§20.5）：exp3 比 exp2 高的 0.009，
-   **只有 +0.0033 來自「換成位移場＋全解析度」，+0.0057 來自「平滑懲罰砍半」**（實際權重 = λ × int_downsize）。
-   ⚠️ 那 +0.0033 是兩件事綁在一起：mix_exp2 的速度場是**在一半解析度上積分**（`--int-downsize 2`），
-   mix_exp4 是全尺寸位移場，分不開。可以說「換成論文的版本 +0.0033」，**不能說「位移場本身」+0.0033**（2026-09-29 更正）。
-   折疊率同理：0% →（換版本）0.053% →（再砍半懲罰）0.199%。**擠爆主要是參數造成的，不是版本。**
+5. ✅ **版本、解析度、參數三件事都拆開了**（mix_exp4 + mix_exp5，§20.5）：exp3 比 exp2 高的 0.009 ＝
+   **解析度 +0.0054**（速度場改在全尺寸積分，49/51 變好）＋ **換成位移場 −0.0021**（只有 9/51 較高）
+   ＋ **平滑懲罰砍半 +0.0057**（實際權重 = λ × int_downsize）。
+   👉 **位移場本身沒有比較好**：同樣全尺寸、平滑權重 2，速度場 0.8026 > 位移場 0.8005，而且折疊 0%。
+   以前說的「換成論文的版本 +0.0033」是解析度和版本綁在一起的淨值（09-29 發現綁在一起、09-30 用 mix_exp5 拆開）。
+   折疊率：速度場 0%（半解析度、全尺寸都是）→（換成位移場）0.053% →（再砍半懲罰）0.199%。
+   **擠爆主要是參數造成的，版本有一點，解析度沒有。** 下一顆 mix_exp6 ＝ 速度場＋全尺寸＋平滑權重 1（`ASD/指令_mix_exp6.md`）。
 6. **去顱骨殘留對 Dice 幾乎沒影響**（§21）：顱底 0.0004、上緣 0.011（方向符合預期：留越厚模型拉得越少）。
    🔴 但**配準後的絕對 Dice 反而是「沒去乾淨」那組較高**（0.8119 vs 0.8024），那是起點就高帶來的。
    **看模型貢獻欄，不要看絕對值。**
@@ -81,7 +85,7 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ **折疊率 0% 的那幾顆（asd_exp1、mix_exp1/2、tiger_exp1/2）都是 repo 預設的微分同胚版**
-（`int_steps=7`）＋ λ=1.0。0% 主要來自這個版本，**不代表模型比論文好**
+（`int_steps=7`）＋ λ=1.0；mix_exp5（速度場、全尺寸、權重 2）也是 0%。0% 主要來自這個版本，**不代表模型比論文好**
 （論文 Table I 是非微分同胚的位移場版，折疊率 0.366%，見手冊 §18）。
 位移場版的 mix_exp3 / tiger_exp3 折疊率 0.199% / 0.226%，才是跟論文同一個基準。
 
@@ -121,7 +125,7 @@ C:\Users\h4524\claude_cheng\
 ├── voxelmorph-code\                    # VoxelMorph 官方 repo（含本地修改）
 │   ├── voxelmorph\                     # 套件本體（torch\losses.py、torch\networks.py 在這）
 │   ├── data\
-│   │   ├── atlas.npz                   # OASIS atlas：keys = vol / seg / train_avg
+│   │   ├── atlas.npz                   # OASIS atlas：keys = vol / seg / train_avg（各標籤平均亮度，沒有程式在用）
 │   │   ├── labels.npz                  # ⭐ Dice 評估用的 30 個 FreeSurfer 標籤 ID
 │   │   ├── generated_uncond_atlas.npz  prob_atlas.npz
 │   │   ├── prob_atlas_T1_stats.npz     prob_atlas_mapping.npz
@@ -148,20 +152,28 @@ C:\Users\h4524\claude_cheng\
 │   ├── make_split.py                   # ⭐ 整批重切 train/val/test（依來源分層）
 │   ├── author_model.py                 # 作者的 Keras 模型（.h5）搬進 PyTorch（手冊 §19）
 │   ├── orient.py                       # 依 atlas 標籤判斷方向，視覺化前轉成 RAS
-│   ├── check_skullstrip.py             # ⭐ 去顱骨殘留：掃描 + 對照圖 + 算法說明圖（手冊 §21）
+│   ├── check_skullstrip.py             # ⭐ 去顱骨殘留：頭頂／顱底／後腦杓掃描 + 對照圖 + 算法說明圖（手冊 §21、§24.3）
+│   ├── skullstrip_label_dice.py        # ⭐ 只平均殘留旁邊的結構的 Dice（老師要的做法，手冊 §24.2）
+│   ├── skullstrip_local_dice.py        # 只算殘留附近 25mm 框內的體素（第一版、切空間，§24.2 補充）
+│   ├── check_top_residue.py            # 頭頂的「殘留」是貼在皮質外面的東西還是漏標的皮質：放大圖、亮度剖面（手冊 §24.2 最後）
+│   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
 │   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume / --enc / --dec）
-│   ├── 指令_mix_wide.md                # mix_wide（U-Net 加寬 2 倍）的操作單，Drive 傳輸站\reg\mix_wide\ 也有一份（手冊 §23）
-│   ├── 指令_mix_exp5.md                # mix_exp5（速度場＋全解析度，拆開「版本」與「解析度」）的操作單，Drive 傳輸站\reg\mix_exp5\ 也有一份（手冊 §20.5）
+│   ├── 指令_mix_wide.md                # mix_wide（U-Net 加寬 2 倍）的操作單，Drive 傳輸站\reg\script\mix_wide\ 也有一份（手冊 §23）
+│   ├── 指令_mix_exp5.md                # mix_exp5（速度場＋全解析度，拆開「版本」與「解析度」）的操作單，Drive 傳輸站\reg\script\mix_exp5\ 也有一份（手冊 §20.5）
+│   ├── 指令_mix_exp6.md                # mix_exp6（速度場＋全解析度＋平滑權重 1）的操作單，Drive 傳輸站\reg\script\mix_exp6\ 也有一份
+│   ├── 指令_mix_exp7.md                # mix_exp7（速度場＋全解析度＋平滑權重 0.5），Drive 傳輸站\reg\script\mix_exp7\ 也有一份
+│   ├── 指令_mix_wide_vel.md            # mix_wide_vel（加寬 2 倍＋速度場，老師 p25「改看看速度」），Drive 傳輸站\reg\script\mix_wide_vel\ 也有一份
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
-│                                       #   2026-09-20_cross\ 是現行 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）
+│                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 14 頁（同一套做法，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -171,6 +183,13 @@ C:\Users\h4524\claude_cheng\
 │   ├── VNT_preprocessed_v1\            # train 61 / test 7
 │   ├── fs_subjects_data\               # 第四包（234 顆，2026-09-16）。⚠️ 沒有 demographics.tsv
 │   ├── fs_subjects_preprocessed_v1\    # train 234 / test 0（--test-frac 0）
+│   ├── MRS_data\                       # 第五包：**70 個掃描＝70 人**，FreeSurfer 產物（256³、1mm、LIA），沒有年齡表。還沒前處理。
+│   │                                   #   原本 130 個：同編號帶 -1/-2/-3 假設是同一人，使用者指定**每人只留最後一次掃描**
+│   │                                   #   （MRS0261、-2、-3 只留 -3；MDMP001 可以用）。09-30 使用者整包換好、已照
+│   │                                   #   data\MRS_建議拿掉_檔名.txt 核對：60 個都拿掉、70 個都在、沒有多的、fs_stats 一致。
+│   │                                   #   **還有其他包新資料要來，等全部到齊再一起**併進來重切成 v3（一人一顆，不用另外歸戶）
+│   ├── MRS_preprocessed_v1\            # MRS 70 顆前處理（--test-frac 0，都在 train\ 資料夾）。09-30 只借來做殘留實驗（手冊 §24.2），
+│   │                                   #   **沒進過任何訓練**
 │   ├── mixed_preprocessed_v1\          # 三包併起來 train 258 / test 28 + mixed_manifest.json
 │   ├── mixed_preprocessed_v2\          # ⭐ 四包 train 418 / val 51 / test 51（80/10/10）+ split.json
 │   ├── tigerbx_preprocessed_v1\        # tigerbx arm：同一個切分 train 258 / test 28
@@ -196,9 +215,10 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~4\  mix_wide\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
-│   ├── deck_charts\                        # meeting 簡報用的圖（由 slides_src\2026-09-20_cross\make_*.py 產生）
-│   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）
+│   ├── asd_exp1\  mix_exp1~5\  mix_wide\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py）
+│   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
+│   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重
@@ -545,7 +565,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | NCC 訓練出來會折疊 / 形變過激 | λ 對 NCC 而言小了兩個數量級 | 見「超參數」節，λ 試 0.5–2 |
 | `RuntimeError: size XXX not divisible` | 影像維度不能被 16 整除（U-Net 4 層下採樣） | **在 `make_atlas.py` 指定 `--target-shape`**（不是 preprocess_ixi.py，它已移除該旗標） |
 | `CUDA out of memory`（OOM ＝顯存不夠）| 192×224×192 在 8GB GPU 上很緊 | `--batch-size 1`，或改用更小的 target shape。**加寬 U-Net 的實測顯存與對策見手冊 §23** |
-| 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯 | 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下 |
+| 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯。⚠️ 看的是 PyTorch **預留**的量（約實際用量 2.4 倍），不是實際用量（手冊 §23.7）| 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下。實際用量放得下、只是預留超過的話：訓練前 `set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85` |
 | `--check-only` 通過，開跑還是爆 | 它**只印出卡有多大，不會真的建模型試跑**；警告門檻 7.5 GB 是為預設寬度設的 | 加寬版要自己拿卡的容量對手冊 §23 的表 |
 | 視覺化 / 推論卡住很久 | 沒加 `--gpu 0`，走 CPU 跑 3D U-Net | 一律加 `--gpu 0` |
 | `test_oasis.py` 讀 `atlas['seg']` 報 KeyError | IXI atlas 沒有 seg | 改用 `test_ixi.py` |
@@ -573,6 +593,33 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 ---
 
 ## 待辦
+
+### 0. 🔴 10/14 meeting 要交的（2026-09-30 meeting 老師的紅字）
+
+老師寫在 `meeting報告\ASD_520顆與交叉測試_20260920.pptx` 上（使用者 09-30 13:03 存檔）。
+⚠️ **那份 pptx 不能再用 build.js 的輸出覆蓋**，紅字會不見；10/14 的簡報另外出一份。
+
+| 頁 | 老師寫的 | 要做的事 | 狀態 |
+|---|---|---|---|
+| p18 消融 | 確認那些位置是被擠爆的（壞掉的點）| 擠爆（\|J\|≤0）的點落在哪些腦區、哪些位置 | ✅ 09-30（手冊 §24.1）|
+| p18 消融 | 速度場 Lambda 去調一下 | 速度場＋全尺寸掃 λ：權重 2 = mix_exp5（已完成）、1 = mix_exp6、0.5 = mix_exp7（操作單都在 `ASD/指令_*.md`）| mix_exp6、7 待跑 |
+| p22 去頭骨 | Dice 只算沒切乾淨附近的區域就好 | 只在殘留附近的區域算 Dice，比「沒切乾淨」vs「乾淨」 | ✅ 09-30（手冊 §24.2）|
+| p22 去頭骨 | 後腦杓也有沒切乾淨的也去看 | `check_skullstrip.py` 多掃後腦杓的殘留 | ✅ 09-30（手冊 §24.3）|
+| p25 加寬 | 改看看速度 | 加寬 2 倍的 U-Net 改成速度場版 = mix_wide_vel（平滑權重 1，跟 mix_wide 只差版本、跟 mix_exp6 只差寬度）。顯存實測外插 14.1 GB，操作單 `ASD/指令_mix_wide_vel.md` | 等 mix_exp7 跑完再跑（約 28 小時）|
+
+**已經看到的結論**（細節在手冊 §24）：
+- 擠爆的點沿著腦溝落在皮質和白質裡，每人不一樣，深部結構幾乎沒有
+- 老師要的 Dice 是「**只平均殘留旁邊的結構**」（挑結構，不是切空間）。照這樣算：
+  **頭頂的殘留確實讓皮質對得比較差**（殘留 vs 模型貢獻 r = −0.57，p < 0.001），30 個結構全部平均時完全看不出來（r = −0.08）；
+  顱底、後腦杓沒有影響。**人數加大到 170（test＋val＋MRS）還是成立**：合起來 r = −0.40（p < 0.001），
+  MRS 這個新研究也重現（r = −0.37）。✅ 10-01 排除了「FreeSurfer 在頭頂漏標皮質」：紅色都在標到的皮質外面，
+  殘留多的人標到的皮質一樣完整、一樣厚，紅色亮度只有皮質的 0.7 倍（腦膜，少數人連脂肪／骨髓都在）
+
+p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quantum annealing」是另一個計畫，**使用者說先不管**。
+
+**10/14 簡報**（2026-10-01 第一版）：`ASD/slides_src/2026-10-14_redpen/` → `meeting報告\ASD_老師紅字回覆_20261014.pptx`（14 頁）。
+mix_exp6、mix_exp7、mix_wide_vel 的結果帶回來放進 `models\<exp>\` 後，照該資料夾 README 重建就會自動補上（現在顯示「跑中」）。
+⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字。
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
@@ -690,7 +737,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 |---|---|
 | **整份是 Linux 語法** | `source vxm_env/bin/activate` → 應為 `.\vxm_env\Scripts\activate` |
 | **腳本全部改名了** | `test.py`→`test_oasis.py`/`test_ixi.py`；`batch_test.py`→`batch_test_*.py`；`visualize_registration.py`→`visualize_reg_*.py`（16 處提到 `test.py`）|
-| **`train_avg` 說明錯誤** | 指南 §2 說是「訓練集平均影像」→ ❌。實測 `atlas.npz` 的 `train_avg` 是 `shape=(256,) float64`，是**各標籤的平均 Dice**（256 = FreeSurfer label ID 範圍 0–255），手冊 §1.1 的說法才對 |
+| ~~**`train_avg` 說明錯誤**~~ | ✅ **2026-09-30 已改（指南 §2、`IXI/ixi相關手冊.md` §1.1 一起改）**。它**不是影像，也不是 Dice**，是**各標籤的平均亮度**：`shape=(256,)`，索引 = FreeSurfer 標籤編號。實測 atlas 裡 38 個腦內標籤，`train_avg[編號]` 跟 `vol` 在該標籤內的平均亮度一模一樣（最大差 6.9e-8）：白質 0.39、皮質 0.27、側腦室 0.09、背景 0.016。另有 7 個 atlas 沒有的標籤（72、80、251–255）也有值，來源從檔案看不出來。**沒有任何程式讀它**（`test_oasis.py` 也沒有）。本文舊版寫的「各標籤平均 Dice」是錯的 |
 | ~~`--lambda 1.0` 建議值誤導~~ | ✅ **這項不是錯的，反而是對的**。指南 §6 的指令是 `--image-loss ncc --lambda 1.0` 配套出現，正好命中論文對 CC 的最佳 λ（≈1–2）。稽核報告拿 `train.py` 預設 0.01 去比而未考慮損失類型，判斷有誤。**真正的問題是後續 exp3–exp8 偏離了這份最舊文件的正確設定** |
 | **沒寫 `--image-loss` 預設是 mse** | 指南的範例有明寫 `ncc`，但沒提「不寫就會變 mse」。exp6 就是踩這個 |
 | **完全沒有 IXI 這條線** | 主線早就轉到 IXI + MNI152 |
@@ -705,6 +752,9 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 `前一AI擔心的/前一AI擔心的.md` §2.5 說「exp7 / exp8 就是用 `train_NCCPatchSize.py` 跑的」
 ——**這是錯的**，已由 `log/exp*_script.txt` 與 `.pt` config 雙重推翻（見「實驗記錄」節）。
 該文件 §4.7 的 git status 也已過時。
+
+該文件 §4.4 判定 `train_avg` 是「各標籤的平均 Dice」——**也是錯的**。它只看了 shape（256）和最大值（0.42）就下結論；
+2026-09-30 逐標籤對過，是**各標籤的平均亮度**（見上表）。
 
 ---
 
