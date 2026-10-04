@@ -23,6 +23,8 @@
 | `mix_exp6/` | 速度場＋全尺寸，平滑權重降到 **1**（老師 09-30 紅字「速度場 λ 去調一下」）| 0190 | **0.8051** | 0.000% |
 | `mix_exp7/` | 同上，平滑權重 **0.5** | 0250 | 0.8047 | 0.0001% |
 | `mix_wide_vel/` | **準備中**：加寬 2 倍＋速度場、平滑權重 1（操作單 `ASD/指令_mix_wide_vel.md`）| — | — | — |
+| `mix_exp8/` | **準備中**：同 mix_exp6，**訓練時也用 FreeSurfer 標籤**（γ 0.5，`ASD/train_semisup.py`；操作單 `ASD/指令_mix_exp8_9.md`）| — | — | — |
+| `mix_exp9/` | **準備中**：同上，標籤權重 γ 5 | — | — | — |
 
 **每一步各貢獻多少**（逐人配對 51 位）：
 
@@ -83,6 +85,8 @@
 | mix_exp6 | 同上 | FreeSurfer | 1.0 | **7** | **1** | 1 | 預設 | 0190（val 挑）|
 | mix_exp7 | 同上 | FreeSurfer | **0.5** | **7** | **1** | 0.5 | 預設 | 0250（val 挑，最後一輪）|
 | mix_wide_vel（準備中）| 同上 | FreeSurfer | 1.0 | **7** | **1** | 1 | **2 倍寬** | — |
+| mix_exp8（準備中）| 同上，**另加標籤項 γ 0.5** | FreeSurfer | 1.0 | 7 | 1 | 1 | 預設 | — |
+| mix_exp9（準備中）| 同上，**另加標籤項 γ 5** | FreeSurfer | 1.0 | 7 | 1 | 1 | 預設 | — |
 | tiger_exp1 | `tigerbx_preprocessed_v1`（258 / 28）| tigerbx | 1.0 | 7 | 2 | 2 | 預設 | 0240（test 挑）|
 | tiger_exp2 | `tigerbx_preprocessed_v2`（418 / 51 / 51）| tigerbx | 1.0 | 7 | 2 | 2 | 預設 | 0250（val 挑）|
 | tiger_exp3 | 同上 | tigerbx | 1.0 | 0 | 1 | 1 | 預設 | 0210（val 挑）|

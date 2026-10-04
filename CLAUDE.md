@@ -168,12 +168,14 @@ C:\Users\h4524\claude_cheng\
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
 │   ├── run_preprocess.py               # 前處理包裝（--src-dir / --out-dir / --n4 / --group-map）
-│   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume / --enc / --dec）
+│   ├── run_train.py                    # 訓練包裝（--train-dir / --exp-name / --check-only / --resume / --enc / --dec / --seg-weight）
+│   ├── train_semisup.py                # 訓練時也用 FreeSurfer 標籤（論文式 10，γ·L_seg）；run_train.py --seg-weight > 0 會改跑這支（手冊 §20.5）
 │   ├── 指令_mix_wide.md                # mix_wide（U-Net 加寬 2 倍）的操作單，Drive 傳輸站\reg\script\mix_wide\ 也有一份（手冊 §23）
 │   ├── 指令_mix_exp5.md                # mix_exp5（速度場＋全解析度，拆開「版本」與「解析度」）的操作單，Drive 傳輸站\reg\script\mix_exp5\ 也有一份（手冊 §20.5）
 │   ├── 指令_mix_exp6.md                # mix_exp6（速度場＋全解析度＋平滑權重 1）的操作單，Drive 傳輸站\reg\script\mix_exp6\ 也有一份
 │   ├── 指令_mix_exp7.md                # mix_exp7（速度場＋全解析度＋平滑權重 0.5），Drive 傳輸站\reg\script\mix_exp7\ 也有一份
 │   ├── 指令_mix_wide_vel.md            # mix_wide_vel（加寬 2 倍＋速度場，老師 p25「改看看速度」），Drive 傳輸站\reg\script\mix_wide_vel\ 也有一份
+│   ├── 指令_mix_exp8_9.md              # mix_exp8／9（訓練時也用標籤，γ 0.5／5，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_exp8_9\ 也有一份
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -609,7 +611,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 |---|---|---|---|
 | p18 消融 | 確認那些位置是被擠爆的（壞掉的點）| 擠爆（\|J\|≤0）的點落在哪些腦區、哪些位置 | ✅ 09-30（手冊 §24.1）；10-04 補三個方向各 4 刀、5 種設定對照（速度場兩顆沒有熱點）|
 | p18 消融 | 速度場 Lambda 去調一下 | 速度場＋全尺寸掃 λ：權重 2 = mix_exp5（已完成）、1 = mix_exp6、0.5 = mix_exp7（操作單都在 `ASD/指令_*.md`）| ✅ 10-04（手冊 §20.5）。2 → 1 +0.0025，再降到 0.5 沒再變好，擠爆都接近 0。⚠️ 兩顆是**同時**在 AI 上跑的，log 每步時間（約 3.2 秒）**不能拿來跟單獨跑的比**。一開始顯存溢位每步 10 幾秒，加了 `per_process_memory_fraction:0.42` 後從頭跑，那段沒留在 log 裡（§23.7）|
-| p22 去頭骨 | Dice 只算沒切乾淨附近的區域就好 | 只在殘留附近的區域算 Dice，比「沒切乾淨」vs「乾淨」 | ✅ 09-30（手冊 §24.2）|
+| p23 去頭骨 | Dice 只算沒切乾淨附近的區域就好（不想被深層灰質影響）| 只在殘留附近的區域算 Dice，比「沒切乾淨」vs「乾淨」 | ✅ 09-30（手冊 §24.2）|
 | p22 去頭骨 | 後腦杓也有沒切乾淨的也去看 | `check_skullstrip.py` 多掃後腦杓的殘留 | ✅ 09-30（手冊 §24.3）|
 | p25 加寬 | 改看看速度 | 加寬 2 倍的 U-Net 改成速度場版 = mix_wide_vel（平滑權重 1，跟 mix_wide 只差版本、跟 mix_exp6 只差寬度）。顯存實測外插 14.1 GB，操作單 `ASD/指令_mix_wide_vel.md` | 等 mix_exp6、7 都跑完再跑（加了記憶體設定約 19 小時）|
 
@@ -622,6 +624,10 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
   殘留多的人標到的皮質一樣完整、一樣厚，紅色亮度只有皮質的 0.7 倍（腦膜，少數人連脂肪／骨髓都在）
 
 p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quantum annealing」是另一個計畫，**使用者說先不管**。
+
+**老師紅字之外的下一步（10-04 使用者同意）**：訓練時也用 FreeSurfer 標籤 = mix_exp8（γ 0.5）、mix_exp9（γ 5），基礎同 mix_exp6。
+程式 `ASD/train_semisup.py`、操作單 `ASD/指令_mix_exp8_9.md`。筆電功能測試通過（手冊 §20.5）；等 mix_wide_vel 跑完、AI `git pull` 後開跑。
+🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文的 0.01／0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5／5。
 
 **10/14 簡報**：`ASD/slides_src/2026-10-14_redpen/` → `meeting報告\ASD_老師紅字回覆_20261014.pptx`
 （10-01 第一版 14 頁；10-04 補上 mix_exp6、7，加了「為什麼權重 0.5 沒再變好」「形變網格對照」兩頁；

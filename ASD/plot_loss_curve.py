@@ -5,8 +5,10 @@ train.py 每一步印一行：
     epoch: 0250  step: 100/100   time: 1.48 sec  loss: -0.211664  (-0.235144, 0.023480)
                                                         總 loss    影像項（NCC）  平滑項
 總 loss = 影像項 + 平滑項（平滑項已經乘過 λ 和 loss_mult）。
+ASD/train_semisup.py（訓練時也用標籤，2026-10-04）多印一項：(影像項, 平滑項, 標籤項)，標籤項 = γ × (−平均 Dice)。
 
-畫三格：總 loss、影像項、平滑項。給多份 log 就畫在同一張圖上比較。
+畫三格：總 loss、影像項、平滑項；有任何一份 log 帶標籤項時多畫第四格。給多份 log 就畫在同一張圖上比較。
+⚠️ 有標籤項的實驗，總 loss 跟沒有的不能比（目標函數不一樣）；影像項、平滑項還是可以比。
 
 ⚠️ 平滑項跨實驗不能直接比大小：train.py 是 Grad('l2', loss_mult=int_downsize)，
    --int-downsize 2 的實驗平滑項會被乘 2，--int-downsize 1 的不會。
@@ -48,7 +50,7 @@ ap.add_argument('--out', default=None,
 args = ap.parse_args()
 
 LINE = re.compile(r'epoch:\s*(\d+)\s+step:\s*(\d+)/(\d+).*?loss:\s*(-?[\d.eE+-]+)\s+'
-                  r'\((-?[\d.eE+-]+),\s*(-?[\d.eE+-]+)\)')
+                  r'\((-?[\d.eE+-]+),\s*(-?[\d.eE+-]+)(?:,\s*(-?[\d.eE+-]+))?\)')
 
 
 def read_text(path):
@@ -68,7 +70,8 @@ def per_epoch(path):
     acc = {}
     for m in LINE.finditer(read_text(path)):
         ep = int(m.group(1))
-        acc.setdefault(ep, []).append([float(m.group(4)), float(m.group(5)), float(m.group(6))])
+        seg = float(m.group(7)) if m.group(7) is not None else np.nan      # 沒有標籤項的 log 補 nan
+        acc.setdefault(ep, []).append([float(m.group(4)), float(m.group(5)), float(m.group(6)), seg])
     if not acc:
         sys.exit('[X] %s 裡找不到 loss 紀錄' % path)
     eps = sorted(acc)
@@ -81,18 +84,22 @@ if len(labels) != len(args.logs):
     sys.exit('[X] --labels 數量要跟 --logs 一樣')
 
 colors = ['#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#ff7f0e']
-fig, axes = plt.subplots(3, 1, figsize=(11, 10), sharex=True)
-titles = ['Total loss (image + smoothness)', 'Image term (NCC, lower is better)',
-          'Smoothness term (already x lambda x loss_mult)']
+data = [per_epoch(p) for p in args.logs]
+has_seg = any(np.isfinite(mean[:, 3]).any() for _, mean, _ in data)
+nrow = 4 if has_seg else 3
+fig, axes = plt.subplots(nrow, 1, figsize=(11, 10 if nrow == 3 else 12.5), sharex=True)
+titles = ['Total loss (image + smoothness%s)' % (' + label' if has_seg else ''), 'Image term (NCC, lower is better)',
+          'Smoothness term (already x lambda x loss_mult)', 'Label term (gamma x -mean Dice, lower is better)'][:nrow]
 
-for k, (path, lab) in enumerate(zip(args.logs, labels)):
-    eps, mean, counts = per_epoch(path)
+for k, ((eps, mean, counts), lab) in enumerate(zip(data, labels)):
     short = [e for e, c in counts.items() if c < max(counts.values())]
     c = colors[k % len(colors)]
     for i, ax in enumerate(axes):
-        ax.plot(eps, mean[:, i], color=c, lw=1.6, label=lab)
-    print('%-12s %d 個 epoch；最後一個 epoch 平均：總 %.4f、影像 %.4f、平滑 %.4f（平滑佔 %.1f%%）'
-          % (lab, len(eps), mean[-1, 0], mean[-1, 1], mean[-1, 2],
+        if np.isfinite(mean[:, i]).any():
+            ax.plot(eps, mean[:, i], color=c, lw=1.6, label=lab)
+    seg_txt = '、標籤 %.4f' % mean[-1, 3] if np.isfinite(mean[-1, 3]) else ''
+    print('%-12s %d 個 epoch；最後一個 epoch 平均：總 %.4f、影像 %.4f、平滑 %.4f%s（平滑佔影像＋平滑的 %.1f%%）'
+          % (lab, len(eps), mean[-1, 0], mean[-1, 1], mean[-1, 2], seg_txt,
              100 * abs(mean[-1, 2]) / (abs(mean[-1, 1]) + abs(mean[-1, 2]))))
     if short:
         print('    ⚠️ 這些 epoch 步數不足（log 可能被截斷）：%s' % short[:10])

@@ -51,6 +51,10 @@ ap.add_argument('--int-downsize', type=int, default=2)
 ap.add_argument('--enc', type=int, nargs='+', default=None, help='U-Net 編碼器通道數')
 ap.add_argument('--dec', type=int, nargs='+', default=None, help='U-Net 解碼器通道數')
 ap.add_argument('--steps-per-epoch', type=int, default=100)
+# 2026-10-04：訓練時也用 FreeSurfer 標籤（論文式 10 的 γ）。> 0 就改跑 ASD/train_semisup.py，其他參數照舊。
+# 🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文 γ 0.01 / 0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5 / 5（見 train_semisup.py 檔頭）
+ap.add_argument('--seg-weight', type=float, default=0.0, help='標籤項權重 γ；0 = 不用標籤（原本的 train.py）')
+ap.add_argument('--atlas-seg', default=None, help='--seg-weight 用的 atlas 標籤，預設 IXI/atlas_mni152_09c_v3_seg.npz')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
                 help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
@@ -61,10 +65,13 @@ ap.add_argument('--yes', action='store_true', help='跳過確認')
 args = ap.parse_args()
 
 PY = sys.executable                    # 就是目前這個 venv 的 python
-TRAIN = os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py')
+SEG = args.seg_weight > 0
+TRAIN = (os.path.join(ROOT, 'ASD', 'train_semisup.py') if SEG
+         else os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py'))
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
+ATLAS_SEG = args.atlas_seg or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz')
 MODEL_DIR = os.path.join(ROOT, 'models', args.exp_name)
 LOG_DIR = os.path.join(ROOT, 'log')
 LOG_FILE = os.path.join(LOG_DIR, args.exp_name + '.txt')
@@ -83,12 +90,22 @@ print('      專案根目錄 : %s' % ROOT)
 print('      python     : %s' % PY)
 
 ok = True
-for p in (TRAIN, ATLAS):
+for p in (TRAIN, ATLAS) + ((ATLAS_SEG,) if SEG else ()):
     if os.path.exists(p):
         print('      [v] %s' % p)
     else:
         print('      [X] 找不到：%s' % p)
         ok = False
+if SEG:
+    _f = sorted(glob.glob(os.path.join(DATA, '*.npz')))
+    if _f:
+        import numpy as _np
+        with _np.load(_f[0]) as _z:
+            if 'seg' in _z.files:
+                print('      [v] 訓練資料有 seg（%s）' % os.path.basename(_f[0]))
+            else:
+                print('      [X] 訓練資料沒有 seg，--seg-weight 用不了（要 preprocess_fs.py 產生的 npz）')
+                ok = False
 
 for d, tag in ((DATA, 'train'), (TEST, 'test')):
     if os.path.isdir(d):
@@ -158,6 +175,9 @@ print('[2/3] 訓練設定')
 print('      實驗名稱    : %s' % args.exp_name)
 print('      image-loss  : %s' % args.image_loss)
 print('      lambda      : %g   <- %s 建議 %s' % (args.weight, args.image_loss, hint))
+if SEG:
+    print('      標籤權重 γ  : %g   <- 訓練時也用 FreeSurfer 標籤（%s）；%s 時建議 %s'
+          % (args.seg_weight, os.path.basename(ATLAS_SEG), args.image_loss, '0.5 或 5' if args.image_loss == 'ncc' else '0.01 或 0.1'))
 print('      epochs      : %d (從 %d 開始，還要跑 %d)' % (args.epochs, initial_epoch, remain))
 print('      steps/epoch : %d' % args.steps_per_epoch)
 if args.enc or args.dec:
@@ -191,6 +211,8 @@ if args.enc:
     cmd += ['--enc'] + [str(x) for x in args.enc]
 if args.dec:
     cmd += ['--dec'] + [str(x) for x in args.dec]
+if SEG:
+    cmd += ['--seg-weight', str(args.seg_weight), '--atlas-seg', ATLAS_SEG]
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]
