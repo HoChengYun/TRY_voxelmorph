@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
-"""把 exp2 / exp5 / exp4 / exp3 的圖排成四版對照，給簡報用。
+"""把四顆模型的圖排成四版對照，給簡報用。
 
-四顆一次只改一件事：exp2 → exp5 只換解析度、exp5 → exp4 只換版本、exp4 → exp3 只換平滑權重
-（手冊 §20.5；mix_exp5 是 2026-09-30 補進來的，之前是三版）。
+--set ablation（預設）：exp2 / exp5 / exp4 / exp3，一次只改一件事：exp2 → exp5 只換解析度、
+    exp5 → exp4 只換版本、exp4 → exp3 只換平滑權重（手冊 §20.5；mix_exp5 是 2026-09-30 補進來的，之前是三版）
+--set lambda（2026-10-04，10/14 簡報用）：速度場全尺寸的平滑權重 2 / 1 / 0.5（exp5 / exp6 / exp7）
+    ＋位移場權重 1（exp3）當對照
 
-輸出到 models/deck_charts/：
-    curve_exp2345.png      四顆的 val Dice 曲線 + 擠爆比例（從 dice_curve_val.csv 重畫）
-    jacobian_exp2345.png   四顆的 Jacobian 圖疊成一張（讀既有的 vis_T054 輸出）
-    grid_exp2345.png       四顆的形變網格，簡報專用的清楚版（2026-09-29 起重畫，不再堆 vis 的 PNG）
+輸出到 models/deck_charts/（<後綴> = ablation 是 exp2345、lambda 是 lambda）：
+    curve_<後綴>.png      四顆的 val Dice 曲線 + 擠爆比例（從 dice_curve_val.csv 重畫）
+    jacobian_<後綴>.png   四顆的 Jacobian 圖疊成一張（讀既有的 vis_T054 輸出）
+    grid_<後綴>.png       四顆的形變網格，簡報專用的清楚版（2026-09-29 起重畫，不再堆 vis 的 PNG）
 
 ⚠️ jacobian 那張是把 visualize 出來的 PNG 直接堆起來，不是重新計算。
    所以 vis_T054 那些圖要先存在（見手冊 §13 的視覺化速查）。
@@ -38,12 +40,22 @@ INK, MUTED, RULE, PAPER = '#141A1D', '#5F6A6B', '#D9D9D2', '#FAFAF8'
 TEAL, TEAL_M, RUST_L, RUST = '#0E7C7B', '#3A9E9C', '#D9895A', '#A34F1B'
 
 # (實驗, 最佳 epoch, 標籤, 顏色)
-EXPS = [
-    ('mix_exp2', '0240', '速度場・半解析度・權重 2', TEAL),
-    ('mix_exp5', '0150', '速度場・全尺寸・權重 2', TEAL_M),
-    ('mix_exp4', '0230', '位移場・全尺寸・權重 2', RUST_L),
-    ('mix_exp3', '0240', '位移場・全尺寸・權重 1', RUST),
-]
+SETS = {
+    'ablation': ('exp2345', [
+        ('mix_exp2', '0240', '速度場・半解析度・權重 2', TEAL),
+        ('mix_exp5', '0150', '速度場・全尺寸・權重 2', TEAL_M),
+        ('mix_exp4', '0230', '位移場・全尺寸・權重 2', RUST_L),
+        ('mix_exp3', '0240', '位移場・全尺寸・權重 1', RUST),
+    ]),
+    'lambda': ('lambda', [
+        ('mix_exp5', '0150', '速度場・權重 2', '#5BB8B6'),
+        ('mix_exp6', '0190', '速度場・權重 1', TEAL),
+        ('mix_exp7', '0250', '速度場・權重 0.5', '#0A4F4E'),
+        ('mix_exp3', '0240', '位移場・權重 1', RUST),
+    ]),
+}
+SET = sys.argv[sys.argv.index('--set') + 1] if '--set' in sys.argv else 'ablation'
+TAG, EXPS = SETS[SET]
 PANEL = lambda k: [0.012 + k * 0.247, 0.12, 0.235, 0.80]      # 四格橫排
 FIGSIZE = (16, 5.2)
 
@@ -84,9 +96,9 @@ for ax in axes:
     for sp in ('top', 'right'):
         ax.spines[sp].set_visible(False)
 fig.tight_layout()
-fig.savefig(os.path.join(OUT, 'curve_exp2345.png'), dpi=130)
+fig.savefig(os.path.join(OUT, 'curve_%s.png' % TAG), dpi=130)
 plt.close(fig)
-print('->', os.path.join(OUT, 'curve_exp2345.png'))
+print('->', os.path.join(OUT, 'curve_%s.png' % TAG))
 
 
 # ── 2. 把既有的視覺化 PNG 堆成四版對照 ───────────────────────────────
@@ -110,7 +122,7 @@ def stack(kind, subject, out_name, xcrop=(0.035, 0.295), ycrop=(0.145, 1.0)):
     print('->', os.path.join(OUT, out_name))
 
 
-stack('jacobian', 'T054', 'jacobian_exp2345.png')
+stack('jacobian', 'T054', 'jacobian_%s.png' % TAG)
 
 
 # ── 3. 形變網格：重跑推論、自己畫清楚版 ─────────────────────────────────
@@ -189,4 +201,4 @@ def grid_clear(subject, out_name, spacing=6, line='#FFD23F', lw=1.0, dim=0.55, m
     print('->', os.path.join(OUT, out_name))
 
 
-grid_clear('T054', 'grid_exp2345.png')
+grid_clear('T054', 'grid_%s.png' % TAG)

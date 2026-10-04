@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """10/14 簡報的圖 -> models/deck_charts/1014_*.png。數字讀 deck_data.json（先跑 gather.py）。
 
-  1014_folding_where.png    ① 擠爆的點在哪（mix_exp3 一顆、字放大；完整三顆版是 models/folding_check/folding_where.png）
   1014_folding_regions.png  ① 擠爆的點落在哪些區域（只留「佔幾 %」那一格、字放大）
   1014_lambda.png           ② 平滑權重 2 / 1 / 0.5：速度場 vs 位移場（還沒跑完的點標「跑中」）
   1014_dilution.png         ③ 30 個結構一起平均 vs 只平均殘留旁邊的結構（170 人）
@@ -48,15 +47,23 @@ W = [2.0, 1.0, 0.5]                      # 由左到右越放鬆
 SERIES = [('速度場（全尺寸）', TEAL, {2.0: 'mix_exp5', 1.0: 'mix_exp6', 0.5: 'mix_exp7'}),
           ('位移場（全尺寸）', RUST, {2.0: 'mix_exp4', 1.0: 'mix_exp3'})]
 fig, axes = plt.subplots(1, 2, figsize=(13, 4.9), facecolor=PAPER)
-for ax, key, title, fmt in ((axes[0], 'mean', '對得多準（test Dice）', '%.3f'),
-                            (axes[1], 'jneg', '有沒有擠爆（擠爆點的比例 %）', '%.3f%%')):
+jtxt = lambda y: '0%' if y == 0 else ('< 0.001%' if y < 0.001 else '%.3f%%' % y)   # 速度場權重 1、0.5 只有零星幾點
+for ax, key, title in ((axes[0], 'mean', '對得多準（test Dice）'), (axes[1], 'jneg', '有沒有擠爆（擠爆點的比例 %）')):
+    pts = {name: {i: M[exps[w]][key] for i, w in enumerate(W) if w in exps and M[exps[w]]['status'] == 'done'}
+           for name, col, exps in SERIES}
     for name, col, exps in SERIES:
-        xs = [i for i, w in enumerate(W) if w in exps and M[exps[w]]['status'] == 'done']
-        ys = [M[exps[W[i]]][key] for i in xs]
+        xs = sorted(pts[name])
+        ys = [pts[name][i] for i in xs]
         ax.plot(xs, ys, color=col, lw=2.6, marker='o', ms=9, label=name, zorder=3)
         for x, y in zip(xs, ys):
-            ax.annotate(fmt % y, (x, y), textcoords='offset points', xytext=(0, 11), ha='center',
-                        fontsize=12, fontweight='bold', color=col)
+            if key == 'mean':            # 兩條線靠很近：同一個位置比高低，高的數字放上面、低的放下面
+                other = [pts[n][x] for n in pts if n != name and x in pts[n]]
+                up = not other or y >= max(other)
+                ax.annotate('%.3f' % y, (x, y), textcoords='offset points', xytext=(0, 11 if up else -13),
+                            ha='center', va='bottom' if up else 'top', fontsize=12, fontweight='bold', color=col)
+            else:
+                ax.annotate(jtxt(y), (x, y), textcoords='offset points', xytext=(0, 11), ha='center',
+                            fontsize=12, fontweight='bold', color=col)
         for i, w in enumerate(W):
             if w in exps and M[exps[w]]['status'] == 'pending':
                 ax.annotate('%s\n跑中' % exps[w], (i, 0), xycoords=('data', 'axes fraction'), xytext=(0, 34),
@@ -78,6 +85,32 @@ axes[1].axhline(0.366, color=RED, ls='--', lw=1.2)
 axes[1].text(len(W) - 0.55, 0.373, '論文的位移場版 0.366%', ha='right', va='bottom', fontsize=11, color=RED)
 fig.tight_layout(rect=[0, 0.04, 1, 1])
 save(fig, '1014_lambda.png')
+
+# ── ② 平滑權重變小，哪些結構變好、哪些變差（跟權重 2 比）──────────────────────────
+S = D.get('struct', {})
+if all(e in S for e in ('mix_exp5', 'mix_exp6', 'mix_exp7')):
+    names = sorted(S['mix_exp5'], key=lambda n: S['mix_exp7'][n] - S['mix_exp5'][n])
+    d1 = np.array([S['mix_exp6'][n] - S['mix_exp5'][n] for n in names])
+    d05 = np.array([S['mix_exp7'][n] - S['mix_exp5'][n] for n in names])
+    fig, ax = plt.subplots(figsize=(9.2, 7.0), facecolor=PAPER)    # 簡報上放左半邊，圖小一點、字才不會縮太小
+    y = np.arange(len(names))
+    ax.barh(y + 0.2, d1, height=0.38, color='#5BB8B6', label='權重 1（mix_exp6）')
+    ax.barh(y - 0.2, d05, height=0.38, color='#0A4F4E', label='權重 0.5（mix_exp7）')
+    for yy, v in zip(y - 0.2, d05):
+        ax.text(v + (0.0012 if v >= 0 else -0.0012), yy, '%+.3f' % v, va='center', ha='left' if v >= 0 else 'right',
+                fontsize=12, color='#0A4F4E', fontweight='bold')
+    ax.axvline(0, color=INK, lw=1)
+    ax.set_yticks(y)
+    ax.set_yticklabels(names, fontsize=13.5)
+    ax.tick_params(axis='x', labelsize=11.5)
+    lim = max(abs(d05).max(), abs(d1).max()) + 0.014
+    ax.set_xlim(-lim, lim)
+    ax.set_xlabel('跟平滑權重 2（mix_exp5）比，Dice 變多少（左右平均）', fontsize=13)
+    ax.legend(fontsize=13, frameon=False, loc='lower right')
+    clean(ax)
+    ax.grid(axis='y', alpha=0)
+    fig.tight_layout()
+    save(fig, '1014_lambda_struct.png')
 
 # ── ③ 30 個結構一起平均 vs 只平均殘留旁邊的結構 ─────────────────────────────
 from skullstrip_label_dice_pooled import load, COHORTS
@@ -136,40 +169,6 @@ ax.grid(axis='y', alpha=0)
 fig.tight_layout()
 save(fig, '1014_regions.png')
 
-# ── ① 擠爆的點在哪：mix_exp3 一顆，四個切面 ────────────────────────────────
-from scipy import ndimage
-from orient import canonical_axes, to_ras
-J = lambda *p: os.path.join(ROOT, *p)
-FC = J('models', 'folding_check')
-vol = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol']
-seg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
-brain = ndimage.binary_fill_holes((vol > 0.01) | (seg > 0))
-perm, flip = canonical_axes(seg)
-vol_r, brain_r = to_ras(vol, perm, flip), to_ras(brain.astype(np.uint8), perm, flip)
-heat = to_ras(np.load(os.path.join(FC, 'heat_mix_exp3.npz'))['heat'], perm, flip)
-MIN_N = 3                                              # 同 check_folding.py：3 位以上在同一點擠爆才標
-vmax = min(15, int(heat.max()))
-idx = np.argwhere(brain_r > 0)
-z0, z1 = idx[:, 2].min(), idx[:, 2].max()
-views = [('軸狀・側腦室那層', 2, int(z0 + 0.50 * (z1 - z0))), ('軸狀・再往上', 2, int(z0 + 0.68 * (z1 - z0))),
-         ('軸狀・接近頭頂', 2, int(z0 + 0.85 * (z1 - z0))), ('冠狀・中間', 1, int(np.median(idx[:, 1])))]
-take = lambda a, ax_id, i: [a[i], a[:, i], a[:, :, i]][ax_id]
-fig, axes = plt.subplots(1, 4, figsize=(15, 4.7), facecolor=PAPER)
-for ax, (title, ax_id, i) in zip(axes, views):
-    ax.imshow(take(vol_r, ax_id, i).T, cmap='gray', origin='lower', vmin=0, vmax=1)
-    hm = take(heat, ax_id, i).astype(float)
-    ax.imshow(np.ma.masked_less(hm, MIN_N).T, cmap='autumn_r', origin='lower', vmin=MIN_N, vmax=vmax,
-              interpolation='nearest')
-    ax.set_title(title, fontsize=15, fontweight='bold')
-    ax.axis('off')
-sm = plt.cm.ScalarMappable(cmap='autumn_r', norm=plt.Normalize(MIN_N, vmax))
-cb = fig.colorbar(sm, ax=axes, fraction=0.015, pad=0.01)
-cb.set_label('同一點有幾位擠爆', fontsize=13)
-cb.ax.tick_params(labelsize=11)
-fig.savefig(os.path.join(OUT, '1014_folding_where.png'), dpi=130, facecolor=PAPER, bbox_inches='tight')
-plt.close(fig)
-print('->', os.path.join(OUT, '1014_folding_where.png'))
-
 # ── ① 擠爆的點落在哪些區域（佔幾 %）─────────────────────────────────────────
 FOLD = D['folding']
 REG = ['大腦皮質', '大腦白質', '腦內、沒有標籤', '腦室・腦脊髓液・脈絡叢', '小腦・腦幹', '深部灰質・海馬・杏仁核', '腦外（背景）']
@@ -184,7 +183,7 @@ for j, e in enumerate(('mix_exp4', 'mix_exp3', 'mix_wide')):
     v = [FOLD[e]['share'][r] for r in REG]
     ax.barh(np.arange(len(REG)) + (j - 1) * wbar, v, height=wbar * 0.92, color=FCOL[e], label=FLAB[e])
 for i, r in enumerate(REG):
-    ax.text(max(FOLD[e]['share'][r] for e in FOLD) + 0.8, i, '%.1f%%' % FOLD['mix_exp3']['share'][r],
+    ax.text(max(FOLD[e]['share'][r] for e in ('mix_exp4', 'mix_exp3', 'mix_wide')) + 0.8, i, '%.1f%%' % FOLD['mix_exp3']['share'][r],
             va='center', fontsize=12.5, fontweight='bold', color=FCOL['mix_exp3'])
 ax.set_yticks(range(len(REG)))
 ax.set_yticklabels([SHOW[r] for r in REG], fontsize=13)

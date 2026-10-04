@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（14 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（mix_exp6、7 有結果時 16 頁，沒有時 14 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多、不用術語。
@@ -10,12 +10,14 @@
 | 頁 | 內容 | 圖 |
 |---|---|---|
 | 1–2 | 封面、一頁看完（五件事的結果表）| |
-| 3–5 | ① 擠爆的位置 | `1014_folding_where.png`、`1014_folding_regions.png`、`folding_check/folding_zoom_T054.png` |
-| 6–7 | ② 速度場的平滑權重 | `deck_charts/ablation.png`（09-20 那份的）、`1014_lambda.png` |
-| 8–10、12 | ③ 只算殘留旁邊的 Dice、是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_regions.png`、`1014_top_example.png` |
-| 11 | ④ 後腦杓 | `1014_back_example.png` |
-| 13 | ⑤ 加寬＋速度場 | （表格）|
-| 14 | 下一步 | |
+| 3–6 | ① 擠爆的位置（第 4 頁「不同設定」要先有 `folding_params.png`）| `folding_check/folding_views.png`、`folding_check/folding_params.png`、`1014_folding_regions.png`、`folding_check/folding_zoom_T054.png` |
+| 7–10 | ② 速度場的平滑權重（9、10 頁只在 mix_exp6、7 都有結果時才出現）| `deck_charts/ablation.png`（09-20 那份的）、`1014_lambda.png`、`1014_lambda_struct.png`、`grid_lambda.png` |
+| 11–13、15 | ③ 只算殘留旁邊的 Dice、是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_regions.png`、`1014_top_example.png` |
+| 14 | ④ 後腦杓 | `1014_back_example.png` |
+| 16 | ⑤ 加寬＋速度場 | （表格）|
+| 17 | 下一步 | |
+
+頁碼由 `build.js` 開頭的 `ORDER` 決定，內文引用的頁碼（第 2 頁、最後一頁）會跟著算；做出來的頁數跟 `ORDER` 對不上會直接報錯。
 
 ## 檔案
 
@@ -34,6 +36,10 @@ cd ASD\slides_src\2026-10-14_redpen
 ..\..\..\vxm_env\Scripts\python.exe make_charts.py     # -> models\deck_charts\1014_*.png（要先有 deck_data.json）
 cd ..\..\..
 .\vxm_env\Scripts\python.exe ASD\check_skullstrip.py --show back --n 1 --csv models\skullstrip_check\skullstrip_all520.csv --dice models\mix_exp3\dice_0240.csv --baseline models\mix_exp2\dice_baseline.csv --out models\deck_charts\1014_back_example.png
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 --gpu 0   # 速度場兩顆的擠爆位置（位移場三顆 09-30 算過）
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png
+cd ASD\slides_src\2026-09-20_cross
+..\..\..\vxm_env\Scripts\python.exe make_compare.py --set lambda   # -> curve_lambda / jacobian_lambda / grid_lambda.png（要先有各顆的 vis_T054）
 cd ASD\slides_src\2026-10-14_redpen
 node build.js deck.pptx
 powershell -ExecutionPolicy Bypass -File render.ps1 -Pptx deck.pptx -OutDir render
@@ -57,7 +63,9 @@ mix_exp6、mix_exp7、mix_wide_vel 在 AI 上跑。`gather.py` 找不到它們�
 - 每顆的設定（版本、實際平滑權重、寬度、積分解析度）：`gather.py` 的 `CFG`，照操作單
 - 論文 Table I 的擠爆比例 0.366%（`make_charts.py`）
 - 對照圖的兩位受試者 MRS0381-2、T054（跟 `check_top_residue.py --example` 同一組）
-- 第 13 頁「約 33 GB／24 GB／85%／約 19 小時／26 小時」：手冊 §23.7 與 `ASD/指令_mix_wide_vel.md` 的估計
+- 第 15 頁「約 33 GB／24 GB／約 19 小時／26 小時」：手冊 §23.7 與 `ASD/指令_mix_wide_vel.md` 的估計；
+  「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
+  10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）
 
 ## 不進版控
 

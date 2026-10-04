@@ -102,6 +102,22 @@ D['paired'] = {
     'version_wide': paired('mix_wide_vel', 'mix_wide'),  # 加寬後只差版本
 }
 
+# ── ② 平滑權重對各結構的影響（左右平均；30 個評估結構併成 17 種）─────────────────
+PAIRS = {'大腦皮質': (3, 42), '大腦白質': (2, 41), '側腦室': (4, 43), '小腦白質': (7, 46), '小腦皮質': (8, 47),
+         '視丘': (10, 49), '尾狀核': (11, 50), '殼核': (12, 51), '蒼白球': (13, 52), '海馬迴': (17, 53),
+         '杏仁核': (18, 54), '腹側間腦': (28, 60), '脈絡叢': (31, 63), '第三腦室': (14,), '第四腦室': (15,),
+         '腦幹': (16,), '腦脊髓液': (24,)}
+struct = {}
+for e in ('mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp3'):
+    p = test_csv(e)
+    if p is None:
+        continue
+    with open(p, encoding='utf-8') as f:
+        rr = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    struct[e] = {n: float(np.mean([np.nanmean([float(rr[k]['label_%d' % l]) for k in K]) for l in ls]))
+                 for n, ls in PAIRS.items()}
+D['struct'] = struct
+
 # ── ① 擠爆的位置（三顆位移場；速度場版都不擠爆）───────────────────────────
 FC = J('models', 'folding_check')
 with open(os.path.join(FC, 'folding_by_subject.csv'), encoding='utf-8') as f:
@@ -110,8 +126,13 @@ atlas = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol']
 aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg']
 brain = ndimage.binary_fill_holes((atlas > 0.01) | (aseg > 0))     # 跟 check_folding.py 同一個定義
 fold = {}
-for e in ('mix_exp4', 'mix_exp3', 'mix_wide'):
+for e in ('mix_exp4', 'mix_exp3', 'mix_wide', 'mix_exp6', 'mix_exp7'):
     rr = [r for r in fsub if r['exp'] == e]
+    if not rr or not os.path.exists(os.path.join(FC, 'heat_%s.npz' % e)):
+        continue                                   # 速度場那兩顆 10-04 才補算
+    if sum(int(r['n_folded']) for r in rr) == 0:
+        fold[e] = {'n_subjects': len(rr), 'points_mean': 0.0}
+        continue
     z = np.load(os.path.join(FC, 'depth_%s.npz' % e))
     cnt = z['region_counts'].astype(float)
     share = {str(n): float(100 * c / cnt.sum()) for n, c in zip(z['region_names'], cnt)}
@@ -119,10 +140,12 @@ for e in ('mix_exp4', 'mix_exp3', 'mix_wide'):
     fold[e] = {
         'n_subjects': len(rr),
         'points_med': float(np.median([int(r['n_folded']) for r in rr])),
+        'points_mean': float(np.mean([int(r['n_folded']) for r in rr])),
+        'n_any': int(sum(int(r['n_folded']) > 0 for r in rr)),      # 有幾位至少有 1 個擠爆點
         'clusters_med': float(np.median([int(r['n_clusters']) for r in rr])),
         'largest_med': float(np.median([int(r['largest_cluster']) for r in rr])),
         'largest_max': int(max(int(r['largest_cluster']) for r in rr)),
-        'depth_med': float(np.median([float(r['median_depth_mm']) for r in rr])),
+        'depth_med': float(np.nanmedian([float(r['median_depth_mm']) for r in rr])),   # 沒有擠爆點的人是 nan
         'share': share,
         'ctx_wm': share['大腦皮質'] + share['大腦白質'],
         # 每人擠的地方一不一樣：腦內的點，有幾 % 至少 1／5／10 位在那裡擠爆過
@@ -199,7 +222,18 @@ with open(os.path.join(SK, 'skullstrip_all520.csv'), encoding='utf-8') as f:
     back = [float(r['back_occ_mm']) for r in csv.DictReader(f) if r['split'] == 'test' and r['subject'] != 'A0131']
 D['back'] = {'n': len(back), 'median': float(np.median(back)), 'min': float(min(back)), 'max': float(max(back))}
 
-json.dump(D, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=float)
+def no_nan(o):
+    """JSON 不認得 NaN（build.js 的 JSON.parse 會直接報錯），一律換成 null。"""
+    if isinstance(o, dict):
+        return {k: no_nan(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [no_nan(v) for v in o]
+    if isinstance(o, (float, np.floating)) and not np.isfinite(o):
+        return None
+    return o
+
+
+json.dump(no_nan(D), open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=float)
 print('ok ->', OUT)
 for e, m in models.items():
     if m['status'] == 'done':
@@ -208,5 +242,8 @@ for e, m in models.items():
         print('  %-13s 跑中' % e)
 print('  殘留：頭頂 170 人 r=%+.2f；30 個結構一起平均 r=%+.2f' % (r_ctx, r_all))
 for e, v in fold.items():
-    print('  擠爆 %-9s 皮質＋白質 %.0f%%，離腦表面 %.1f mm，同一點 5 人以上 %.2f%%'
-          % (e, v['ctx_wm'], v['depth_med'], v['any5']))
+    if 'ctx_wm' not in v:
+        print('  擠爆 %-9s 沒有任何擠爆點' % e)
+        continue
+    print('  擠爆 %-9s 每人平均 %.1f 點，皮質＋白質 %.0f%%，同一點 5 人以上 %.2f%%'
+          % (e, v['points_mean'], v['ctx_wm'], v['any5']))

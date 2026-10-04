@@ -18,6 +18,7 @@ const C = {
 };
 const F = { SANS: 'Microsoft JhengHei', MONO: 'Consolas' };
 const f3 = (x) => x.toFixed(3);
+const f4 = (x) => x.toFixed(4);
 const pct = (x) => x.toFixed(3) + '%';
 const sgn = (x, d) => (x >= 0 ? '+' : '-') + Math.abs(x).toFixed(d === undefined ? 2 : d);
 const pval = (p) => (p < 0.001 ? 'p < 0.001' : 'p = ' + p.toFixed(2));
@@ -86,8 +87,17 @@ const FC = (n) => path.join(MROOT, 'folding_check', n);
 const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check;
 const done = (e) => m[e].status === 'done';
 const score = (e) => (done(e) ? f3(m[e].mean) : '跑中');
-const fold = (e) => (done(e) ? pct(m[e].jneg) : '跑中');
-const RUN = { text: '跑中', options: { color: C.RUST, bold: true } };
+// 速度場權重 1、0.5 只有零星幾個點（平均 0.000002%、0.0001%），印 0.000% 會被看成完全沒有
+const jfmt = (x) => (x === 0 ? '0%' : x < 0.001 ? '< 0.001%' : pct(x));
+const fold = (e) => (done(e) ? jfmt(m[e].jneg) : '跑中');
+const HAS_LAM = done('mix_exp6') && done('mix_exp7');
+const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.py --views（速度場兩顆也算過之後）
+
+// 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
+const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
+  ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
+  'res_method', 'res_result', 'res_regions', 'back', 'res_check', 'wide', 'next'];
+const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
 {
@@ -104,8 +114,8 @@ const RUN = { text: '跑中', options: { color: C.RUST, bold: true } };
 // ───────────────────────────────────────────────────────── 02 一頁看完
 {
   const s = base('SUMMARY', '一頁看完：五件事做到哪');
-  const lam = done('mix_exp6')
-    ? '權重 2：' + score('mix_exp5') + '｜1：' + score('mix_exp6') + '｜0.5：' + score('mix_exp7')
+  const lam = HAS_LAM
+    ? '2 → 1：' + sgn(P.lam_vel_1.mean, 4) + '；1 → 0.5：' + sgn(P.lam_vel_05.mean, 4) + '（沒再變好）；都幾乎不擠爆'
     : '權重 2：' + score('mix_exp5') + '、不擠爆；權重 1、0.5 跑中';
   const wide = done('mix_wide_vel') ? score('mix_wide_vel') + '（加寬位移場 ' + score('mix_wide') + '）' : 'AI 上跑中';
   table(s, [
@@ -116,7 +126,7 @@ const RUN = { text: '跑中', options: { color: C.RUST, bold: true } };
     ['④ 後腦杓也去看（p22）', '多掃後腦杓的殘留', '有殘留，但不影響配準'],
     ['⑤ 加寬改看看速度場（p25）', '加寬 2 倍＋速度場', wide],
   ], { x: M, y: 1.65, w: 12.13, colW: [3.7, 3.75, 4.68], fontSize: 13.5, rowH: 0.62 });
-  txt(s, '③ 另外確認了：頭頂那層「殘留」不是 FreeSurfer 把腦畫太小，是真的沒切乾淨（第 12 頁）。',
+  txt(s, '③ 另外確認了：頭頂那層「殘留」不是 FreeSurfer 把腦畫太小，是真的沒切乾淨（第 ' + PG.res_check + ' 頁）。',
     { x: M, y: 6.0, w: 12.13, h: 0.45, fontSize: 14.5, color: C.MUTED });
 }
 
@@ -124,18 +134,26 @@ const RUN = { text: '跑中', options: { color: C.RUST, bold: true } };
 const F3 = FD.mix_exp3;
 {
   const s = base('① 擠爆的位置（p18）', '擠爆的點：散在皮質和白質裡，每個人擠的位置不一樣');
-  fitImage(s, CH('1014_folding_where.png'), M, 1.45, 12.13, 3.45, '51 位擠爆點疊在模板上');
-  txt(s, '擠爆＝形變把空間捏到翻過去。圖是平滑權重 1 的位移場（mix_exp3），51 位疊在模板上，只標 3 位以上在同一點擠爆的地方，越紅越多人。'
-        + '速度場版完全不擠爆，所以只看位移場。',
-    { x: M, y: 4.98, w: 12.13, h: 0.45, fontSize: 12.5, color: C.MUTED, align: 'center' });
-  const w = (12.13 - 0.4 * 2) / 3;
-  [[F3.any1.toFixed(0) + '%', '腦裡的點，至少 1 位在那裡擠爆過', C.TEAL],
-   [F3.any5.toFixed(1) + '%', '5 位以上都在同一點擠爆 → 每人位置不同', C.RUST],
-   [(F3.points_med / FD.mix_exp4.points_med).toFixed(1) + ' 倍', '平滑權重 1 比權重 2 多的擠爆點\n（落點分布差不多，加寬也沒變多）', C.TEAL]].forEach((it, i) => {
-    const x = M + i * (w + 0.4);
-    card(s, x, 5.45, w, 1.45);
-    stat(s, it[0], it[1], x, 5.55, w, it[2]);
+  fitImage(s, FC('folding_views.png'), M, 1.42, 7.75, 5.5, '軸狀、冠狀、矢狀各切 4 刀');
+  const X0 = 8.6, WW = 4.13;
+  txt(s, '擠爆＝形變把空間捏到翻過去。圖是平滑權重 1 的位移場（mix_exp3），51 位疊在模板上，只標 3 位以上在同一點擠爆的地方，越紅越多人。',
+    { x: X0, y: 1.5, w: WW, h: 1.05, fontSize: 12.5, color: C.MUTED });
+  [[F3.any1.toFixed(0) + '%', '腦裡的點，至少 1 位擠爆過', C.TEAL],
+   [F3.any5.toFixed(1) + '%', '5 位以上都在同一點擠爆\n→ 每個人位置不同', C.RUST],
+   [(F3.points_med / FD.mix_exp4.points_med).toFixed(1) + ' 倍', '平滑權重 1 比 2 多的擠爆點', C.TEAL]].forEach((it, i) => {
+    const y = 2.65 + i * 1.42;
+    card(s, X0, y, WW, 1.3);
+    stat(s, it[0], it[1], X0, y + 0.06, WW, it[2]);
   });
+}
+
+if (HAS_PARAMS) {
+  // ─────────────────────────────────────────────────────── ① 不同設定的擠爆位置
+  const s = base('① 擠爆的位置（p18）', '換不同設定：位移場權重越小擠爆越多，速度場幾乎沒有');
+  fitImage(s, FC('folding_params.png'), M, 1.42, 12.13, 5.0, '不同設定 × 三個方向的擠爆位置');
+  txt(s, '每一欄是一顆模型、每一列是一個方向，一樣只標 3 位以上在同一點擠爆的地方。'
+        + '速度場兩顆圖上是空的：點本來就很少，而且每個人散在不同地方。',
+    { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 04 ① 哪些區域、多深
@@ -177,17 +195,56 @@ const F3 = FD.mix_exp3;
 
 // ───────────────────────────────────────────────────────── 07 ② λ 掃描
 {
-  const s = base('② 速度場的 λ（p18）', '速度場的平滑權重：2 → 1 → 0.5');
-  fitImage(s, CH('1014_lambda.png'), M, 1.45, 12.13, 4.55, '平滑權重與 Dice、擠爆');
-  const items = [
-    [{ text: '權重 2（mix_exp5）：' + score('mix_exp5') + '，擠爆 ' + fold('mix_exp5'), options: { bold: true } }],
-  ];
-  ['mix_exp6', 'mix_exp7'].forEach((e) => {
-    items.push(done(e)
-      ? [{ text: '權重 ' + m[e].weight + '（' + e + '）：' + score(e) + '，擠爆 ' + fold(e), options: { bold: true } }]
-      : [{ text: '權重 ' + m[e].weight + '（' + e + '）：AI 上跑中', options: { bold: true, color: C.RUST } }]);
-  });
-  bullets(s, items, { x: M, y: 6.1, w: 12.13, h: 0.9, fontSize: 14, paraSpaceAfter: 4 });
+  const s = base('② 速度場的 λ（p18）', HAS_LAM ? '速度場：平滑權重 2 → 1 有幫助，再降到 0.5 就沒再變好'
+                                                : '速度場的平滑權重：2 → 1 → 0.5');
+  fitImage(s, CH('1014_lambda.png'), M, 1.45, 12.13, 4.4, '平滑權重與 Dice、擠爆');
+  let items;
+  if (HAS_LAM) {
+    const L1 = P.lam_vel_1, L05 = P.lam_vel_05, VW = P.version_w1;
+    items = [
+      [{ text: '權重 2 → 1：' + sgn(L1.mean, 4) + '（51 位裡 ' + L1.win + ' 位變好）；1 → 0.5：' + sgn(L05.mean, 4) + '（沒差）',
+         options: { bold: true } }],
+      [{ text: '速度場最好的是權重 1（' + score('mix_exp6') + '），比位移場權重 1（' + score('mix_exp3') + '）少 ' + f4(VW.mean),
+         options: { bold: true } },
+       { text: '　但擠爆從 ' + fold('mix_exp3') + ' 變成 ' + fold('mix_exp6'), options: { bold: true, color: C.TEAL } }],
+    ];
+  } else {
+    items = [[{ text: '權重 2（mix_exp5）：' + score('mix_exp5') + '，擠爆 ' + fold('mix_exp5'), options: { bold: true } }]];
+    ['mix_exp6', 'mix_exp7'].forEach((e) => {
+      items.push(done(e)
+        ? [{ text: '權重 ' + m[e].weight + '（' + e + '）：' + score(e) + '，擠爆 ' + fold(e), options: { bold: true } }]
+        : [{ text: '權重 ' + m[e].weight + '（' + e + '）：AI 上跑中', options: { bold: true, color: C.RUST } }]);
+    });
+  }
+  bullets(s, items, { x: M, y: 6.0, w: 12.13, h: 0.95, fontSize: 14.5, paraSpaceAfter: 6 });
+}
+
+if (HAS_LAM) {
+  // ─────────────────────────────────────────────────────── ② 權重 0.5 為什麼沒再變好
+  const S = D.struct, df = (n) => S.mix_exp7[n] - S.mix_exp5[n];
+  const s = base('② 速度場的 λ（p18）', '權重 0.5 為什麼沒再變好：大結構變好、小結構變差');
+  fitImage(s, CH('1014_lambda_struct.png'), M, 1.45, 7.7, 5.45, '各結構跟權重 2 比變多少');
+  const X0 = 8.55, WW = 4.18;
+  bullets(s, [
+    [{ text: '大結構一路變好', options: { bold: true, color: C.TEAL } },
+     { text: '\n大腦皮質 ' + sgn(df('大腦皮質'), 3) + '、白質 ' + sgn(df('大腦白質'), 3), options: { color: C.MUTED, fontSize: 13.5 } }],
+    [{ text: '小結構變差', options: { bold: true, color: C.RUST } },
+     { text: '\n脈絡叢 ' + sgn(df('脈絡叢'), 3) + '、腦脊髓液 ' + sgn(df('腦脊髓液'), 3), options: { color: C.MUTED, fontSize: 13.5 } }],
+    [{ text: 'Dice 是 30 個結構「一樣重」的平均', options: { bold: true } },
+     { text: '\n大小結構互相抵掉，平均就打平', options: { color: C.MUTED, fontSize: 13.5 } }],
+    [{ text: '權重 0.5 的皮質 ' + f3(S.mix_exp7['大腦皮質']), options: { bold: true } },
+     { text: '\n比位移場權重 1 的 ' + f3(S.mix_exp3['大腦皮質']) + ' 還高', options: { color: C.MUTED, fontSize: 13.5 } }],
+  ], { x: X0, y: 1.65, w: WW, h: 5.2, fontSize: 15, paraSpaceAfter: 14 });
+}
+
+if (HAS_LAM) {
+  // ─────────────────────────────────────────────────────── ② 形變網格：四顆對照
+  const s = base('② 速度場的 λ（p18）', '平滑權重越小，形變捏得越細');
+  fitImage(s, CH('grid_lambda.png'), M, 1.5, 12.13, 4.0, '四顆的形變網格');
+  txt(s, '同一位受試者（T054）、同一個切面。黃線＝原本方正的格子被形變拉成的樣子，越往右越扭。',
+    { x: M, y: 5.65, w: 12.13, h: 0.4, fontSize: 14.5, align: 'center' });
+  txt(s, '速度場三顆都幾乎不擠爆；最右邊的位移場一樣扭得很細，但擠爆 ' + fold('mix_exp3') + '。',
+    { x: M, y: 6.1, w: 12.13, h: 0.4, fontSize: 13.5, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 08 ③ 老師的做法
@@ -286,26 +343,33 @@ const F3 = FD.mix_exp3;
     [{ text: '直著比：只差版本', options: { bold: true } },
      { text: '\n加寬之後，速度場還是比較好、又不擠爆嗎？', options: { color: C.MUTED, fontSize: 13 } }],
   ], { x: X0, y: 1.7, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
-  card(s, M, 4.6, 12.13, 1.9, 'FFF3E8');
+  card(s, M, 4.45, 12.13, 2.35, 'FFF3E8');
   txt(s, [
     { text: '順便發現加寬版為什麼比預估慢：', options: { bold: true } },
     { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
-    { text: '\n這次訓練前多設一行（限制最多佔 85%），只管記憶體、不改計算，預計約 19 小時跑完（mix_wide 當時 26 小時）。',
+    { text: '\n訓練前多設一行限制最多佔多少，只管記憶體、不改計算。mix_exp6、7 同時跑時已在 AI 上試過：每步 10 幾秒 → 約 3 秒。',
       options: { color: C.MUTED } },
-  ], { x: M + 0.3, y: 4.8, w: 11.5, h: 1.55, fontSize: 14.5, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0, paraSpaceAfter: 4 });
+    { text: '\n加寬＋速度場這顆也加了，預計約 19 小時跑完（mix_wide 當時 26 小時）。', options: { color: C.MUTED } },
+  ], { x: M + 0.3, y: 4.62, w: 11.5, h: 2.05, fontSize: 14.5, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0, paraSpaceAfter: 4 });
 }
 
 // ───────────────────────────────────────────────────────── 14 下一步
 {
   const s = base('NEXT', '下一步');
-  bullets(s, [
-    [{ text: 'mix_exp6、mix_exp7、mix_wide_vel 結果回來', options: { bold: true } },
-     { text: '\n　補進第 7 頁（平滑權重）和第 13 頁（加寬＋速度場）', options: { color: C.MUTED } }],
+  const PEND = ['mix_exp6', 'mix_exp7', 'mix_wide_vel'].filter((e) => !done(e));
+  const where = [...new Set(PEND.map((e) => (e === 'mix_wide_vel' ? '第 ' + PG.wide + ' 頁（加寬＋速度場）'
+                                                                  : '第 ' + PG.lam + ' 頁（平滑權重）')))];
+  const items = PEND.length
+    ? [[{ text: PEND.join('、') + ' 結果回來', options: { bold: true } },
+        { text: '\n　補進' + where.join('和'), options: { color: C.MUTED } }]]
+    : [];
+  bullets(s, items.concat([
     [{ text: '新資料：第五包 MRS（' + D.mrs.n + ' 人）已經前處理好', options: { bold: true } },
      { text: '\n　等其他包到齊，一起併進來重新切分，當成新的一版資料', options: { color: C.MUTED } }],
     [{ text: '順帶看到：模型拿去對從沒看過的 MRS 研究，Dice ' + f3(D.mrs.after) + '（起點 ' + f3(D.mrs.before) + '）', options: { bold: true } },
      { text: '\n　跟原本 test 的 ' + score('mix_exp3') + ' 一樣 → 換一個研究的資料也能用', options: { color: C.MUTED } }],
-  ], { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16, paraSpaceAfter: 16 });
+  ]), { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16, paraSpaceAfter: 16 });
 }
 
+if (page !== ORDER.length) throw new Error('頁數對不上：做了 ' + page + ' 頁，ORDER 排了 ' + ORDER.length + ' 頁（內文引用的頁碼會錯）');
 pres.writeFile({ fileName: OUT }).then(() => console.log('ok ->', OUT, '｜' + page + ' 頁'));

@@ -12,10 +12,14 @@
     depth_<實驗>.npz         擠爆的點離腦表面的距離（直方圖）
     folding_where.png        熱圖疊在 atlas 上
     folding_regions.png      按區域分
+    folding_views.png        一顆（預設 mix_exp3），軸狀／冠狀／矢狀各 4 刀（--views）
+    folding_params.png       不同設定（速度場權重 1、0.5，位移場權重 2、1、加寬）× 三個方向（--views）
 
 用法：
     python ASD\check_folding.py --models mix_exp4:0230 mix_exp3:0240 mix_wide:0225 --gpu 0
+    python ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 --gpu 0   # 補算別顆，CSV 裡其他模型的列會留著
     python ASD\check_folding.py --plot-only          # 只用存好的結果重畫圖
+    python ASD\check_folding.py --plot-only --views  # 畫不同方向、不同設定那兩張
 """
 import os
 import sys
@@ -37,6 +41,13 @@ ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_0
 ap.add_argument('--out', default=os.path.join(ROOT, 'models', 'folding_check'))
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--plot-only', action='store_true')
+ap.add_argument('--plot-models', nargs='+', default=['mix_exp4', 'mix_exp3', 'mix_wide'],
+                help='folding_where / regions / depth 這三張圖畫哪幾顆（要先算過）')
+ap.add_argument('--views', action='store_true',
+                help='改畫 folding_views.png（一顆、三個方向各 4 刀）和 folding_params.png（不同設定 × 三個方向）')
+ap.add_argument('--view-one', default='mix_exp3', help='folding_views.png 畫哪一顆')
+ap.add_argument('--view-models', nargs='+', default=['mix_exp6', 'mix_exp7', 'mix_exp4', 'mix_exp3', 'mix_wide'],
+                help='folding_params.png 畫哪幾顆（由左到右）')
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
 
@@ -155,11 +166,18 @@ def run():
             torch.cuda.empty_cache()
 
     for name, rows in (('folding_by_subject.csv', sub_rows), ('folding_by_label.csv', lab_rows)):
-        with open(os.path.join(args.out, name), 'w', encoding='utf-8', newline='') as fh:
+        p = os.path.join(args.out, name)
+        # 只換掉這次有算的模型，其他模型的列留著（2026-10-04 補算速度場那幾顆時，位移場三顆的結果不能被洗掉）
+        redo = {r['exp'] for r in rows}
+        old = []
+        if os.path.exists(p):
+            with open(p, encoding='utf-8') as fh:
+                old = [r for r in csv.DictReader(fh) if r['exp'] not in redo]
+        with open(p, 'w', encoding='utf-8', newline='') as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0]))
             w.writeheader()
-            w.writerows(rows)
-        print('->', os.path.join(args.out, name))
+            w.writerows(old + rows)
+        print('->', p, '（保留其他模型 %d 列）' % len(old))
 
 
 def plot():
@@ -172,7 +190,7 @@ def plot():
     INK, MUTED, PAPER = '#141A1D', '#5F6A6B', '#FAFAF8'
     COL = {'mix_exp4': '#D9895A', 'mix_exp3': '#A34F1B', 'mix_wide': '#6B3FA0'}
     LAB = {'mix_exp4': '位移場・權重 2', 'mix_exp3': '位移場・權重 1', 'mix_wide': '位移場・權重 1・加寬'}
-    exps = [s.split(':')[0] for s in args.models]
+    exps = list(args.plot_models)       # 跟 --models（要重算哪幾顆）分開：補算速度場時，這三張圖照樣畫位移場三顆
 
     vol, seg, brain, region, depth = atlas_maps()
     perm, flip = canonical_axes(seg)
@@ -344,8 +362,102 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     print('->', out, '｜最大一團 %d 點，中心 %s，%s' % (int(sizes[big]), center.tolist(), lab))
 
 
+VIEW_LAB = {'mix_exp4': '位移場・權重 2', 'mix_exp3': '位移場・權重 1', 'mix_wide': '位移場・權重 1・加寬',
+            'mix_exp5': '速度場・權重 2', 'mix_exp6': '速度場・權重 1', 'mix_exp7': '速度場・權重 0.5'}
+
+
+def views(min_n=3):
+    """2026-10-04 使用者要的：換不同方向切、比不同設定。
+    folding_views.png：一顆（--view-one），軸狀／冠狀／矢狀各 4 刀
+    folding_params.png：不同設定（--view-models）× 三個方向各 1 刀
+    同 folding_where.png：只標「至少 min_n 位在同一點擠爆」的地方。每個方向用整顆腦的範圍裁切，同一列比例一樣。"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from orient import canonical_axes, to_ras
+    plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['axes.unicode_minus'] = False
+    INK, MUTED, PAPER = '#141A1D', '#5F6A6B', '#FAFAF8'
+
+    vol, seg, brain, region, depth = atlas_maps()
+    perm, flip = canonical_axes(seg)
+    vol_r, brain_r = to_ras(vol, perm, flip), to_ras(brain.astype(np.uint8), perm, flip)
+    idx = np.argwhere(brain_r > 0)
+    lo, hi = idx.min(axis=0), idx.max(axis=0)
+    at = lambda ax_id, f: int(round(lo[ax_id] + f * (hi[ax_id] - lo[ax_id])))
+    take = lambda a, ax_id, i: [a[i], a[:, i], a[:, :, i]][ax_id]
+    plane = {0: (1, 2), 1: (0, 2), 2: (0, 1)}           # 切第 ax_id 軸時，畫面橫軸、縱軸是哪兩軸
+    heat = lambda e: to_ras(np.load(os.path.join(args.out, 'heat_%s.npz' % e))['heat'], perm, flip)
+    with open(os.path.join(args.out, 'folding_by_subject.csv'), encoding='utf-8') as fh:
+        sub = list(csv.DictReader(fh))
+
+    def show(ax, h, ax_id, i, vmax):
+        ax.imshow(take(vol_r, ax_id, i).T, cmap='gray', origin='lower', vmin=0, vmax=1)
+        hm = take(h, ax_id, i).astype(float).T
+        ax.imshow(np.ma.masked_less(hm, min_n), cmap='autumn_r', origin='lower', vmin=min_n, vmax=vmax,
+                  interpolation='nearest')
+        p, q = plane[ax_id]
+        ax.set_xlim(lo[p] - 4, hi[p] + 4)
+        ax.set_ylim(lo[q] - 4, hi[q] + 4)
+        ax.axis('off')
+
+    def cbar(fig, axes, vmax):
+        sm = plt.cm.ScalarMappable(cmap='autumn_r', norm=plt.Normalize(min_n, vmax))
+        cb = fig.colorbar(sm, ax=axes, fraction=0.015, pad=0.01)
+        cb.set_label('同一點有幾位擠爆（%d 位以上才標）' % min_n, fontsize=17)
+        cb.ax.tick_params(labelsize=15)
+
+    # ── 一顆，三個方向各 4 刀 ──
+    h1 = heat(args.view_one)
+    vmax = min(15, max(int(h1.max()), min_n + 1))
+    VIEWS = [('軸狀', 2, [(0.30, '偏下'), (0.50, '側腦室那層'), (0.68, '再往上'), (0.85, '接近頭頂')]),
+             ('冠狀', 1, [(0.25, '後腦'), (0.45, '偏後'), (0.62, '偏前'), (0.80, '前額')]),
+             ('矢狀', 0, [(0.18, '左外側'), (0.38, '左內側'), (0.62, '右內側'), (0.82, '右外側')])]
+    fig, axes = plt.subplots(3, 4, figsize=(16, 12.5), facecolor=PAPER)
+    for r, (dname, ax_id, cuts) in enumerate(VIEWS):
+        for c, (f, nm) in enumerate(cuts):
+            show(axes[r, c], h1, ax_id, at(ax_id, f), vmax)
+            axes[r, c].set_title('%s・%s' % (dname, nm), fontsize=21, fontweight='bold')
+    cbar(fig, axes, vmax)
+    p = os.path.join(args.out, 'folding_views.png')
+    fig.savefig(p, dpi=110, facecolor=PAPER, bbox_inches='tight')
+    plt.close(fig)
+    print('->', p, '（%s）' % args.view_one)
+
+    # ── 不同設定 × 三個方向 ──
+    models = list(args.view_models)
+    H = {e: heat(e) for e in models}
+    vmax = min(15, max(max(int(h.max()) for h in H.values()), min_n + 1))
+    CUTS = [('軸狀・再往上', 2, 0.68), ('冠狀・偏後', 1, 0.45), ('矢狀・左外側', 0, 0.18)]
+    fig, axes = plt.subplots(len(CUTS), len(models), figsize=(3.4 * len(models) + 1.2, 10.8), facecolor=PAPER)
+    for c, e in enumerate(models):
+        rr = [r for r in sub if r['exp'] == e]
+        j = float(np.mean([float(r['jneg_pct']) for r in rr]))
+        ns = [int(r['n_folded']) for r in rr]
+        jt = '0%' if j == 0 else ('< 0.001%' if j < 0.001 else '%.3f%%' % j)
+        if np.mean(ns) >= 1:
+            nt = '每人約 %s 點' % format(int(round(np.mean(ns))), ',')
+        else:                                    # 速度場權重 1：51 位裡只有 3 位有，「每人約 0 點」會被看成完全沒有
+            nt = '%d 位有，最多 %d 點' % (sum(x > 0 for x in ns), max(ns))
+        axes[0, c].set_title('%s\n擠爆 %s\n%s' % (VIEW_LAB.get(e, e), jt, nt), fontsize=19, fontweight='bold', color=INK)
+        for r, (nm, ax_id, f) in enumerate(CUTS):
+            show(axes[r, c], H[e], ax_id, at(ax_id, f), vmax)
+            if c == 0:
+                axes[r, 0].text(-0.05, 0.5, nm, transform=axes[r, 0].transAxes, rotation=90, ha='right', va='center',
+                                fontsize=19, fontweight='bold', color=MUTED)
+        print('   %-9s 同一點 %d 位以上的體素：%d' % (e, min_n, int((H[e][brain_r > 0] >= min_n).sum())))
+    cbar(fig, axes, vmax)
+    p = os.path.join(args.out, 'folding_params.png')
+    fig.savefig(p, dpi=110, facecolor=PAPER, bbox_inches='tight')
+    plt.close(fig)
+    print('->', p)
+
+
 if __name__ == '__main__':
     if not args.plot_only:
         run()
-    plot()
-    zoom()
+    if args.views:
+        views()
+    else:
+        plot()
+        zoom()
