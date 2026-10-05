@@ -206,6 +206,47 @@ r_all, p_all = spearmanr([r['pct'] for r in rows], [r['gc_all'] for r in rows])
 r_ctx, p_ctx = spearmanr([r['pct'] for r in rows], [r['gc_ctx'] for r in rows])
 D['dilution'] = {'n': len(rows), 'r_all': float(r_all), 'p_all': float(p_all),
                  'r_ctx': float(r_ctx), 'p_ctx': float(p_ctx)}
+# 2026-10-05 使用者要標 Dice 數值：殘留最多／最少 1/4（批內百分位，同 skullstrip_label_dice_pooled.py）的起點 → 配準後。
+# 只寫配準後會誤導：30 個結構一起平均時，殘留多的人起點就比較高，配準後也比較高
+quart = {}
+for nm, sel in (('dirty', [r for r in rows if r['pct'] >= 0.75]), ('clean', [r for r in rows if r['pct'] <= 0.25])):
+    quart[nm] = {'n': len(sel),
+                 'all_b': float(np.mean([float(r['before']['dice_mean']) for r in sel])),
+                 'all_a': float(np.mean([float(r['after']['dice_mean']) for r in sel])),
+                 'ctx_b': float(np.mean([ctx(r['before']) for r in sel])),
+                 'ctx_a': float(np.mean([ctx(r['after']) for r in sel]))}
+D['dilution']['quart'] = quart
+
+# ── 2026-10-05：③④ 改用原始數值，170 人直接合在一起（使用者問「最少 → 最多」有沒有單位）──────────────────
+# 橫軸：頭頂、後腦杓是殘留厚度（mm），顱底是最大一坨殘留的體積（mm³）；縱軸：只算殘留旁邊結構的 Dice 進步（不扣平均）。
+# 三批的殘留分布差不多，跟批內百分位版（上面的 residue、dilution）比：頭頂 r −0.401 vs −0.395、顱底 −0.092 vs −0.087、
+# 後腦杓 +0.039 vs +0.025。分組也直接用 mm 切（170 人的 1/4、3/4 分位數），老師比較好想像
+from skullstrip_label_dice import NAME as LNAME
+LID = {v: k for k, v in LNAME.items()}
+mm = {}
+for k, metric in REG.items():
+    labs = [LID[n] for n in pool[metric]['labels'].split('、')]      # 殘留旁邊的結構（同 skullstrip_label_dice_pooled.py 挑的）
+    av = lambda row: float(np.nanmean([float(row['label_%d' % l]) for l in labs]))
+    xs = np.array([float(r['res'][metric]) for r in rows])
+    b = np.array([av(r['before']) for r in rows])
+    a = np.array([av(r['after']) for r in rows])
+    lo, hi = np.percentile(xs, [25, 75])
+    dd, cc = xs >= hi, xs <= lo
+    rho, pv = spearmanr(xs, a - b)
+    ent = {'labs': labs, 'n': len(rows), 'r': float(rho), 'p': float(pv), 'lo': float(lo), 'hi': float(hi),
+           'dirty_n': int(dd.sum()), 'clean_n': int(cc.sum()),
+           'dirty_b': float(b[dd].mean()), 'dirty_a': float(a[dd].mean()),
+           'clean_b': float(b[cc].mean()), 'clean_a': float(a[cc].mean()),
+           'mw_p': float(mannwhitneyu((a - b)[dd], (a - b)[cc]).pvalue)}
+    if k == 'top':                                   # 第 12 頁：30 個結構一起平均當對照
+        ab = np.array([float(r['before']['dice_mean']) for r in rows])
+        aa = np.array([float(r['after']['dice_mean']) for r in rows])
+        r2, p2 = spearmanr(xs, aa - ab)
+        ent.update({'all_r': float(r2), 'all_p': float(p2),
+                    'all_dirty_b': float(ab[dd].mean()), 'all_dirty_a': float(aa[dd].mean()),
+                    'all_clean_b': float(ab[cc].mean()), 'all_clean_a': float(aa[cc].mean())})
+    mm[k] = ent
+D['residue_mm'] = mm
 # 順帶：mix_exp3 對第五包 MRS（從沒看過的研究）
 mrs = [r for r in rows if r['cohort'] == 'MRS']
 D['mrs'] = {'n': len(mrs), 'after': float(np.mean([float(r['after']['dice_mean']) for r in mrs])),

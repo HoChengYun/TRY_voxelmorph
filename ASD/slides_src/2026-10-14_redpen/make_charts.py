@@ -3,9 +3,11 @@
 
   1014_folding_regions.png  ① 擠爆的點落在哪些區域（只留「佔幾 %」那一格、字放大）
   1014_lambda.png           ② 平滑權重 2 / 1 / 0.5：速度場 vs 位移場（還沒跑完的點標「跑中」）
-  1014_dilution.png         ③ 30 個結構一起平均 vs 只平均殘留旁邊的結構（170 人）
-  1014_regions.png          ③④ 頭頂／顱底／後腦杓：殘留多寡跟模型貢獻的相關
+  1014_dilution.png         ③ 30 個結構一起平均 vs 只平均殘留旁邊的結構：頭頂殘留厚度（mm） vs Dice 進步多少（170 人）
+  1014_regions.png          ③④ 頭頂／顱底／後腦杓：殘留量 vs 只算殘留旁邊結構的 Dice 進步（三張散佈圖）
   1014_top_example.png      ③ 頭頂放大：殘留多的一位 vs 乾淨的一位（只放加標記的那張、字放大）
+  1014_six.png              ③ top_compare.png 那 6 位：皮質 Dice 起點 → 配準後，附 30 個結構一起平均（簡報用精簡版）
+  1014_six_back.png         ④ 同上，後腦杓殘留最多／最少各 3 位（只算大腦皮質、小腦皮質）
 """
 import os
 import sys
@@ -113,59 +115,68 @@ if all(e in S for e in ('mix_exp5', 'mix_exp6', 'mix_exp7')):
     save(fig, '1014_lambda_struct.png')
 
 # ── ③ 30 個結構一起平均 vs 只平均殘留旁邊的結構 ─────────────────────────────
-from skullstrip_label_dice_pooled import load, COHORTS
+from skullstrip_label_dice_pooled import load
+from skullstrip_label_dice import NAME as LNAME
 rows = load()
 ctx = lambda row: float(np.mean([float(row['label_%d' % l]) for l in (3, 42)]))
-for r in rows:
-    r['x'] = float(r['res']['top_vertex_mm'])
-    r['g_all'] = float(r['after']['dice_mean']) - float(r['before']['dice_mean'])
-    r['g_ctx'] = ctx(r['after']) - ctx(r['before'])
-for cn in [c[0] for c in COHORTS]:                     # 批內百分位、批內置中（同 gather.py）
-    rr = [r for r in rows if r['cohort'] == cn]
-    xs = np.array([r['x'] for r in rr])
-    ma, mc = np.mean([r['g_all'] for r in rr]), np.mean([r['g_ctx'] for r in rr])
-    for r in rr:
-        r['pct'] = (np.sum(xs < r['x']) + 0.5 * (np.sum(xs == r['x']) - 1)) / (len(xs) - 1)
-        r['gc_all'], r['gc_ctx'] = r['g_all'] - ma, r['g_ctx'] - mc
-DL = D['dilution']
+MM = D['residue_mm']
 ptxt = lambda p: 'p < 0.001' if p < 0.001 else 'p = %.2f' % p
-fig, axes = plt.subplots(1, 2, figsize=(13, 5.0), facecolor=PAPER, sharey=True)
-for ax, key, title, rr, pp, col in ((axes[0], 'gc_all', '以前的算法：30 個結構一起平均', DL['r_all'], DL['p_all'], MUTED),
-                                    (axes[1], 'gc_ctx', '老師的算法：只平均殘留旁邊的結構（左右大腦皮質）',
-                                     DL['r_ctx'], DL['p_ctx'], RUST)):
-    x = np.array([r['pct'] for r in rows])
-    y = np.array([r[key] for r in rows])
+
+
+def same_span(axes, ys, pad=1.12):
+    """每一格縱軸代表一樣多的 Dice（只是起點不同），格子之間的斜率才能直接比。"""
+    w = max(float(y.max() - y.min()) for y in ys) * pad
+    for ax, y in zip(axes, ys):
+        mid = (float(y.max()) + float(y.min())) / 2
+        ax.set_ylim(mid - w / 2, mid + w / 2)
+
+
+# 2026-10-05 起：橫軸是頭頂殘留厚度（mm）、縱軸是 Dice 進步多少（配準後 - 配準前），都是原始數字、170 人直接合在一起。
+# 以前橫軸是「每批各自排名次」、縱軸扣掉同一批的平均；三批的分布差不多，r 幾乎一樣（gather.py 的 residue_mm）
+x = np.array([float(r['res']['top_vertex_mm']) for r in rows])
+YS = [(np.array([float(r['after']['dice_mean']) - float(r['before']['dice_mean']) for r in rows]),
+       '以前的算法：30 個結構一起平均', MM['top']['all_r'], MM['top']['all_p'], MUTED),
+      (np.array([ctx(r['after']) - ctx(r['before']) for r in rows]),
+       '老師的算法：只平均殘留旁邊的結構（左右大腦皮質）', MM['top']['r'], MM['top']['p'], RUST)]
+fig, axes = plt.subplots(1, 2, figsize=(13, 4.7), facecolor=PAPER)
+for ax, (y, title, rr, pp, col) in zip(axes, YS):
     ax.scatter(x, y, s=24, alpha=0.7, color=col, edgecolors='none')
     b1, b0 = np.polyfit(x, y, 1)
-    ax.plot([0, 1], [b0, b0 + b1], color=INK, lw=2)
-    ax.axhline(0, color=MUTED, lw=0.8, ls=':')
-    ax.set_title('%s\nr = %+.2f，%s' % (title, rr, ptxt(pp)), fontsize=13, fontweight='bold')
-    ax.set_xlabel('頭頂殘留多寡（左 = 最少，右 = 最多）', fontsize=11.5)
-    ax.set_xticks([0, 0.5, 1])
-    ax.set_xticklabels(['最少', '中間', '最多'], fontsize=11)
+    xx = np.array([x.min(), x.max()])
+    ax.plot(xx, b0 + b1 * xx, color=INK, lw=2)
+    ax.set_title('%s\nr = %+.2f，%s' % (title, rr, ptxt(pp)), fontsize=15, fontweight='bold')
+    ax.set_xlabel('頭頂殘留厚度（mm）', fontsize=13)
+    ax.set_ylabel('Dice 進步多少（配準後 - 配準前）', fontsize=13)
+    ax.tick_params(labelsize=12)                       # 投影片上這張縮到約 3.5 吋高，字要放大
     clean(ax)
-axes[0].set_ylabel('模型貢獻（跟同一批的平均比）', fontsize=11.5)
+same_span(axes, [y for y, *_ in YS])
 fig.tight_layout()
 save(fig, '1014_dilution.png')
 
-# ── ③④ 三個位置 ───────────────────────────────────────────────────────
-R = D['residue']
-names = [('top', '頭頂'), ('base', '顱底'), ('back', '後腦杓')]
-fig, ax = plt.subplots(figsize=(11, 3.6), facecolor=PAPER)
-for i, (k, n) in enumerate(names):
-    v, p = R[k]['pooled_r'], R[k]['pooled_p']
-    col = RUST if p < 0.05 else '#B9BDB9'
-    ax.barh(i, v, height=0.55, color=col)
-    ax.text(v - 0.012 if v < 0 else v + 0.012, i, 'r = %+.2f（%s）' % (v, ptxt(p)), va='center',
-            ha='right' if v < 0 else 'left', fontsize=12.5, fontweight='bold', color=INK)
-ax.set_yticks(range(len(names)))
-ax.set_yticklabels([n for _, n in names], fontsize=13)
-ax.invert_yaxis()
-ax.axvline(0, color=INK, lw=1)
-ax.set_xlim(-0.75, 0.35)
-ax.set_xlabel('殘留越多，模型貢獻越……（負 = 越少；%d 人）' % R['top']['pooled_n'], fontsize=11.5)
-clean(ax)
-ax.grid(axis='y', alpha=0)
+# ── ③④ 三個位置：殘留量 vs 只算殘留旁邊結構的 Dice 進步（2026-10-05 起，取代原本 r 的長條）──────────────
+LOC = [('top', '頭頂', 'top_vertex_mm', '殘留厚度（mm）'), ('base', '顱底', 'base_blob10', '最大一坨殘留的體積（mm³）'),
+       ('back', '後腦杓', 'back_occ_mm', '殘留厚度（mm）')]
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.7), facecolor=PAPER)
+ys = []
+for ax, (k, nm, metric, xl) in zip(axes, LOC):
+    labs = MM[k]['labs']
+    av = lambda row: float(np.nanmean([float(row['label_%d' % l]) for l in labs]))
+    xk = np.array([float(r['res'][metric]) for r in rows])
+    yk = np.array([av(r['after']) - av(r['before']) for r in rows])
+    col = RUST if MM[k]['p'] < 0.05 else '#9AA09B'
+    ax.scatter(xk, yk, s=20, alpha=0.7, color=col, edgecolors='none')
+    b1, b0 = np.polyfit(xk, yk, 1)
+    xx = np.array([xk.min(), xk.max()])
+    ax.plot(xx, b0 + b1 * xx, color=INK, lw=2)
+    struct = '、'.join(dict.fromkeys(LNAME[l].lstrip('左右') for l in labs))     # 左右合併
+    ax.set_title('%s（只算%s）\nr = %+.2f，%s' % (nm, struct, MM[k]['r'], ptxt(MM[k]['p'])),
+                 fontsize=13.5, fontweight='bold', color=INK)
+    ax.set_xlabel(xl, fontsize=12.5)
+    ax.tick_params(labelsize=11.5)
+    clean(ax)
+    ys.append(yk)
+axes[0].set_ylabel('Dice 進步多少（配準後 - 配準前）', fontsize=12.5)
+same_span(axes, ys)
 fig.tight_layout()
 save(fig, '1014_regions.png')
 
@@ -215,3 +226,70 @@ fig.legend(handles=[Patch(facecolor=to_rgba(GREEN, 0.6), label='FreeSurfer 畫�
            loc='lower center', ncol=2, frameon=False, fontsize=13.5)
 fig.tight_layout(rect=[0, 0.1, 1, 1])
 save(fig, '1014_top_example.png')
+
+# ── ③④ 殘留最多／最少各 3 位（test，排除 A0131）：頭頂（第 13 頁）、後腦杓（第 15 頁）同一個樣子 ─────────
+# 2026-10-05 使用者要「像 top_compare.png 那種圖，但用老師的算法」；同一天又說第 13、15 頁在講同一件事，圖要統一。
+# 頭頂的完整版（五個切面）是 check_skullstrip.py --show top --labels 3 42 -> models\skullstrip_check\top_compare_cortex.png；
+# 那張太高，放進投影片字會小到看不到，這裡每位只留一個切面，數字放大
+from check_skullstrip import pick, find, measure_top, measure_back
+import csv as _csv
+SK = os.path.join(ROOT, 'models', 'skullstrip_check')
+
+
+def rdcsv(p):
+    with open(p, encoding='utf-8') as f:
+        return {r['file'][:-4]: r for r in _csv.DictReader(f)}
+
+
+AFT = rdcsv(os.path.join(ROOT, 'models', 'mix_exp3', 'dice_0240.csv'))
+BEF = rdcsv(os.path.join(ROOT, 'models', 'mix_exp2', 'dice_baseline.csv'))
+
+
+def six(metric, fname):
+    """metric：'top' 或 'back'。大字是「起點 → 配準後」的 Dice（只算殘留旁邊的結構，同 gather.py 的 residue_mm），
+    下面是進步多少，最下面 30 個結構一起平均的「起點 → 配準後」。"""
+    worst, cleanest = pick(os.path.join(SK, 'skullstrip_all520.csv'), metric, 3, 'test', {'A0131'})
+    labs = MM[metric]['labs']
+    av = lambda row: float(np.nanmean([float(row['label_%d' % l]) for l in labs]))
+    fig, axes = plt.subplots(2, 3, figsize=(13, 7.7), facecolor=PAPER)
+    for i, (grp, rr, col) in enumerate((('沒去乾淨', worst, RUST), ('去得乾淨', cleanest, TEAL))):
+        for j, meta in enumerate(rr):
+            s = meta['subject']
+            d = np.load(find(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2'), s)[0])
+            vol, seg = d['vol'], d['seg']
+            H, W = vol.shape[1], vol.shape[2]
+            if metric == 'top':                                        # 冠狀中間那片，只留上半（同 top_compare.png 第 2 欄）
+                mark = measure_top(vol, seg)[1]
+                img, m2 = vol[:, H // 2, :].T, mark[:, H // 2, :].T
+                keep = (slice(int(W * 0.56), None), slice(None))
+                note = '頭頂殘留 %.2f mm' % float(meta['top_vertex_mm'])
+            else:                                                      # 軸狀、腦最後面那一層（同 back_compare.png 第 2 欄）
+                mark = measure_back(vol, seg)[1]
+                idx = np.argwhere(seg > 0)
+                zb = int(np.median(idx[idx[:, 1] <= idx[:, 1].min() + 3][:, 2]))
+                img, m2 = vol[:, :, zb].T, mark[:, :, zb].T
+                # 只留最後面 42%：back_compare.png 留 55%，但那樣比頭頂那張高，圖下面的字會壓到下一排
+                keep = (slice(None, int(H * 0.42)), slice(None))
+                note = '後腦杓殘留 %.2f mm' % float(meta['back_occ_mm'])
+            rgb = np.dstack([img] * 3)
+            rgb[m2] = [1.0, 0.15, 0.1]
+            ax = axes[i, j]
+            ax.imshow(rgb[keep], origin='lower')
+            ax.axis('off')
+            ax.set_title('%s　%s' % (s, note), fontsize=12.5, color=INK)
+            # 大字「起點 → 配準後」兩個一樣大：只放大配準後會被起點騙——後腦杓殘留多的 3 位起點就低，
+            # 配準後看起來全部比較差，其實進步多少是交錯的（2026-10-05）
+            ax.text(0.5, -0.04, '皮質 %.3f → %.3f' % (av(BEF[s]), av(AFT[s])), transform=ax.transAxes, ha='center', va='top',
+                    fontsize=20, fontweight='bold', color=col)
+            ax.text(0.5, -0.31, '進步 %+.3f' % (av(AFT[s]) - av(BEF[s])), transform=ax.transAxes,
+                    ha='center', va='top', fontsize=13, fontweight='bold', color=INK)
+            ax.text(0.5, -0.50, '30 個結構一起平均 %.3f → %.3f' % (float(BEF[s]['dice_mean']), float(AFT[s]['dice_mean'])),
+                    transform=ax.transAxes, ha='center', va='top', fontsize=12, color=MUTED)
+        axes[i, 0].text(-0.05, 0.5, grp, transform=axes[i, 0].transAxes, rotation=90, ha='right', va='center',
+                        fontsize=17, fontweight='bold', color=col)
+    fig.tight_layout(h_pad=7.5, rect=[0, 0.075, 1, 1])     # 圖下面的三行字 tight_layout 算不到，底部自己留空
+    save(fig, fname)
+
+
+six('top', '1014_six.png')
+six('back', '1014_six_back.png')

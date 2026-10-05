@@ -128,11 +128,16 @@ def scan(root, out):
     print('->', out)
 
 
-def read_dice(p):
+def read_dice(p, labels=None):
+    """每位的 Dice。labels 不給＝30 個結構的平均（dice_mean）；
+    給了＝只平均這幾個標籤（老師 09-30 的做法：只算殘留旁邊的結構，例如 3 42 ＝左右大腦皮質）。"""
     if not p:
         return {}
     with open(p, encoding='utf-8') as f:
-        return {r['file'].replace('.npz', ''): float(r['dice_mean']) for r in csv.DictReader(f)}
+        rows = list(csv.DictReader(f))
+    if not labels:
+        return {r['file'].replace('.npz', ''): float(r['dice_mean']) for r in rows}
+    return {r['file'].replace('.npz', ''): float(np.mean([float(r['label_%d' % l]) for l in labels])) for r in rows}
 
 
 def pick(csv_path, metric, n, split, exclude):
@@ -144,7 +149,9 @@ def pick(csv_path, metric, n, split, exclude):
     return rows[:n], rows[-n:]
 
 
-def show(root, metric, worst, clean, out, dice, base, title):
+def show(root, metric, worst, clean, out, dice, base, title, lname=None, dice30=None, base30=None):
+    """lname 有給：dice／base 是只平均殘留旁邊那幾個結構的 Dice，左欄大字寫「lname Dice 配準後」、小字寫起點，
+    底下另外寫 30 個結構一起平均的「起點 → 配準後」當對照（dice30／base30）。"""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -233,13 +240,24 @@ def show(root, metric, worst, clean, out, dice, base, title):
         tx.text(.5, .93, grp, ha='center', va='top', fontsize=16, fontweight='bold', color=col)
         tx.text(.5, .76, '%s（%s）' % (s, sp), ha='center', va='top', fontsize=13, color='#141A1D')
         tx.text(.5, .64, note, ha='center', va='top', fontsize=12, color='#5F6A6B')
-        if s in dice and s in base:
+        if s in dice and s in base and lname:
+            # 老師的做法（只算殘留旁邊的結構）。「起點 → 配準後」兩個一樣大：只放大配準後會被起點騙
+            # （頭頂 30 個結構一起平均時殘留多的人起點就高；後腦杓殘留多的 3 位起點反而低）
+            tx.text(.5, .51, '%s Dice' % lname, ha='center', va='center', fontsize=12.5, fontweight='bold', color=col)
+            tx.text(.5, .39, '%.3f → %.3f' % (base[s], dice[s]), ha='center', va='center',
+                    fontsize=19, fontweight='bold', color=col)
+            tx.text(.5, .26, '進步 %+.3f' % (dice[s] - base[s]), ha='center', va='center',
+                    fontsize=12.5, fontweight='bold', color='#141A1D')
+            if dice30 and s in dice30 and s in base30:
+                tx.text(.5, .14, '30 個結構 %.3f → %.3f' % (base30[s], dice30[s]), ha='center', va='center',
+                        fontsize=11.5, color='#5F6A6B')
+        elif s in dice and s in base:
             tx.text(.5, .45, 'Dice %.3f' % dice[s], ha='center', va='center',
                     fontsize=26, fontweight='bold', color=col)
             tx.text(.5, .28, '起點 %.3f（%+.3f）' % (base[s], dice[s] - base[s]),
                     ha='center', va='center', fontsize=12.5, color='#5F6A6B')
     fig.suptitle(title, fontsize=15.5, fontweight='bold')
-    plt.tight_layout(rect=[0.01, 0, 1, 0.985])
+    plt.tight_layout(rect=[0.01, 0, 1, 0.985 if '\n' not in title else 0.972])
     os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
     plt.savefig(out, dpi=105, bbox_inches='tight')
     plt.close()
@@ -358,6 +376,10 @@ if __name__ == '__main__':
                     help='不放進來的受試者（A0131 起點 0.563，離其他人一大截）')
     ap.add_argument('--dice', help='配準後的 dice CSV')
     ap.add_argument('--baseline', help='線性對位的 dice CSV')
+    ap.add_argument('--labels', nargs='+', type=int,
+                    help='Dice 只平均這幾個標籤（老師的做法：只算殘留旁邊的結構）；頭頂是 3 42（左右大腦皮質）。'
+                         '不給就是 30 個結構一起平均')
+    ap.add_argument('--labels-name', default='皮質', help='--labels 那幾個結構在圖上叫什麼')
     ap.add_argument('--data-root', default=os.path.join(ROOT, 'data', 'mixed_preprocessed_v2'))
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
@@ -373,7 +395,17 @@ if __name__ == '__main__':
         head = {'top': '上緣：皮質上方還留著的組織（紅色）',
                 'base': '顱底：離腦 10mm 以外還留著的東西（紅色）',
                 'back': '後腦杓：腦的最後面還留著的組織（紅色）'}[a.show]
-        show(a.data_root, a.show, w, c, a.out, read_dice(a.dice), read_dice(a.baseline),
-             head + '　—　測試集，上 %d 位沒去乾淨／下 %d 位去得乾淨' % (len(w), len(c)))
+        title = head + '　—　測試集，上 %d 位沒去乾淨／下 %d 位去得乾淨' % (len(w), len(c))
+        dice, base = read_dice(a.dice, a.labels), read_dice(a.baseline, a.labels)
+        d30 = b30 = None
+        if a.labels:
+            d30, b30 = read_dice(a.dice), read_dice(a.baseline)
+            mb = lambda d, rr: float(np.mean([d[m['subject']] for m in rr]))
+            title += ('\n只算%s（殘留旁邊）的 Dice：沒去乾淨 %.3f → %.3f、去得乾淨 %.3f → %.3f'
+                      '　｜　30 個結構一起平均：%.3f → %.3f、%.3f → %.3f'
+                      % (a.labels_name, mb(base, w), mb(dice, w), mb(base, c), mb(dice, c),
+                         mb(b30, w), mb(d30, w), mb(b30, c), mb(d30, c)))
+        show(a.data_root, a.show, w, c, a.out, dice, base, title,
+             lname=a.labels_name if a.labels else None, dice30=d30, base30=b30)
     else:
         ap.error('要給 --scan 或 --show')

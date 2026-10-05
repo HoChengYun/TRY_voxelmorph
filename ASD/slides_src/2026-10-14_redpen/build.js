@@ -85,6 +85,7 @@ const CH = (n) => path.join(MROOT, 'deck_charts', n);
 const FC = (n) => path.join(MROOT, 'folding_check', n);
 
 const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check, TT = D.train_time || {};
+const MM = D.residue_mm;            // ③④ 原始數值版（mm／mm³、Dice 進步不扣平均、用 mm 分組），2026-10-05 起第 12、14、15 頁用這個
 const done = (e) => m[e].status === 'done';
 const score = (e) => (done(e) ? f3(m[e].mean) : '跑中');
 // 速度場權重 1、0.5 只有零星幾個點（平均 0.000002%、0.0001%），印 0.000% 會被看成完全沒有
@@ -93,11 +94,12 @@ const fold = (e) => (done(e) ? jfmt(m[e].jneg) : '跑中');
 const HAS_LAM = done('mix_exp6') && done('mix_exp7');
 const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.py --views（速度場兩顆也算過之後）
 const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
+const HAS_SIX = fs.existsSync(CH('1014_six.png'));                                // make_charts.py（2026-10-05 加）
 
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
-  'res_method', 'res_result', 'res_regions', 'back', 'res_check', 'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
+  'res_method', 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back', 'res_check', 'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
@@ -276,39 +278,61 @@ if (HAS_LAM) {
 // ───────────────────────────────────────────────────────── 09 ③ 結果
 {
   const s = base('③ 只算殘留旁邊的 Dice（p23）', '頭頂殘留越多，皮質對得越差；30 個結構一起平均就看不出來');
-  fitImage(s, CH('1014_dilution.png'), M, 1.45, 12.13, 4.6, '30 個結構一起平均 vs 只平均殘留旁邊的結構');
-  const T = R.top;
-  bullets(s, [
-    [{ text: '每個點是一個人，共 ' + DL.n + ' 人（test 50、val 50、第五包 MRS 70，三批都沒進過訓練）', options: { color: C.MUTED } }],
-    [{ text: '殘留最多的 1/4：模型貢獻 +' + f3(T.dirty_gain) + '；最少的 1/4：+' + f3(T.clean_gain), options: { bold: true } },
-     { text: '　三批分開算，方向都一樣', options: { color: C.MUTED } }],
-  ], { x: M, y: 6.15, w: 12.13, h: 0.9, fontSize: 13.5, paraSpaceAfter: 4 });
+  fitImage(s, CH('1014_dilution.png'), M, 1.4, 12.13, 3.55, '頭頂殘留厚度 vs Dice 進步多少：30 個結構一起平均 vs 只平均殘留旁邊的結構');
+  // 2026-10-05 使用者要標 Dice 數值：殘留最多／最少 1/4 的「起點 → 配準後」。起點一定要一起寫（只寫配準後會被起點騙）。
+  // 分組直接用 mm 切（170 人的 1/4、3/4 分位數，gather.py 的 residue_mm）
+  // ⚠️「起點就高」「進步差不多」「起點差不多」這幾個字是照現在的數字寫的
+  const T = MM.top;
+  const ba = (b, a) => f3(b) + ' → ' + f3(a) + '（' + sgn(a - b, 3) + '）';
+  table(s, [
+    ['頭頂殘留厚度', '30 個結構一起平均：Dice 起點 → 配準後', '只算殘留旁邊（大腦皮質）：Dice 起點 → 配準後'],
+    [T.hi.toFixed(2) + ' mm 以上（' + T.dirty_n + ' 人）', ba(T.all_dirty_b, T.all_dirty_a), ba(T.dirty_b, T.dirty_a)],
+    [T.lo.toFixed(2) + ' mm 以下（' + T.clean_n + ' 人）', ba(T.all_clean_b, T.all_clean_a), ba(T.clean_b, T.clean_a)],
+    [{ text: '怎麼看', options: { bold: true } },
+     '起點就高 ' + f3(T.all_dirty_b - T.all_clean_b) + '，進步差不多 → 看不出來',
+     hl('起點差不多，配準後低 ' + f3(T.clean_a - T.dirty_a) + '、進步少 ' + f3((T.clean_a - T.clean_b) - (T.dirty_a - T.dirty_b)), C.RUST)],
+  ], { x: M, y: 5.12, w: 12.13, colW: [2.75, 4.65, 4.73], fontSize: 13 });
+  txt(s, '每個點是一個人，共 ' + T.n + ' 人（test 50、val 50、第五包 MRS 70，三批都沒進過訓練；三批分開算，方向都一樣）',
+    { x: M, y: 6.72, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
+}
+
+if (HAS_SIX) {
+  // ─────────────────────────────────────────────────────── ③ 同樣 6 位：兩種算法
+  const s = base('③ 只算殘留旁邊的 Dice（p23）', '同樣 6 位：30 個結構一起平均分不出來，只算皮質就分得出來');
+  fitImage(s, CH('1014_six.png'), M, 1.45, 12.13, 4.95, '頭頂殘留最多 3 位與最少 3 位的皮質 Dice');
+  txt(s, 'test 裡頭頂殘留最多、最少各 3 位（跟之前殘留對照圖同一批人），紅色＝殘留。大字是皮質 Dice 的「起點 → 配準後」，下面是進步多少。',
+    { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 10 ③④ 三個位置
 {
   const s = base('③④ 三個位置一起看（p22、p23）', '只有頭頂有影響，顱底和後腦杓沒有');
-  fitImage(s, CH('1014_regions.png'), M, 1.45, 12.13, 3.3, '三個位置的殘留與模型貢獻');
-  const row = (k, n) => [n, f3(R[k].dirty_gain), f3(R[k].clean_gain),
-    R[k].pooled_p < 0.05 ? hl(sgn(R[k].pooled_r) + '（' + pval(R[k].pooled_p) + '）', C.RUST)
-                         : sgn(R[k].pooled_r) + '（' + pval(R[k].pooled_p) + '）'];
+  fitImage(s, CH('1014_regions.png'), M, 1.42, 12.13, 3.45, '三個位置：殘留量 vs 只算殘留旁邊結構的 Dice 進步');
+  // 2026-10-05 起：上面是三張散佈圖（r 寫在圖上），表格放 Dice（起點 → 配準後），分組直接用 mm／mm³ 切（gather.py 的 residue_mm）
+  const labs = (k) => [...new Set(R[k].labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
+  const ba2 = (b, a) => f3(b) + ' → ' + f3(a) + '（' + sgn(a - b, 3) + '）';
+  const amt = (k, v) => (k === 'base' ? Math.round(v).toLocaleString('en-US') + ' mm³' : v.toFixed(2) + ' mm');
+  const row = (k, n) => [n, labs(k), amt(k, MM[k].hi) + ' 以上：' + ba2(MM[k].dirty_b, MM[k].dirty_a),
+                         amt(k, MM[k].lo) + ' 以下：' + ba2(MM[k].clean_b, MM[k].clean_a)];
   table(s, [
-    ['位置', '殘留最多 1/4 的模型貢獻', '殘留最少 1/4 的模型貢獻', '相關（' + R.top.pooled_n + ' 人）'],
+    ['位置', '只算這些結構', '殘留最多 1/4：Dice 起點 → 配準後', '殘留最少 1/4：Dice 起點 → 配準後'],
     row('top', '頭頂'), row('base', '顱底'), row('back', '後腦杓'),
-  ], { x: M, y: 4.95, w: 12.13, colW: [1.6, 3.6, 3.6, 3.33], fontSize: 13.5 });
+  ], { x: M, y: 5.05, w: 12.13, colW: [1.1, 2.75, 4.14, 4.14], fontSize: 13 });
 }
 
 // ───────────────────────────────────────────────────────── 11 ④ 後腦杓
 {
   const s = base('④ 後腦杓（p22）', '後腦杓也有殘留，但跟配準好不好沒有關係');
-  fitImage(s, CH('1014_back_example.png'), M, 1.45, 12.13, 3.7, '後腦杓殘留的例子');
-  const B = D.back;
-  bullets(s, [
-    [{ text: '紅色＝FreeSurfer 標到的腦的最後面，再往後還亮著的組織', options: { color: C.MUTED } }],
-    [{ text: 'test ' + B.n + ' 位：後腦杓殘留中位數 ' + B.median.toFixed(2) + ' mm（' + B.min.toFixed(2) + '～' + B.max.toFixed(2) + '）', options: { bold: true } }],
-    [{ text: '殘留多寡跟模型貢獻：r = ' + sgn(R.back.pooled_r) + '（' + pval(R.back.pooled_p) + '，' + R.back.pooled_n + ' 人）→ 沒有關係', options: { bold: true, color: C.TEAL } }],
-    [{ text: '每個人都有左右腦中間、大腦和小腦之間的兩片腦膜，所以這個數字有一個大家共同的底', options: { color: C.MUTED, fontSize: 13 } }],
-  ], { x: M, y: 5.3, w: 12.13, h: 1.7, fontSize: 14, paraSpaceAfter: 5 });
+  // 2026-10-05 使用者：第 13、15 頁在講同一件事，圖要統一 → 改成跟第 13 頁一樣的 3 對 3（原本是 1 對、五個切面、不標 Dice）
+  fitImage(s, CH('1014_six_back.png'), M, 1.42, 12.13, 4.55, '後腦杓殘留最多 3 位與最少 3 位的皮質 Dice');
+  const B = D.back, K = MM.back;
+  const bl = [...new Set(R.back.labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
+  txt(s, 'test 裡後腦杓殘留最多、最少各 3 位，紅色＝殘留；只算殘留旁邊的' + bl + '。看「進步」：兩組交錯在一起，分不出誰殘留多',
+    { x: M, y: 6.02, w: 12.13, h: 0.35, fontSize: 12.5, color: C.MUTED, align: 'center' });
+  txt(s, K.n + ' 人：後腦杓殘留厚度跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
+    { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
+  txt(s, '每個人都有左右腦中間、大腦和小腦之間的兩片腦膜，所以大家都有一點（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
+    { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 12 ③ 是不是 FreeSurfer 畫錯
