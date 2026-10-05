@@ -84,7 +84,7 @@ function fitImage(s, p, x, y, maxW, maxH, alt) {
 const CH = (n) => path.join(MROOT, 'deck_charts', n);
 const FC = (n) => path.join(MROOT, 'folding_check', n);
 
-const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check;
+const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check, TT = D.train_time || {};
 const done = (e) => m[e].status === 'done';
 const score = (e) => (done(e) ? f3(m[e].mean) : '跑中');
 // 速度場權重 1、0.5 只有零星幾個點（平均 0.000002%、0.0001%），印 0.000% 會被看成完全沒有
@@ -92,11 +92,12 @@ const jfmt = (x) => (x === 0 ? '0%' : x < 0.001 ? '< 0.001%' : pct(x));
 const fold = (e) => (done(e) ? jfmt(m[e].jneg) : '跑中');
 const HAS_LAM = done('mix_exp6') && done('mix_exp7');
 const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.py --views（速度場兩顆也算過之後）
+const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
 
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
-  'res_method', 'res_result', 'res_regions', 'back', 'res_check', 'wide', 'next'];
+  'res_method', 'res_result', 'res_regions', 'back', 'res_check', 'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
@@ -117,7 +118,9 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   const lam = HAS_LAM
     ? '2 → 1：' + sgn(P.lam_vel_1.mean, 4) + '；1 → 0.5：' + sgn(P.lam_vel_05.mean, 4) + '（沒再變好）；都幾乎不擠爆'
     : '權重 2：' + score('mix_exp5') + '、不擠爆；權重 1、0.5 跑中';
-  const wide = done('mix_wide_vel') ? score('mix_wide_vel') + '（加寬位移場 ' + score('mix_wide') + '）' : 'AI 上跑中';
+  const wide = done('mix_wide_vel')
+    ? 'Dice ' + score('mix_wide_vel') + '，跟加寬位移場打平；幾乎不擠爆'
+    : 'AI 上跑中';
   table(s, [
     ['老師寫的', '做了什麼', '結果'],
     ['① 確認擠爆的位置（p18）', '51 位 test，找出每個擠爆點在哪', '一小團一小團，沿著腦溝，在皮質和白質裡'],
@@ -152,7 +155,7 @@ if (HAS_PARAMS) {
   const s = base('① 擠爆的位置（p18）', '換不同設定：位移場權重越小擠爆越多，速度場幾乎沒有');
   fitImage(s, FC('folding_params.png'), M, 1.42, 12.13, 5.0, '不同設定 × 三個方向的擠爆位置');
   txt(s, '每一欄是一顆模型、每一列是一個方向，一樣只標 3 位以上在同一點擠爆的地方。'
-        + '速度場兩顆圖上是空的：點本來就很少，而且每個人散在不同地方。',
+        + '速度場那幾欄是空的：點本來就很少，而且每個人散在不同地方。',
     { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
 }
 
@@ -327,7 +330,8 @@ if (HAS_LAM) {
 
 // ───────────────────────────────────────────────────────── 13 ⑤ 加寬＋速度場
 {
-  const s = base('⑤ 加寬改速度場（p25）', done('mix_wide_vel') ? '加寬＋速度場：' + score('mix_wide_vel') : '加寬＋速度場：AI 上跑中');
+  const WV = done('mix_wide_vel');
+  const s = base('⑤ 加寬改速度場（p25）', WV ? '加寬改成速度場：Dice 跟加寬位移場打平，而且幾乎不擠爆' : '加寬＋速度場：AI 上跑中');
   const cell = (e) => (done(e) ? { text: e + '\nDice ' + score(e) + '　擠爆 ' + fold(e) }
                                : { text: e + '\n跑中', options: { color: C.RUST, bold: true } });
   table(s, [
@@ -336,21 +340,60 @@ if (HAS_LAM) {
     [{ text: '速度場', options: { bold: true } }, cell('mix_exp6'), cell('mix_wide_vel')],
   ], { x: M, y: 1.65, w: 8.2, colW: [2.2, 3.0, 3.0], fontSize: 14, rowH: 0.85 });
   const X0 = 9.2, WW = 3.53;
-  bullets(s, [
-    [{ text: '橫著比：只差寬度', options: { bold: true } },
-     { text: '\n位移場加寬 +' + (P.width_disp ? f3(P.width_disp.mean) : '?') + '（' + (P.width_disp ? P.width_disp.win + '/' + P.width_disp.n : '') + ' 位變好）',
-       options: { color: C.MUTED, fontSize: 13 } }],
-    [{ text: '直著比：只差版本', options: { bold: true } },
-     { text: '\n加寬之後，速度場還是比較好、又不擠爆嗎？', options: { color: C.MUTED, fontSize: 13 } }],
-  ], { x: X0, y: 1.7, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
-  card(s, M, 4.45, 12.13, 2.35, 'FFF3E8');
-  txt(s, [
-    { text: '順便發現加寬版為什麼比預估慢：', options: { bold: true } },
-    { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
-    { text: '\n訓練前多設一行限制最多佔多少，只管記憶體、不改計算。mix_exp6、7 同時跑時已在 AI 上試過：每步 10 幾秒 → 約 3 秒。',
-      options: { color: C.MUTED } },
-    { text: '\n加寬＋速度場這顆也加了，預計約 19 小時跑完（mix_wide 當時 26 小時）。', options: { color: C.MUTED } },
-  ], { x: M + 0.3, y: 4.62, w: 11.5, h: 2.05, fontSize: 14.5, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0, paraSpaceAfter: 4 });
+  const win = (q) => q.win + '/' + q.n + ' 位';
+  const thou = (x) => Math.round(x).toLocaleString('en-US');
+  const sub = (t) => ({ text: t, options: { color: C.MUTED, fontSize: 13 } });
+  // 擠爆點數跟第 4 頁的圖用同一個來源（check_folding.py）；沒算過的才退回 test CSV 換算（兩邊算法差 0.1% 左右）
+  const FP = (e) => FD[e] || { points_mean: m[e].points, points_max: m[e].points_max, n_any: m[e].n_any };
+  if (WV) {
+    bullets(s, [
+      [{ text: '橫著比：只差寬度', options: { bold: true } },
+       sub('\n位移場 ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '變好）'
+           + '\n速度場 ' + sgn(P.width_vel.mean, 4) + '（' + win(P.width_vel) + '變好）')],
+      [{ text: '直著比：速度場 − 位移場', options: { bold: true } },
+       sub('\n預設寬度 ' + sgn(P.version_w1_vel.mean, 4) + '（' + win(P.version_w1_vel) + '較高）'
+           + '\n加寬 2 倍 ' + sgn(P.version_wide.mean, 4) + '（' + win(P.version_wide) + '）→ 打平')],
+      [{ text: '擠爆的點', options: { bold: true } },
+       sub('\n位移場加寬：每人約 ' + thou(FP('mix_wide').points_mean) + ' 點'
+           + '\n速度場加寬：' + FP('mix_wide_vel').n_any + ' 位有、最多 ' + thou(FP('mix_wide_vel').points_max) + ' 點')],
+    ], { x: X0, y: 1.6, w: WW, h: 3.5, fontSize: 15, paraSpaceAfter: 8 });
+    txt(s, '→ 分數跟最高的 mix_wide 一樣，又幾乎不擠爆：目前最好的一顆',
+      { x: M, y: 4.45, w: 8.2, h: 0.45, fontSize: 16, bold: true, color: C.TEAL });
+    card(s, M, 5.2, 12.13, 1.7, 'FFF3E8');
+    const t = TT.mix_wide_vel, t0 = TT.mix_wide;
+    txt(s, [
+      { text: '順便：加寬版為什麼比預估慢', options: { bold: true } },
+      { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
+      { text: '\n訓練前多設一行限制最多佔多少（只管記憶體、不改計算）'
+          + (t && t0 ? '：這顆每步 ' + t.sec.toFixed(1) + ' 秒、' + Math.round(t.hours) + ' 小時跑完；mix_wide 沒加，每步 '
+                       + t0.sec.toFixed(1) + ' 秒、' + Math.round(t0.hours) + ' 小時' : '')
+          + '（mix_exp6、7 同時跑：每步 10 幾秒 → 約 3 秒）。',
+        options: { color: C.MUTED } },
+    ], { x: M + 0.3, y: 5.35, w: 11.5, h: 1.45, fontSize: 14, paraSpaceAfter: 4 });
+  } else {
+    bullets(s, [
+      [{ text: '橫著比：只差寬度', options: { bold: true } },
+       sub('\n位移場加寬 ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '變好）')],
+      [{ text: '直著比：只差版本', options: { bold: true } },
+       sub('\n加寬之後，速度場還是比較好、又不擠爆嗎？')],
+    ], { x: X0, y: 1.7, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
+    card(s, M, 4.45, 12.13, 2.35, 'FFF3E8');
+    txt(s, [
+      { text: '順便發現加寬版為什麼比預估慢：', options: { bold: true } },
+      { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
+      { text: '\n訓練前多設一行限制最多佔多少，只管記憶體、不改計算。mix_exp6、7 同時跑時已在 AI 上試過：每步 10 幾秒 → 約 3 秒。',
+        options: { color: C.MUTED } },
+      { text: '\n加寬＋速度場這顆也加了，預計約 19 小時跑完（mix_wide 當時 26 小時）。', options: { color: C.MUTED } },
+    ], { x: M + 0.3, y: 4.62, w: 11.5, h: 2.05, fontSize: 14.5, paraSpaceAfter: 4 });
+  }
+}
+
+if (HAS_WCURVE) {
+  // ─────────────────────────────────────────────────────── ⑤ 訓練過程：版本 × 寬度四顆
+  const s = base('⑤ 加寬改速度場（p25）', '訓練過程：加寬的兩顆分數一樣高，速度場從頭到尾都不擠爆');
+  fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 5.0, '四顆的驗證集 Dice 與擠爆比例');
+  txt(s, '上：驗證集 51 位的 Dice，星號是挑中的那一輪。下：擠爆的比例，虛線是論文同版本的 0.366%。',
+    { x: M, y: 6.55, w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 14 下一步
@@ -364,6 +407,8 @@ if (HAS_LAM) {
         { text: '\n　補進' + where.join('和'), options: { color: C.MUTED } }]]
     : [];
   bullets(s, items.concat([
+    [{ text: '訓練時也用 FreeSurfer 標籤（論文的做法）', options: { bold: true } },
+     { text: '\n　標籤權重 0.5、5 兩顆，接著在 AI 上跑。測試時一樣只用影像，看 Dice 能不能再往上', options: { color: C.MUTED } }],
     [{ text: '新資料：第五包 MRS（' + D.mrs.n + ' 人）已經前處理好', options: { bold: true } },
      { text: '\n　等其他包到齊，一起併進來重新切分，當成新的一版資料', options: { color: C.MUTED } }],
     [{ text: '順帶看到：模型拿去對從沒看過的 MRS 研究，Dice ' + f3(D.mrs.after) + '（起點 ' + f3(D.mrs.before) + '）', options: { bold: true } },

@@ -5,8 +5,10 @@
     exp5 → exp4 只換版本、exp4 → exp3 只換平滑權重（手冊 §20.5；mix_exp5 是 2026-09-30 補進來的，之前是三版）
 --set lambda（2026-10-04，10/14 簡報用）：速度場全尺寸的平滑權重 2 / 1 / 0.5（exp5 / exp6 / exp7）
     ＋位移場權重 1（exp3）當對照
+--set wide（2026-10-05，10/14 簡報用）：版本 × 寬度（exp3 / mix_wide / exp6 / mix_wide_vel），
+    全部全尺寸、平滑權重 1
 
-輸出到 models/deck_charts/（<後綴> = ablation 是 exp2345、lambda 是 lambda）：
+輸出到 models/deck_charts/（<後綴> = ablation 是 exp2345、lambda 是 lambda、wide 是 wide）：
     curve_<後綴>.png      四顆的 val Dice 曲線 + 擠爆比例（從 dice_curve_val.csv 重畫）
     jacobian_<後綴>.png   四顆的 Jacobian 圖疊成一張（讀既有的 vis_T054 輸出）
     grid_<後綴>.png       四顆的形變網格，簡報專用的清楚版（2026-09-29 起重畫，不再堆 vis 的 PNG）
@@ -52,6 +54,12 @@ SETS = {
         ('mix_exp6', '0190', '速度場・權重 1', TEAL),
         ('mix_exp7', '0250', '速度場・權重 0.5', '#0A4F4E'),
         ('mix_exp3', '0240', '位移場・權重 1', RUST),
+    ]),
+    'wide': ('wide', [
+        ('mix_exp3', '0240', '位移場・預設寬度', RUST_L),
+        ('mix_wide', '0225', '位移場・加寬 2 倍', RUST),
+        ('mix_exp6', '0190', '速度場・預設寬度', TEAL_M),
+        ('mix_wide_vel', '0240', '速度場・加寬 2 倍', TEAL),
     ]),
 }
 SET = sys.argv[sys.argv.index('--set') + 1] if '--set' in sys.argv else 'ablation'

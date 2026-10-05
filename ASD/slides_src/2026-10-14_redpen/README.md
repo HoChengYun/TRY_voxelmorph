@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（mix_exp6、7 有結果時 16 頁，沒有時 14 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（18 頁；mix_exp6、7 沒結果時少 2 頁、沒有 `folding_params.png` 或 `curve_wide.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多、不用術語。
@@ -14,8 +14,9 @@
 | 7–10 | ② 速度場的平滑權重（9、10 頁只在 mix_exp6、7 都有結果時才出現）| `deck_charts/ablation.png`（09-20 那份的）、`1014_lambda.png`、`1014_lambda_struct.png`、`grid_lambda.png` |
 | 11–13、15 | ③ 只算殘留旁邊的 Dice、是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_regions.png`、`1014_top_example.png` |
 | 14 | ④ 後腦杓 | `1014_back_example.png` |
-| 16 | ⑤ 加寬＋速度場 | （表格）|
-| 17 | 下一步 | |
+| 16 | ⑤ 加寬＋速度場（2×2 表格：版本 × 寬度；右邊逐人配對；下面顯存設定前後每步時間）| （表格）|
+| 17 | ⑤ 訓練過程：版本 × 寬度四顆的驗證集 Dice 與擠爆比例（mix_wide_vel 有結果、而且有圖才出現）| `deck_charts/curve_wide.png` |
+| 18 | 下一步（訓練時也用標籤 mix_exp8／9、MRS）| |
 
 頁碼由 `build.js` 開頭的 `ORDER` 決定，內文引用的頁碼（第 2 頁、最後一頁）會跟著算；做出來的頁數跟 `ORDER` 對不上會直接報錯。
 
@@ -36,11 +37,12 @@ cd ASD\slides_src\2026-10-14_redpen
 ..\..\..\vxm_env\Scripts\python.exe make_charts.py     # -> models\deck_charts\1014_*.png（要先有 deck_data.json）
 cd ..\..\..
 .\vxm_env\Scripts\python.exe ASD\check_skullstrip.py --show back --n 1 --csv models\skullstrip_check\skullstrip_all520.csv --dice models\mix_exp3\dice_0240.csv --baseline models\mix_exp2\dice_baseline.csv --out models\deck_charts\1014_back_example.png
-.\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 --gpu 0   # 速度場兩顆的擠爆位置（位移場三顆 09-30 算過）
-.\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 mix_wide_vel:0240 --gpu 0   # 速度場三顆的擠爆位置（位移場三顆 09-30 算過）
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png（6 欄：左 3 顆速度場、右 3 顆位移場）
 cd ASD\slides_src\2026-09-20_cross
 ..\..\..\vxm_env\Scripts\python.exe make_compare.py --set lambda   # -> curve_lambda / jacobian_lambda / grid_lambda.png（要先有各顆的 vis_T054）
-cd ASD\slides_src\2026-10-14_redpen
+..\..\..\vxm_env\Scripts\python.exe make_compare.py --set wide     # -> curve_wide / jacobian_wide / grid_wide.png（簡報只用 curve_wide）
+cd ..\2026-10-14_redpen
 node build.js deck.pptx
 powershell -ExecutionPolicy Bypass -File render.ps1 -Pptx deck.pptx -OutDir render
 copy deck.pptx ..\..\..\meeting報告\ASD_老師紅字回覆_20261014.pptx
@@ -53,19 +55,21 @@ copy deck.pptx ..\..\..\meeting報告\ASD_老師紅字回覆_20261014.pptx
 
 ## 還沒跑完的實驗
 
-mix_exp6、mix_exp7、mix_wide_vel 在 AI 上跑。`gather.py` 找不到它們的 test CSV（`models/<exp>/dice_<4 位數>.csv`）
-就標成 pending，簡報第 2、7、13 頁顯示「跑中」、圖上標「跑中」框。
+mix_exp6、mix_exp7（10-04）、mix_wide_vel（10-05）都帶回來了，現在沒有 pending 的。
+`gather.py` 找不到某顆的 test CSV（`models/<exp>/dice_<4 位數>.csv`）就標成 pending，簡報第 2、7、16 頁顯示「跑中」、圖上標「跑中」框。
 **結果帶回來放進 `models/<exp>/` 之後，照上面重建一次就會補上**，不用改程式。
 一個資料夾有好幾份 test CSV 的話，用 `dice_curve_val.csv` 裡驗證集最好的那個 epoch。
+mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在「下一步」寫一行；結果要放進來得另外加頁。
 
 ## 寫死在程式裡、不是從 CSV 來的
 
 - 每顆的設定（版本、實際平滑權重、寬度、積分解析度）：`gather.py` 的 `CFG`，照操作單
 - 論文 Table I 的擠爆比例 0.366%（`make_charts.py`）
 - 對照圖的兩位受試者 MRS0381-2、T054（跟 `check_top_residue.py --example` 同一組）
-- 第 15 頁「約 33 GB／24 GB／約 19 小時／26 小時」：手冊 §23.7 與 `ASD/指令_mix_wide_vel.md` 的估計；
-  「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
-  10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）
+- 第 16 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
+  10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）。
+  加寬兩顆的每步秒數、小時數是 `gather.py` 從 `log/mix_wide.txt`、`log/mix_wide_vel.txt` 算的（log 沒帶回來時才退回寫死的「約 19 小時」）
+- 第 17 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
 
 ## 不進版控
 

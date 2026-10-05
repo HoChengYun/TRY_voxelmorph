@@ -6,8 +6,9 @@
     models/mix_exp2/dice_baseline.csv             起點（只做線性對位）
     models/folding_check/                         ① 擠爆的位置（ASD/check_folding.py 產生）
     models/skullstrip_check/                      ③④ 殘留（skullstrip_label_dice*.py、check_top_residue.py 產生）
+    log/mix_wide.txt、log/mix_wide_vel.txt        ⑤ 每步時間（沒加／有加顯存設定）
 
-還沒跑完的實驗（mix_exp6、mix_exp7、mix_wide_vel）沒有 test CSV，標成 pending，簡報上顯示「跑中」。
+還沒跑完的實驗沒有 test CSV，標成 pending，簡報上顯示「跑中」（mix_exp6、7 10-04、mix_wide_vel 10-05 帶回來了）。
 結果帶回來、放進 models/<exp>/ 之後重跑這支就會補上。
 """
 import os
@@ -15,6 +16,7 @@ import sys
 import csv
 import glob
 import json
+import re
 import numpy as np
 from scipy import ndimage
 from scipy.stats import spearmanr, mannwhitneyu
@@ -76,6 +78,9 @@ for e, (ver, wt, width, res) in CFG.items():
         a = np.array([d[k] for k in K])
         m.update({'status': 'done', 'epoch': os.path.basename(p)[5:9], 'mean': float(a.mean()),
                   'jneg': float(np.mean([j[k] for k in K])),
+                  'points': float(np.mean([j[k] for k in K]) / 100 * 192 * 224 * 192),   # 每人平均幾個擠爆點
+                  'points_max': float(max(j[k] for k in K) / 100 * 192 * 224 * 192),
+                  'n_any': int(sum(j[k] > 0 for k in K)),
                   'gain': float(np.mean([d[k] - base[k] for k in K]))})
         per[e] = d
     models[e] = m
@@ -99,7 +104,8 @@ D['paired'] = {
     'version_w1': paired('mix_exp3', 'mix_exp6'),  # 只差版本（平滑權重 1）
     'width_disp': paired('mix_wide', 'mix_exp3'),  # 位移場：加寬
     'width_vel': paired('mix_wide_vel', 'mix_exp6'),  # 速度場：加寬
-    'version_wide': paired('mix_wide_vel', 'mix_wide'),  # 加寬後只差版本
+    'version_wide': paired('mix_wide_vel', 'mix_wide'),  # 加寬後只差版本（速度場 - 位移場）
+    'version_w1_vel': paired('mix_exp6', 'mix_exp3'),    # 預設寬度只差版本（速度場 - 位移場，跟上一行同方向）
 }
 
 # ── ② 平滑權重對各結構的影響（左右平均；30 個評估結構併成 17 種）─────────────────
@@ -126,12 +132,12 @@ atlas = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol']
 aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg']
 brain = ndimage.binary_fill_holes((atlas > 0.01) | (aseg > 0))     # 跟 check_folding.py 同一個定義
 fold = {}
-for e in ('mix_exp4', 'mix_exp3', 'mix_wide', 'mix_exp6', 'mix_exp7'):
+for e in ('mix_exp4', 'mix_exp3', 'mix_wide', 'mix_exp6', 'mix_exp7', 'mix_wide_vel'):
     rr = [r for r in fsub if r['exp'] == e]
     if not rr or not os.path.exists(os.path.join(FC, 'heat_%s.npz' % e)):
-        continue                                   # 速度場那兩顆 10-04 才補算
+        continue                                   # 速度場 exp6、7 10-04 補算，mix_wide_vel 10-05
     if sum(int(r['n_folded']) for r in rr) == 0:
-        fold[e] = {'n_subjects': len(rr), 'points_mean': 0.0}
+        fold[e] = {'n_subjects': len(rr), 'points_mean': 0.0, 'points_max': 0, 'n_any': 0}
         continue
     z = np.load(os.path.join(FC, 'depth_%s.npz' % e))
     cnt = z['region_counts'].astype(float)
@@ -141,6 +147,7 @@ for e in ('mix_exp4', 'mix_exp3', 'mix_wide', 'mix_exp6', 'mix_exp7'):
         'n_subjects': len(rr),
         'points_med': float(np.median([int(r['n_folded']) for r in rr])),
         'points_mean': float(np.mean([int(r['n_folded']) for r in rr])),
+        'points_max': int(max(int(r['n_folded']) for r in rr)),     # 擠爆點最多的那位有幾點
         'n_any': int(sum(int(r['n_folded']) > 0 for r in rr)),      # 有幾位至少有 1 個擠爆點
         'clusters_med': float(np.median([int(r['n_clusters']) for r in rr])),
         'largest_med': float(np.median([int(r['largest_cluster']) for r in rr])),
@@ -222,6 +229,28 @@ with open(os.path.join(SK, 'skullstrip_all520.csv'), encoding='utf-8') as f:
     back = [float(r['back_occ_mm']) for r in csv.DictReader(f) if r['split'] == 'test' and r['subject'] != 'A0131']
 D['back'] = {'n': len(back), 'median': float(np.median(back)), 'min': float(min(back)), 'max': float(max(back))}
 
+# ⑤ 每步時間：mix_wide 沒加顯存設定、mix_wide_vel 有加（log 每步印的 time:）
+def step_time(e):
+    p = J('log', e + '.txt')
+    if not os.path.exists(p):
+        return None
+    raw = open(p, 'rb').read()
+    for enc in ('utf-16', 'utf-8', 'cp950'):       # log 混用兩種編碼（CLAUDE.md「log/ 實際內容」）
+        try:
+            t = raw.decode(enc)
+        except Exception:
+            continue
+        if '\ufffd' not in t and 'epoch' in t:
+            break
+    else:
+        return None
+    x = [float(v) for v in re.findall(r'time: ([\d.]+) sec', t)]
+    return {'sec': float(np.mean(x)), 'hours': float(np.sum(x) / 3600), 'steps': len(x)} if x else None
+
+
+D['train_time'] = {e: step_time(e) for e in ('mix_wide', 'mix_wide_vel')}
+
+
 def no_nan(o):
     """JSON 不認得 NaN（build.js 的 JSON.parse 會直接報錯），一律換成 null。"""
     if isinstance(o, dict):
@@ -240,6 +269,9 @@ for e, m in models.items():
         print('  %-13s test %.4f（貢獻 +%.3f，擠爆 %.3f%%，epoch %s）' % (e, m['mean'], m['gain'], m['jneg'], m['epoch']))
     else:
         print('  %-13s 跑中' % e)
+for e, t in D['train_time'].items():
+    if t:
+        print('  %-13s 每步 %.2f 秒、共 %.1f 小時（%d 步）' % (e, t['sec'], t['hours'], t['steps']))
 print('  殘留：頭頂 170 人 r=%+.2f；30 個結構一起平均 r=%+.2f' % (r_ctx, r_all))
 for e, v in fold.items():
     if 'ctx_wm' not in v:

@@ -46,8 +46,9 @@ ap.add_argument('--plot-models', nargs='+', default=['mix_exp4', 'mix_exp3', 'mi
 ap.add_argument('--views', action='store_true',
                 help='改畫 folding_views.png（一顆、三個方向各 4 刀）和 folding_params.png（不同設定 × 三個方向）')
 ap.add_argument('--view-one', default='mix_exp3', help='folding_views.png 畫哪一顆')
-ap.add_argument('--view-models', nargs='+', default=['mix_exp6', 'mix_exp7', 'mix_exp4', 'mix_exp3', 'mix_wide'],
-                help='folding_params.png 畫哪幾顆（由左到右）')
+ap.add_argument('--view-models', nargs='+',
+                default=['mix_exp6', 'mix_exp7', 'mix_wide_vel', 'mix_exp4', 'mix_exp3', 'mix_wide'],
+                help='folding_params.png 畫哪幾顆（由左到右；左邊三顆速度場、右邊三顆位移場）')
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
 
@@ -363,7 +364,8 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
 
 
 VIEW_LAB = {'mix_exp4': '位移場・權重 2', 'mix_exp3': '位移場・權重 1', 'mix_wide': '位移場・權重 1・加寬',
-            'mix_exp5': '速度場・權重 2', 'mix_exp6': '速度場・權重 1', 'mix_exp7': '速度場・權重 0.5'}
+            'mix_exp5': '速度場・權重 2', 'mix_exp6': '速度場・權重 1', 'mix_exp7': '速度場・權重 0.5',
+            'mix_wide_vel': '速度場・權重 1・加寬'}
 
 
 def views(min_n=3):

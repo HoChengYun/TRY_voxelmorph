@@ -1,7 +1,8 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-04**（mix_exp6／7：速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好，擠爆始終接近 0；10/14 簡報 16 頁。
+> 最後更新：**2026-10-05**（mix_wide_vel：加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完；10/14 簡報 18 頁。
+> 10-04：mix_exp6／7 速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好。
 > 09-30：mix_exp5 功勞全在解析度；`train_avg` 更正。09-28：mix_wide 完成、去顱骨殘留分析、`--int-downsize` 的真正作用）
 
 ---
@@ -49,6 +50,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_exp6** | 同 mix_exp5，平滑權重降到 **1**（λ 1.0），val 挑 epoch 190 | 0.6882 | **0.8051** | +0.117 | 0.000002% |
 | **mix_exp7** | 同 mix_exp5，平滑權重 **0.5**（λ 0.5），val 挑 epoch 250（最後一輪，還在慢慢爬）| 0.6882 | **0.8047** | +0.117 | 0.0001% |
 | **mix_wide** | 同 mix_exp3，**U-Net 每層通道數 ×2**（參數 4 倍），val 挑 epoch 225 | 0.6882 | **0.8114** | +0.123 | 0.187% |
+| **mix_wide_vel** | 同 mix_wide，換成**速度場**（= mix_exp6 加寬 2 倍），val 挑 epoch 240 | 0.6882 | **0.8111** | +0.123 | 0.000001% |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0.000% |
 | **tiger_exp3** | 同上，位移場版，val 挑 epoch 210 | 0.7453 | **0.8714** | +0.126 | 0.226% |
 
@@ -88,6 +90,9 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 7. **U-Net 容量是瓶頸之一**（mix_wide，§23.6）：加寬 2 倍 +0.0053（50/51 位變好），跟平滑權重的 +0.0057 差不多大，
    折疊率沒變高。**越難的人幫越多**：起點最差 10 位 +0.0114、最好 10 位 +0.0024。
    ⚠️ 分組要用「起點 Dice」，用其中一顆模型自己的分數分組會有回歸平均的假象。
+   ✅ **加寬改成速度場**（mix_wide_vel，10-05，§23.9）：速度場加寬也 +0.0060（50/51）。加寬之後速度場 vs 位移場 **−0.0004，看不出差別**
+   （p = 0.17；預設寬度時是顯著的 −0.0011），擠爆從每人約 15,000 點變成 51 位只有 2 位有、最多 2 點。
+   👉 **目前分數最高（跟 mix_wide 打平）又不擠爆的就是這顆。**
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ **折疊率 0% 的那幾顆（asd_exp1、mix_exp1/2、tiger_exp1/2）都是 repo 預設的微分同胚版**
@@ -223,14 +228,14 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~7\  mix_wide\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1~7\  mix_wide\  mix_wide_vel\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
 │   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
 │   ├── atlas_creation_uncond_NCC_1500.h5   # 官方 TF 版預訓練權重
 │   └── vxm_dense_brain_T1_3D_mse.h5        # 官方 TF 版預訓練權重
-├── share_models\                       # ⭐ 進版控的最佳模型：ASD_good\0190.pt、mix_exp1_good\0230.pt、tiger_exp1_good\0240.pt
+├── share_models\                       # ⭐ 進版控的最佳模型：每顆一個 <實驗>_good\（ASD、mix_exp1～7、mix_wide_vel、tiger_exp1～3；mix_wide 那份資料夾叫 mix_wide\）
 ├── log\                                # 訓練 stdout + 當初的指令
 ├── oasis\                              # OASIS：oasis_npz\（vol + seg35）、prepare_author_check.py（作者模型對照，手冊 §19）
 ├── meeting報告\                        # 簡報 pptx（.gitignore）
@@ -573,7 +578,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | NCC 訓練出來會折疊 / 形變過激 | λ 對 NCC 而言小了兩個數量級 | 見「超參數」節，λ 試 0.5–2 |
 | `RuntimeError: size XXX not divisible` | 影像維度不能被 16 整除（U-Net 4 層下採樣） | **在 `make_atlas.py` 指定 `--target-shape`**（不是 preprocess_ixi.py，它已移除該旗標） |
 | `CUDA out of memory`（OOM ＝顯存不夠）| 192×224×192 在 8GB GPU 上很緊 | `--batch-size 1`，或改用更小的 target shape。**加寬 U-Net 的實測顯存與對策見手冊 §23** |
-| 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯。⚠️ 看的是 PyTorch **預留**的量（預設寬度約實際用量 1.8 倍、加寬 2 倍約 2.4 倍），不是實際用量（手冊 §23.7）| 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下。實際用量放得下、只是預留超過的話：訓練前 `set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85`（兩顆同時跑各用 0.42）。AI 上 10-02 實測：兩顆同時跑每步 10 幾秒 → 加了之後約 3 秒 |
+| 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯。⚠️ 看的是 PyTorch **預留**的量（預設寬度約實際用量 1.8 倍、加寬 2 倍約 2.4 倍），不是實際用量（手冊 §23.7）| 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下。實際用量放得下、只是預留超過的話：訓練前 `set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85`（兩顆同時跑各用 0.42）。AI 上 10-02 實測：兩顆同時跑每步 10 幾秒 → 加了之後約 3 秒；10-05 mix_wide_vel 單獨跑加 0.85：每步 2.84 秒（mix_wide 沒加 3.75 秒）|
 | `--check-only` 通過，開跑還是爆 | 它**只印出卡有多大，不會真的建模型試跑**；警告門檻 7.5 GB 是為預設寬度設的 | 加寬版要自己拿卡的容量對手冊 §23 的表 |
 | 視覺化 / 推論卡住很久 | 沒加 `--gpu 0`，走 CPU 跑 3D U-Net | 一律加 `--gpu 0` |
 | `test_oasis.py` 讀 `atlas['seg']` 報 KeyError | IXI atlas 沒有 seg | 改用 `test_ixi.py` |
@@ -602,7 +607,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 
 ## 待辦
 
-### 0. 🔴 10/14 meeting 要交的（2026-09-30 meeting 老師的紅字）
+### 0. ✅ 10/14 meeting 要交的（2026-09-30 meeting 老師的紅字；10-05 五件都做完）
 
 老師寫在 `meeting報告\ASD_520顆與交叉測試_20260920.pptx` 上（使用者 09-30 13:03 存檔）。
 ⚠️ **那份 pptx 不能再用 build.js 的輸出覆蓋**，紅字會不見；10/14 的簡報另外出一份。
@@ -613,7 +618,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | p18 消融 | 速度場 Lambda 去調一下 | 速度場＋全尺寸掃 λ：權重 2 = mix_exp5（已完成）、1 = mix_exp6、0.5 = mix_exp7（操作單都在 `ASD/指令_*.md`）| ✅ 10-04（手冊 §20.5）。2 → 1 +0.0025，再降到 0.5 沒再變好，擠爆都接近 0。⚠️ 兩顆是**同時**在 AI 上跑的，log 每步時間（約 3.2 秒）**不能拿來跟單獨跑的比**。一開始顯存溢位每步 10 幾秒，加了 `per_process_memory_fraction:0.42` 後從頭跑，那段沒留在 log 裡（§23.7）|
 | p23 去頭骨 | Dice 只算沒切乾淨附近的區域就好（不想被深層灰質影響）| 只在殘留附近的區域算 Dice，比「沒切乾淨」vs「乾淨」 | ✅ 09-30（手冊 §24.2）|
 | p22 去頭骨 | 後腦杓也有沒切乾淨的也去看 | `check_skullstrip.py` 多掃後腦杓的殘留 | ✅ 09-30（手冊 §24.3）|
-| p25 加寬 | 改看看速度 | 加寬 2 倍的 U-Net 改成速度場版 = mix_wide_vel（平滑權重 1，跟 mix_wide 只差版本、跟 mix_exp6 只差寬度）。顯存實測外插 14.1 GB，操作單 `ASD/指令_mix_wide_vel.md` | 等 mix_exp6、7 都跑完再跑（加了記憶體設定約 19 小時）|
+| p25 加寬 | 改看看速度 | 加寬 2 倍的 U-Net 改成速度場版 = mix_wide_vel（平滑權重 1，跟 mix_wide 只差版本、跟 mix_exp6 只差寬度）。顯存實測外插 14.1 GB，操作單 `ASD/指令_mix_wide_vel.md` | ✅ 10-05（手冊 §23.9）：**0.8111**，跟 mix_wide 打平（−0.0004，p = 0.17），擠爆幾乎沒有（51 位只有 2 位有、最多 2 點）。AI 加了記憶體設定，每步 2.84 秒、19.8 小時 |
 
 **已經看到的結論**（細節在手冊 §24）：
 - 擠爆的點沿著腦溝落在皮質和白質裡，每人不一樣，深部結構幾乎沒有
@@ -626,13 +631,13 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quantum annealing」是另一個計畫，**使用者說先不管**。
 
 **老師紅字之外的下一步（10-04 使用者同意）**：訓練時也用 FreeSurfer 標籤 = mix_exp8（γ 0.5）、mix_exp9（γ 5），基礎同 mix_exp6。
-程式 `ASD/train_semisup.py`、操作單 `ASD/指令_mix_exp8_9.md`。筆電功能測試通過（手冊 §20.5）；等 mix_wide_vel 跑完、AI `git pull` 後開跑。
+程式 `ASD/train_semisup.py`、操作單 `ASD/指令_mix_exp8_9.md`。筆電功能測試通過（手冊 §20.5）；mix_wide_vel 10-05 跑完，AI `git pull` 後就可以開跑（兩顆不能同時跑，接著跑約 28 小時）。
 🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文的 0.01／0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5／5。
 
 **10/14 簡報**：`ASD/slides_src/2026-10-14_redpen/` → `meeting報告\ASD_老師紅字回覆_20261014.pptx`
 （10-01 第一版 14 頁；10-04 補上 mix_exp6、7，加了「為什麼權重 0.5 沒再變好」「形變網格對照」兩頁；
-擠爆那頁換成三個方向各 4 刀，再加「不同設定」一頁，共 17 頁）。
-mix_wide_vel 的結果帶回來放進 `models\mix_wide_vel\` 後，照該資料夾 README 重建就會自動補上（現在顯示「跑中」）。
+擠爆那頁換成三個方向各 4 刀，再加「不同設定」一頁，共 17 頁；10-05 補上 mix_wide_vel：第 16 頁改成結論、「不同設定」那張多一欄、
+多一頁第 17 頁「訓練過程」四顆對照曲線、「下一步」加上訓練時也用標籤，共 **18 頁**）。重建步驟見該資料夾 README。
 ⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字。
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
