@@ -95,11 +95,13 @@ const HAS_LAM = done('mix_exp6') && done('mix_exp7');
 const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.py --views（速度場兩顆也算過之後）
 const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
 const HAS_SIX = fs.existsSync(CH('1014_six.png'));                                // make_charts.py（2026-10-05 加）
+const HAS_BASE6 = fs.existsSync(CH('1014_six_base.png'));                         // make_charts.py（2026-10-05 加，顱底）
 
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
-  'res_method', 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back', 'res_check', 'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
+  'res_method', 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back', ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
+  'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
@@ -332,6 +334,21 @@ if (HAS_SIX) {
   txt(s, K.n + ' 人：後腦杓殘留厚度跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
     { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
   txt(s, '每個人都有左右腦中間、大腦和小腦之間的兩片腦膜，所以大家都有一點（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
+    { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
+}
+
+if (HAS_BASE6) {
+  // ─────────────────────────────────────────────────────── ③ 顱底：跟第 13 頁（頭頂）、後腦杓那頁同一個樣子
+  // 2026-10-05 使用者：「這個顱底也來一張」。⚠️「這 6 位裡殘留多的進步還略多」是照現在的數字寫的
+  const s = base('③ 只算殘留旁邊的 Dice（p23）', '顱底也有殘留，但跟配準好不好沒有關係');
+  fitImage(s, CH('1014_six_base.png'), M, 1.42, 12.13, 4.55, '顱底殘留最多 3 位與最少 3 位的旁邊結構 Dice');
+  const K = MM.base;
+  const bl = [...new Set(R.base.labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
+  txt(s, 'test 裡顱底殘留最多、最少各 3 位，紅色＝離腦 10 mm 以外還留著的東西；只算殘留旁邊的' + bl + '。這 6 位裡殘留多的進步還略多',
+    { x: M, y: 6.02, w: 12.13, h: 0.35, fontSize: 12, color: C.MUTED, align: 'center' });
+  txt(s, K.n + ' 人：顱底殘留體積跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
+    { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
+  txt(s, '殘留大多在腦的前下方；切面選穿過最大一坨殘留中心的那一片，所以每個人切的位置不一樣',
     { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 

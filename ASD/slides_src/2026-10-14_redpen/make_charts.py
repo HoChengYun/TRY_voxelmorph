@@ -231,7 +231,8 @@ save(fig, '1014_top_example.png')
 # 2026-10-05 使用者要「像 top_compare.png 那種圖，但用老師的算法」；同一天又說第 13、15 頁在講同一件事，圖要統一。
 # 頭頂的完整版（五個切面）是 check_skullstrip.py --show top --labels 3 42 -> models\skullstrip_check\top_compare_cortex.png；
 # 那張太高，放進投影片字會小到看不到，這裡每位只留一個切面，數字放大
-from check_skullstrip import pick, find, measure_top, measure_back
+from check_skullstrip import pick, find, measure_top, measure_back, measure_base
+from scipy import ndimage as ndi
 import csv as _csv
 SK = os.path.join(ROOT, 'models', 'skullstrip_check')
 
@@ -245,9 +246,9 @@ AFT = rdcsv(os.path.join(ROOT, 'models', 'mix_exp3', 'dice_0240.csv'))
 BEF = rdcsv(os.path.join(ROOT, 'models', 'mix_exp2', 'dice_baseline.csv'))
 
 
-def six(metric, fname):
-    """metric：'top' 或 'back'。大字是「起點 → 配準後」的 Dice（只算殘留旁邊的結構，同 gather.py 的 residue_mm），
-    下面是進步多少，最下面 30 個結構一起平均的「起點 → 配準後」。"""
+def six(metric, fname, prefix='皮質'):
+    """metric：'top'、'back' 或 'base'。大字是「起點 → 配準後」的 Dice（只算殘留旁邊的結構，同 gather.py 的 residue_mm），
+    下面是進步多少，最下面 30 個結構一起平均的「起點 → 配準後」。prefix：大字前面怎麼稱呼那些結構。"""
     worst, cleanest = pick(os.path.join(SK, 'skullstrip_all520.csv'), metric, 3, 'test', {'A0131'})
     labs = MM[metric]['labs']
     av = lambda row: float(np.nanmean([float(row['label_%d' % l]) for l in labs]))
@@ -263,6 +264,17 @@ def six(metric, fname):
                 img, m2 = vol[:, H // 2, :].T, mark[:, H // 2, :].T
                 keep = (slice(int(W * 0.56), None), slice(None))
                 note = '頭頂殘留 %.2f mm' % float(meta['top_vertex_mm'])
+            elif metric == 'base':                                     # 矢狀、穿過最大一坨殘留的中心（2026-10-05 加）
+                # 顱底殘留＝離腦 10 mm 以外還亮著的東西，指標是最大一坨的體積；那坨左右位置每人不同，所以切面跟著它走，
+                # 上下也以它為中心裁一半高度（大多在腦的前下方）
+                mark = measure_base(vol, seg)[1]
+                lab = ndi.label(mark)[0]
+                pts = np.argwhere(lab == np.argmax(np.bincount(lab.ravel())[1:]) + 1)
+                x0, zc = int(np.median(pts[:, 0])), int(np.median(pts[:, 2]))
+                img, m2 = vol[x0].T, mark[x0].T
+                z0 = min(max(zc - W // 4, 0), W - W // 2)
+                keep = (slice(z0, z0 + W // 2), slice(None))
+                note = '顱底殘留 %s mm³' % format(int(float(meta['base_blob10'])), ',')
             else:                                                      # 軸狀、腦最後面那一層（同 back_compare.png 第 2 欄）
                 mark = measure_back(vol, seg)[1]
                 idx = np.argwhere(seg > 0)
@@ -279,7 +291,7 @@ def six(metric, fname):
             ax.set_title('%s　%s' % (s, note), fontsize=12.5, color=INK)
             # 大字「起點 → 配準後」兩個一樣大：只放大配準後會被起點騙——後腦杓殘留多的 3 位起點就低，
             # 配準後看起來全部比較差，其實進步多少是交錯的（2026-10-05）
-            ax.text(0.5, -0.04, '皮質 %.3f → %.3f' % (av(BEF[s]), av(AFT[s])), transform=ax.transAxes, ha='center', va='top',
+            ax.text(0.5, -0.04, '%s %.3f → %.3f' % (prefix, av(BEF[s]), av(AFT[s])), transform=ax.transAxes, ha='center', va='top',
                     fontsize=20, fontweight='bold', color=col)
             ax.text(0.5, -0.31, '進步 %+.3f' % (av(AFT[s]) - av(BEF[s])), transform=ax.transAxes,
                     ha='center', va='top', fontsize=13, fontweight='bold', color=INK)
@@ -293,3 +305,4 @@ def six(metric, fname):
 
 six('top', '1014_six.png')
 six('back', '1014_six_back.png')
+six('base', '1014_six_base.png', prefix='旁邊結構')       # 顱底旁邊的結構有腦幹，不能叫皮質
