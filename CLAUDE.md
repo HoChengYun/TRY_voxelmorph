@@ -1,7 +1,9 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-05**（mix_wide_vel：加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完；10/14 簡報 20 頁。
+> 最後更新：**2026-10-06**（10/14 簡報 24 頁：③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
+> 頭頂範圍 25 mm 試過 10～60 mm 結論不變。
+> 10-05：mix_wide_vel 加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完。
 > 10-04：mix_exp6／7 速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好。
 > 09-30：mix_exp5 功勞全在解析度；`train_avg` 更正。09-28：mix_wide 完成、去顱骨殘留分析、`--int-downsize` 的真正作用）
 
@@ -186,7 +188,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 14 頁（同一套做法，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 24 頁（同一套做法＋make_method.py 畫公式頁，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -229,7 +231,7 @@ C:\Users\h4524\claude_cheng\
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
 │   ├── asd_exp1\  mix_exp1~7\  mix_wide\  mix_wide_vel\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
-│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py）
+│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py，1014_method_*.png 是同一夾的 make_method.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
 │   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
@@ -640,9 +642,13 @@ p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quant
 多一頁「訓練過程」四顆對照曲線、「下一步」加上訓練時也用標籤；同天再加第 13 頁「同樣 6 位，兩種算法」
 （`top_compare.png` 那 6 位改算皮質），③④ 段全部改成標 Dice「起點 → 配準後」、「模型貢獻」改叫「Dice 進步多少」、
 殘留量改用 mm／mm³（r 幾乎不變）、第 14 頁三個位置改散佈圖、第 15 頁後腦杓改成跟第 13 頁一樣的 3 對 3、
-加第 16 頁顱底的 3 對 3，共 **20 頁**）。
+加顱底的 3 對 3；10-06 加「頭頂殘留厚度怎麼量」四頁（第 12～15 頁，一步一頁：圖＋編號公式 (1)～(5)＋「其中」符號說明，
+公式用 LaTeX 字型，`make_method.py`）、三個位置那頁表格附 FreeSurfer 結構名稱與標籤編號，共 **24 頁**）。
 重建步驟見該資料夾 README。
-⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字。
+⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字、**也沒開著**（鎖檔 `meeting報告\~$...pptx`；用 `grep -F '~$'` 找，
+`grep "~\$"` 在 bash 雙引號裡會變成「行尾是 ~」，找不到）。
+📌 頭頂殘留的範圍「頭頂往下 25 mm」是設計時定的、沒調過；10-06 試過 10～60 mm，170 人結論都一樣（r = −0.34～−0.44，手冊 §24.2）。
+門檻（皮質中位數的一半）會漏掉比它暗一點的殘留（0.20～0.30）；試過 0.3～0.6 倍結論都一樣（r = −0.40～−0.41），使用者決定維持 0.5 倍。
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 

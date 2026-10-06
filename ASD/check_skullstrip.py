@@ -137,7 +137,8 @@ def read_dice(p, labels=None):
         rows = list(csv.DictReader(f))
     if not labels:
         return {r['file'].replace('.npz', ''): float(r['dice_mean']) for r in rows}
-    return {r['file'].replace('.npz', ''): float(np.mean([float(r['label_%d' % l]) for l in labels])) for r in rows}
+    # nanmean：某個結構在某人身上沒有（Dice 是 nan）就跳過，跟簡報那邊（gather.py 的 residue_mm）一樣
+    return {r['file'].replace('.npz', ''): float(np.nanmean([float(r['label_%d' % l]) for l in labels])) for r in rows}
 
 
 def pick(csv_path, metric, n, split, exclude):
@@ -181,7 +182,7 @@ def show(root, metric, worst, clean, out, dice, base, title, lname=None, dice30=
         else:
             _, mark = measure_base(vol, seg)
             thick = has = None
-            note = '最大一坨 %s 顆' % meta['base_blob10']
+            note = '顱底殘留 %s mm³' % format(int(float(meta['base_blob10'])), ',')     # 最大一坨的體積（1 格 = 1 mm³）
         D, H, W = vol.shape
         ztop = np.argwhere(seg > 0)[:, 2].max()
         crop = int(W * 0.56) if metric == 'top' else 0
@@ -379,7 +380,8 @@ if __name__ == '__main__':
     ap.add_argument('--labels', nargs='+', type=int,
                     help='Dice 只平均這幾個標籤（老師的做法：只算殘留旁邊的結構）；頭頂是 3 42（左右大腦皮質）。'
                          '不給就是 30 個結構一起平均')
-    ap.add_argument('--labels-name', default='皮質', help='--labels 那幾個結構在圖上叫什麼')
+    ap.add_argument('--labels-name', default='皮質', help='--labels 那幾個結構在圖上叫什麼（左欄，要短）')
+    ap.add_argument('--labels-desc', help='圖上方標題寫的結構名稱（可以長，例如「大腦皮質、腦幹、小腦皮質」）；不給就用 --labels-name')
     ap.add_argument('--data-root', default=os.path.join(ROOT, 'data', 'mixed_preprocessed_v2'))
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
@@ -403,7 +405,7 @@ if __name__ == '__main__':
             mb = lambda d, rr: float(np.mean([d[m['subject']] for m in rr]))
             title += ('\n只算%s（殘留旁邊）的 Dice：沒去乾淨 %.3f → %.3f、去得乾淨 %.3f → %.3f'
                       '　｜　30 個結構一起平均：%.3f → %.3f、%.3f → %.3f'
-                      % (a.labels_name, mb(base, w), mb(dice, w), mb(base, c), mb(dice, c),
+                      % (a.labels_desc or a.labels_name, mb(base, w), mb(dice, w), mb(base, c), mb(dice, c),
                          mb(b30, w), mb(d30, w), mb(b30, c), mb(d30, c)))
         show(a.data_root, a.show, w, c, a.out, dice, base, title,
              lname=a.labels_name if a.labels else None, dice30=d30, base30=b30)

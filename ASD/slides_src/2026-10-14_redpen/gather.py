@@ -223,6 +223,29 @@ D['dilution']['quart'] = quart
 # 後腦杓 +0.039 vs +0.025。分組也直接用 mm 切（170 人的 1/4、3/4 分位數），老師比較好想像
 from skullstrip_label_dice import NAME as LNAME
 LID = {v: k for k, v in LNAME.items()}
+# FreeSurferColorLUT 的正式名稱：第 14 頁表格寫「參考了哪些 FreeSurfer 結構」（2026-10-06 使用者要的）
+FSNAME = {2: 'Left-Cerebral-White-Matter', 3: 'Left-Cerebral-Cortex', 4: 'Left-Lateral-Ventricle',
+          7: 'Left-Cerebellum-White-Matter', 8: 'Left-Cerebellum-Cortex', 10: 'Left-Thalamus', 11: 'Left-Caudate',
+          12: 'Left-Putamen', 13: 'Left-Pallidum', 14: '3rd-Ventricle', 15: '4th-Ventricle', 16: 'Brain-Stem',
+          17: 'Left-Hippocampus', 18: 'Left-Amygdala', 24: 'CSF', 28: 'Left-VentralDC', 31: 'Left-choroid-plexus',
+          41: 'Right-Cerebral-White-Matter', 42: 'Right-Cerebral-Cortex', 43: 'Right-Lateral-Ventricle',
+          46: 'Right-Cerebellum-White-Matter', 47: 'Right-Cerebellum-Cortex', 49: 'Right-Thalamus', 50: 'Right-Caudate',
+          51: 'Right-Putamen', 52: 'Right-Pallidum', 53: 'Right-Hippocampus', 54: 'Right-Amygdala',
+          60: 'Right-VentralDC', 63: 'Right-choroid-plexus'}
+
+
+def fs_pairs(labs):
+    """[3, 42, 16, 47, 8] -> [['大腦皮質', 'Left/Right-Cerebral-Cortex（3、42）'], ['腦幹', 'Brain-Stem（16）'],
+    ['小腦皮質', 'Left/Right-Cerebellum-Cortex（8、47）']]：左右合併，一個結構一列（第 14 頁表格一列一行）"""
+    groups = {}
+    for l in labs:
+        side, _, rest = FSNAME[l].partition('-')
+        groups.setdefault(rest if side in ('Left', 'Right') else FSNAME[l], []).append(l)
+    return [[LNAME[ls[0]].lstrip('左右'),
+             '%s（%s）' % ('Left/Right-' + key if len(ls) == 2 else FSNAME[ls[0]], '、'.join(str(l) for l in sorted(ls)))]
+            for key, ls in groups.items()]
+
+
 mm = {}
 for k, metric in REG.items():
     labs = [LID[n] for n in pool[metric]['labels'].split('、')]      # 殘留旁邊的結構（同 skullstrip_label_dice_pooled.py 挑的）
@@ -233,7 +256,7 @@ for k, metric in REG.items():
     lo, hi = np.percentile(xs, [25, 75])
     dd, cc = xs >= hi, xs <= lo
     rho, pv = spearmanr(xs, a - b)
-    ent = {'labs': labs, 'n': len(rows), 'r': float(rho), 'p': float(pv), 'lo': float(lo), 'hi': float(hi),
+    ent = {'labs': labs, 'fs_pairs': fs_pairs(labs), 'n': len(rows), 'r': float(rho), 'p': float(pv), 'lo': float(lo), 'hi': float(hi),
            'dirty_n': int(dd.sum()), 'clean_n': int(cc.sum()),
            'dirty_b': float(b[dd].mean()), 'dirty_a': float(a[dd].mean()),
            'clean_b': float(b[cc].mean()), 'clean_a': float(a[cc].mean()),
@@ -269,7 +292,6 @@ D['top_check'] = chk
 with open(os.path.join(SK, 'skullstrip_all520.csv'), encoding='utf-8') as f:
     back = [float(r['back_occ_mm']) for r in csv.DictReader(f) if r['split'] == 'test' and r['subject'] != 'A0131']
 D['back'] = {'n': len(back), 'median': float(np.median(back)), 'min': float(min(back)), 'max': float(max(back))}
-
 # ⑤ 每步時間：mix_wide 沒加顯存設定、mix_wide_vel 有加（log 每步印的 time:）
 def step_time(e):
     p = J('log', e + '.txt')

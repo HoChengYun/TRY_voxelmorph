@@ -96,11 +96,15 @@ const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.
 const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
 const HAS_SIX = fs.existsSync(CH('1014_six.png'));                                // make_charts.py（2026-10-05 加）
 const HAS_BASE6 = fs.existsSync(CH('1014_six_base.png'));                         // make_charts.py（2026-10-05 加，顱底）
+// 頭頂殘留怎麼量（四頁，每頁一張圖＋一個公式區塊）：make_method.py（2026-10-06 加）
+const METHOD = [1, 2, 3, 4].flatMap((k) => ['1014_method_' + k + '.png', '1014_method_eq' + k + '.png']);
+const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
 
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
-  'res_method', 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back', ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
+  'res_method', ...(HAS_METHOD ? ['res_m1', 'res_m2', 'res_m3', 'res_m4'] : []), 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back',
+  ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
@@ -277,6 +281,20 @@ if (HAS_LAM) {
   }
 }
 
+if (HAS_METHOD) {
+  // ─────────────────────────────────────────────────────── ③ 頭頂殘留怎麼量（四頁）
+  // 2026-10-06 使用者：「放進簡報取代第 12 頁、一定要放公式、希望可以和 paper 一樣好閱讀」。
+  // 每一步一頁：上面是圖、下面是編號公式＋「其中」符號說明（公式用 LaTeX 字型畫成圖，都是 make_method.py 產生的）。
+  // 圖和公式區塊就是投影片上的大小（寬 12.13 吋），第 4 頁公式多一行（25 mm 的說明），所以圖矮一點
+  // 第 2、4 頁的公式說明各多一行（換門檻、換 25 mm 結論都一樣），圖相對矮一點
+  const STEP = [['找腦的頂邊', 3.6, 1.85], ['「亮」的門檻', 3.55, 2.02], ['每根吸管數幾格', 3.6, 1.85], ['頭頂那一塊取平均', 2.95, 2.66]];
+  STEP.forEach(([name, hf, he], i) => {
+    const s = base('③ 只算殘留旁邊的 Dice（p23）', '頭頂殘留厚度怎麼量（' + (i + 1) + '/4）：' + name);
+    fitImage(s, CH('1014_method_' + (i + 1) + '.png'), M, 1.38, 12.13, hf, '第 ' + (i + 1) + ' 步的圖');
+    fitImage(s, CH('1014_method_eq' + (i + 1) + '.png'), M, 1.38 + hf + 0.04, 12.13, he, '第 ' + (i + 1) + ' 步的公式');
+  });
+}
+
 // ───────────────────────────────────────────────────────── 09 ③ 結果
 {
   const s = base('③ 只算殘留旁邊的 Dice（p23）', '頭頂殘留越多，皮質對得越差；30 個結構一起平均就看不出來');
@@ -301,6 +319,7 @@ if (HAS_LAM) {
 if (HAS_SIX) {
   // ─────────────────────────────────────────────────────── ③ 同樣 6 位：兩種算法
   const s = base('③ 只算殘留旁邊的 Dice（p23）', '同樣 6 位：30 個結構一起平均分不出來，只算皮質就分得出來');
+  // 公式 2026-10-06 一度放這頁右邊，使用者說分開 → 獨立一頁（res_formula），這頁恢復整頁寬的圖
   fitImage(s, CH('1014_six.png'), M, 1.45, 12.13, 4.95, '頭頂殘留最多 3 位與最少 3 位的皮質 Dice');
   txt(s, 'test 裡頭頂殘留最多、最少各 3 位（跟之前殘留對照圖同一批人），紅色＝殘留。大字是皮質 Dice 的「起點 → 配準後」，下面是進步多少。',
     { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
@@ -309,17 +328,24 @@ if (HAS_SIX) {
 // ───────────────────────────────────────────────────────── 10 ③④ 三個位置
 {
   const s = base('③④ 三個位置一起看（p22、p23）', '只有頭頂有影響，顱底和後腦杓沒有');
-  fitImage(s, CH('1014_regions.png'), M, 1.42, 12.13, 3.45, '三個位置：殘留量 vs 只算殘留旁邊結構的 Dice 進步');
+  fitImage(s, CH('1014_regions.png'), M, 1.38, 12.13, 3.15, '三個位置：殘留量 vs 只算殘留旁邊結構的 Dice 進步');
   // 2026-10-05 起：上面是三張散佈圖（r 寫在圖上），表格放 Dice（起點 → 配準後），分組直接用 mm／mm³ 切（gather.py 的 residue_mm）
   const labs = (k) => [...new Set(R[k].labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
   const ba2 = (b, a) => f3(b) + ' → ' + f3(a) + '（' + sgn(a - b, 3) + '）';
   const amt = (k, v) => (k === 'base' ? Math.round(v).toLocaleString('en-US') + ' mm³' : v.toFixed(2) + ' mm');
-  const row = (k, n) => [n, labs(k), amt(k, MM[k].hi) + ' 以上：' + ba2(MM[k].dirty_b, MM[k].dirty_a),
-                         amt(k, MM[k].lo) + ' 以下：' + ba2(MM[k].clean_b, MM[k].clean_a)];
+  // 2026-10-06 使用者：「只算這些結構」要寫參考了哪些 FreeSurfer 結構 → 一個結構一行：中文名稱＋FreeSurferColorLUT 的
+  // 正式名稱與標籤編號（gather.py 的 fs_pairs，左右合併）。Dice 那兩欄拆成「門檻」＋「起點 → 配準後」兩行
+  const fsCell = (k) => ({ text: MM[k].fs_pairs.flatMap(([zh, fs], i, arr) => [
+    { text: zh + '　' },
+    { text: fs, options: { fontSize: 10.5, color: C.MUTED, breakLine: i < arr.length - 1 } }]) });
+  const two = (a, b) => ({ text: [{ text: a, options: { breakLine: true } }, { text: b }] });
+  const row = (k, n) => [n, fsCell(k),
+                         two(amt(k, MM[k].hi) + ' 以上', ba2(MM[k].dirty_b, MM[k].dirty_a)),
+                         two(amt(k, MM[k].lo) + ' 以下', ba2(MM[k].clean_b, MM[k].clean_a))];
   table(s, [
-    ['位置', '只算這些結構', '殘留最多 1/4：Dice 起點 → 配準後', '殘留最少 1/4：Dice 起點 → 配準後'],
+    ['位置', '只算這些 FreeSurfer 結構（標籤編號，左右合併）', '殘留最多 1/4：Dice 起點 → 配準後', '殘留最少 1/4：Dice 起點 → 配準後'],
     row('top', '頭頂'), row('base', '顱底'), row('back', '後腦杓'),
-  ], { x: M, y: 5.05, w: 12.13, colW: [1.1, 2.75, 4.14, 4.14], fontSize: 13 });
+  ], { x: M, y: 4.68, w: 12.13, colW: [0.95, 5.3, 2.94, 2.94], fontSize: 12 });
 }
 
 // ───────────────────────────────────────────────────────── 11 ④ 後腦杓
@@ -333,7 +359,8 @@ if (HAS_SIX) {
     { x: M, y: 6.02, w: 12.13, h: 0.35, fontSize: 12.5, color: C.MUTED, align: 'center' });
   txt(s, K.n + ' 人：後腦杓殘留厚度跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
     { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
-  txt(s, '每個人都有左右腦中間、大腦和小腦之間的兩片腦膜，所以大家都有一點（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
+  txt(s, (HAS_METHOD ? '算法同頭頂（第 ' + PG.res_m1 + '～' + PG.res_m4 + ' 頁），吸管改成前後方向。' : '')
+    + '左右腦中間、大小腦之間本來就有腦膜（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
     { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 

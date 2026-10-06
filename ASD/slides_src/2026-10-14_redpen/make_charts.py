@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """10/14 簡報的圖 -> models/deck_charts/1014_*.png。數字讀 deck_data.json（先跑 gather.py）。
+「頭頂殘留怎麼量」那四頁的圖和公式在 make_method.py（2026-10-06 從這裡搬出去）。
 
   1014_folding_regions.png  ① 擠爆的點落在哪些區域（只留「佔幾 %」那一格、字放大）
   1014_lambda.png           ② 平滑權重 2 / 1 / 0.5：速度場 vs 位移場（還沒跑完的點標「跑中」）
