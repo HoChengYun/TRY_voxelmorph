@@ -114,7 +114,7 @@ PAIRS = {'大腦皮質': (3, 42), '大腦白質': (2, 41), '側腦室': (4, 43),
          '杏仁核': (18, 54), '腹側間腦': (28, 60), '脈絡叢': (31, 63), '第三腦室': (14,), '第四腦室': (15,),
          '腦幹': (16,), '腦脊髓液': (24,)}
 struct = {}
-for e in ('mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp3'):
+for e in ('mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp3', 'mix_wide', 'mix_wide_vel'):      # 加寬兩顆給 ⑤ 用（10-06）
     p = test_csv(e)
     if p is None:
         continue
@@ -123,6 +123,62 @@ for e in ('mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp3'):
     struct[e] = {n: float(np.mean([np.nanmean([float(rr[k]['label_%d' % l]) for k in K]) for l in ls]))
                  for n, ls in PAIRS.items()}
 D['struct'] = struct
+
+# ── ⑤ 加寬：越難對的人幫越多（2026-10-06 使用者要放進簡報；09-20 那份第 25 頁是位移場的版本）─────────
+# 分組、相關都用「起點 Dice」（只做線性對位，兩顆模型都沒碰過）；用其中一顆模型自己的分數會有回歸平均的假象（CLAUDE.md 第 7 點）。
+# 相關用 Pearson，跟 09-20 那張（2026-09-20_cross/gather.py 的 r_base）一樣
+from scipy.stats import pearsonr
+wd = {}
+for key, a, b in (('vel', 'mix_wide_vel', 'mix_exp6'), ('disp', 'mix_wide', 'mix_exp3')):
+    if a not in per or b not in per:
+        continue
+    bs = np.array([base[k] for k in K])
+    g = np.array([per[a][k] - per[b][k] for k in K])
+    o = np.argsort(bs)
+    rho, pv = pearsonr(bs, g)
+    wd[key] = {'subjects': K, 'base': bs.tolist(), 'gain': g.tolist(), 'r': float(rho), 'p': float(pv),
+               'hard10': float(g[o[:10]].mean()), 'mid': float(g[o[10:-10]].mean()), 'easy10': float(g[o[-10:]].mean())}
+D['wide_diff'] = wd
+
+# ── ⑤ 訓練夠不夠久：驗證集第 100 輪之後的範圍、上下晃的大小、趨勢（每 100 輪變多少）──────────────
+plateau = {}
+for e in ('mix_wide_vel', 'mix_wide'):
+    with open(J('models', e, 'dice_curve_val.csv'), encoding='utf-8') as f:
+        cv = [(int(r['epoch']), float(r['dice_mean'])) for r in csv.DictReader(f)]
+    eps = np.array([x for x, _ in cv if x >= 100])
+    vs = np.array([y for x, y in cv if x >= 100])
+    plateau[e] = {'lo': float(vs.min()), 'hi': float(vs.max()), 'sd': float(vs.std()), 'n': int(len(vs)),
+                  'slope100': float(np.polyfit(eps, vs, 1)[0] * 100)}
+D['plateau'] = plateau
+
+# ── ⑤ 訓練 loss：最後一個 epoch 的影像項、平滑項 ─────────────────────────────────────────────
+# 讀法同 ASD/plot_loss_curve.py（那支 import 時就解析命令列參數，所以不能直接 import，正規表示式照抄）
+LOSS_LINE = re.compile(r'epoch:\s*(\d+)\s+step:\s*(\d+)/(\d+).*?loss:\s*(-?[\d.eE+-]+)\s+'
+                       r'\((-?[\d.eE+-]+),\s*(-?[\d.eE+-]+)(?:,\s*(-?[\d.eE+-]+))?\)')
+
+
+def last_epoch_loss(e):
+    p = J('log', e + '.txt')
+    if not os.path.exists(p):
+        return None
+    raw = open(p, 'rb').read()
+    for enc in ('utf-16', 'utf-8', 'cp950'):
+        try:
+            t = raw.decode(enc)
+        except Exception:
+            continue
+        if '\ufffd' not in t and 'epoch' in t:
+            break
+    else:
+        return None
+    acc = {}
+    for mm in LOSS_LINE.finditer(t):
+        acc.setdefault(int(mm.group(1)), []).append((float(mm.group(5)), float(mm.group(6))))
+    last = np.array(acc[max(acc)])
+    return {'image': float(last[:, 0].mean()), 'smooth': float(last[:, 1].mean())}
+
+
+D['loss_final'] = {e: last_epoch_loss(e) for e in ('mix_exp3', 'mix_wide', 'mix_exp6', 'mix_wide_vel')}
 
 # ── ① 擠爆的位置（三顆位移場；速度場版都不擠爆）───────────────────────────
 FC = J('models', 'folding_check')

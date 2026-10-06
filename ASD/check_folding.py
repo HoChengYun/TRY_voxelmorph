@@ -46,6 +46,8 @@ ap.add_argument('--plot-models', nargs='+', default=['mix_exp4', 'mix_exp3', 'mi
 ap.add_argument('--views', action='store_true',
                 help='改畫 folding_views.png（一顆、三個方向各 4 刀）和 folding_params.png（不同設定 × 三個方向）')
 ap.add_argument('--view-one', default='mix_exp3', help='folding_views.png 畫哪一顆')
+ap.add_argument('--zoom-pair', action='store_true',
+                help='只畫 folding_zoom_pair_T054.png：加寬位移場 vs 加寬速度場，放大在同一個位置（要 GPU）')
 ap.add_argument('--view-models', nargs='+',
                 default=['mix_exp6', 'mix_exp7', 'mix_wide_vel', 'mix_exp4', 'mix_exp3', 'mix_wide'],
                 help='folding_params.png 畫哪幾顆（由左到右；左邊三顆速度場、右邊三顆位移場）')
@@ -455,7 +457,133 @@ def views(min_n=3):
     print('->', p)
 
 
+def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half=16, step=2):
+    """兩顆模型放大在「同一個位置」比：位置取第一顆最大的一團擠爆點（2026-10-06 使用者要 ⑤ 的視覺化比較）。
+    一顆一列、三個方向各一格；黃線＝格子、紅點＝擠爆的點（畫法同 zoom()）。-> folding_zoom_pair_<subject>.png"""
+    os.environ['NEURITE_BACKEND'] = 'pytorch'
+    os.environ['VXM_BACKEND'] = 'pytorch'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    import torch
+    import voxelmorph as vxm
+    from scipy import ndimage
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from orient import canonical_axes, to_ras, flow_to_ras
+    plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['axes.unicode_minus'] = False
+
+    device = torch.device('cuda' if args.gpu != '-1' and torch.cuda.is_available() else 'cpu')
+    atlas = np.load(args.atlas)['vol'].astype(np.float32)
+    seg = np.load(args.atlas_seg)['seg'].astype(np.int32)
+    vol = np.load(os.path.join(args.test_dir, subject + '.npz'))['vol'].astype(np.float32)
+    perm, flip = canonical_axes(seg)
+    src = to_ras(vol, perm, flip)
+    res = []
+    for spec in specs:
+        exp, ep = spec.split(':')
+        model = vxm.networks.VxmDense.load(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
+        model.to(device)
+        model.eval()
+        with torch.no_grad():
+            _, flow = model(torch.from_numpy(vol)[None, None].to(device),
+                            torch.from_numpy(atlas)[None, None].to(device), registration=True)
+            det = jac_det(flow[0]).cpu().numpy()
+        res.append((exp, to_ras(det, perm, flip) <= 0, flow_to_ras(flow[0].cpu().numpy(), perm, flip)))
+        del model, flow
+        if device.type == 'cuda':
+            torch.cuda.empty_cache()
+    cc, n = ndimage.label(res[0][1], structure=np.ones((3, 3, 3), bool))
+    sizes = np.bincount(cc.ravel())
+    sizes[0] = 0
+    big = int(sizes.argmax())
+    center = np.round(ndimage.center_of_mass(cc == big)).astype(int)
+    seg_r = to_ras(seg, perm, flip)
+    lab = NAME.get(int(seg_r[tuple(center)]), str(int(seg_r[tuple(center)])))
+
+    take = lambda a, ax_id, i: [a[i], a[:, i], a[:, :, i]][ax_id]
+    planes = [('軸狀', 2, (0, 1)), ('冠狀', 1, (0, 2)), ('矢狀', 0, (1, 2))]
+    fig, axes = plt.subplots(len(res), 3, figsize=(11, 3.9 * len(res)), facecolor='#FAFAF8')   # 簡報上約 8 吋寬，字要夠大
+    for r, (exp, fold, u) in enumerate(res):
+        for c, (name, ax_id, (p, q)) in enumerate(planes):
+            ax = axes[r, c]
+            i = center[ax_id]
+            img, fm = take(src, ax_id, i), take(fold, ax_id, i)
+            up, uq = take(u[p], ax_id, i), take(u[q], ax_id, i)
+            a0, a1 = center[p] - half, center[p] + half
+            b0, b1 = center[q] - half, center[q] + half
+            ax.imshow(img.T, cmap='gray', origin='lower', vmin=0, vmax=1, interpolation='nearest')
+            for j in range(b0, b1 + 1, step):
+                xs = np.arange(a0, a1 + 1)
+                ax.plot(xs + up[a0:a1 + 1, j], j + uq[a0:a1 + 1, j], color='#FFD23F', lw=1.2)
+            for k in range(a0, a1 + 1, step):
+                ys = np.arange(b0, b1 + 1)
+                ax.plot(k + up[k, b0:b1 + 1], ys + uq[k, b0:b1 + 1], color='#FFD23F', lw=1.2)
+            pp, qq = np.nonzero(fm[a0:a1 + 1, b0:b1 + 1])
+            pp, qq = pp + a0, qq + b0
+            ax.scatter(pp + up[pp, qq], qq + uq[pp, qq], s=26, color='#E0262D', zorder=5, edgecolors='none')
+            ax.set_xlim(a0 - 3, a1 + 3)
+            ax.set_ylim(b0 - 3, b1 + 3)
+            ax.set_aspect('equal')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_title('%s：%d 個擠爆點' % (name, int(fm[a0:a1 + 1, b0:b1 + 1].sum())),
+                         fontsize=15, fontweight='bold')
+        axes[r, 0].text(-0.06, 0.5, VIEW_LAB.get(exp, exp), transform=axes[r, 0].transAxes, rotation=90,
+                        ha='right', va='center', fontsize=17, fontweight='bold', color='#141A1D')
+        print('   %-13s 整顆腦擠爆 %d 點；放大這塊（%d³）裡 %d 點'
+              % (exp, int(fold.sum()), 2 * half + 1,
+                 int(fold[tuple(slice(cc_ - half, cc_ + half + 1) for cc_ in center)].sum())))
+    fig.tight_layout(rect=[0.02, 0, 1, 1])
+    out = os.path.join(args.out, 'folding_zoom_pair_%s.png' % subject)
+    fig.savefig(out, dpi=115, facecolor='#FAFAF8', bbox_inches='tight')
+    plt.close(fig)
+    print('->', out, '｜位置：%s 最大一團 %d 點，中心 %s，%s' % (res[0][0], int(sizes[big]), center.tolist(), lab))
+
+    # ── 大圖：同樣三個切面，但整片腦都畫出來，藍框＝上面放大的那一塊（2026-10-06 使用者：「可以來大圖的嗎」）──
+    from matplotlib.patches import Rectangle
+    gstep = 4                                                    # 整片腦格子畫疏一點（每格 4 mm），不然糊成一片
+    fig, axes = plt.subplots(len(res), 3, figsize=(13, 4.6 * len(res)), facecolor='#FAFAF8')
+    for r, (exp, fold, u) in enumerate(res):
+        for c, (name, ax_id, (p, q)) in enumerate(planes):
+            ax = axes[r, c]
+            i = center[ax_id]
+            img, fm = take(src, ax_id, i), take(fold, ax_id, i)
+            up, uq = take(u[p], ax_id, i), take(u[q], ax_id, i)
+            inb = img > 0.02                                     # 只框腦的範圍，四周黑底裁掉
+            pr, qr = np.nonzero(inb.any(axis=1))[0], np.nonzero(inb.any(axis=0))[0]
+            p0, p1, q0, q1 = pr.min(), pr.max(), qr.min(), qr.max()
+            ax.imshow(img.T, cmap='gray', origin='lower', vmin=0, vmax=1, interpolation='nearest')
+            for j in range(q0, q1 + 1, gstep):
+                xs = np.arange(p0, p1 + 1)
+                ax.plot(xs + up[p0:p1 + 1, j], j + uq[p0:p1 + 1, j], color='#FFD23F', lw=0.7)
+            for k in range(p0, p1 + 1, gstep):
+                ys = np.arange(q0, q1 + 1)
+                ax.plot(k + up[k, q0:q1 + 1], ys + uq[k, q0:q1 + 1], color='#FFD23F', lw=0.7)
+            pp, qq = np.nonzero(fm)
+            ax.scatter(pp + up[pp, qq], qq + uq[pp, qq], s=7, color='#E0262D', zorder=5, edgecolors='none')
+            a0, a1 = center[p] - half - 3, center[p] + half + 3      # 跟放大圖的範圍一樣
+            b0, b1 = center[q] - half - 3, center[q] + half + 3
+            ax.add_patch(Rectangle((a0, b0), a1 - a0, b1 - b0, fill=False, ec='#2B9BE0', lw=2.4, zorder=6))
+            ax.set_xlim(p0 - 3, p1 + 3)
+            ax.set_ylim(q0 - 3, q1 + 3)
+            ax.set_aspect('equal')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_title('%s：這一片有 %s 個擠爆點' % (name, format(int(fm.sum()), ',')), fontsize=15, fontweight='bold')
+        axes[r, 0].text(-0.06, 0.5, VIEW_LAB.get(exp, exp), transform=axes[r, 0].transAxes, rotation=90,
+                        ha='right', va='center', fontsize=17, fontweight='bold', color='#141A1D')
+    fig.tight_layout(rect=[0.02, 0, 1, 1])
+    out = os.path.join(args.out, 'folding_full_pair_%s.png' % subject)
+    fig.savefig(out, dpi=130, facecolor='#FAFAF8', bbox_inches='tight')
+    plt.close(fig)
+    print('->', out, '（大圖：整片腦，藍框＝放大的那一塊；格子每 %d mm）' % gstep)
+
+
 if __name__ == '__main__':
+    if args.zoom_pair:
+        zoom_pair()
+        sys.exit()
     if not args.plot_only:
         run()
     if args.views:

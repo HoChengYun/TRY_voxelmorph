@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（24 頁；mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（29 頁；mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多、不用術語。
@@ -17,8 +17,13 @@
 | 16–18、20、21 | ③ 第 16 頁散佈圖＋2×2 Dice 表；第 17 頁 test 頭頂殘留最多／最少各 3 位；第 18 頁三個位置的散佈圖＋Dice 表（附 FreeSurfer 結構名稱與標籤編號）；第 20 頁顱底的 3 對 3；第 21 頁是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_six.png`、`1014_regions.png`、`1014_six_base.png`、`1014_top_example.png` |
 | 19 | ④ 後腦杓（test 後腦杓殘留最多／最少各 3 位，跟第 17 頁同一個樣子）| `1014_six_back.png` |
 | 22 | ⑤ 加寬＋速度場（2×2 表格：版本 × 寬度；右邊逐人配對；下面顯存設定前後每步時間）| （表格）|
-| 23 | ⑤ 訓練過程：版本 × 寬度四顆的驗證集 Dice 與擠爆比例（mix_wide_vel 有結果、而且有圖才出現）| `deck_charts/curve_wide.png` |
-| 24 | 下一步（訓練時也用標籤 mix_exp8／9、MRS）| |
+| 23 | ⑤ 訓練過程：版本 × 寬度四顆的驗證集 Dice 與擠爆比例，下面一行「不用再訓練更久」（`gather.py` 的 `plateau`）| `deck_charts/curve_wide.png` |
+| 24 | ⑤ 每個結構：加寬的效果（兩個版本並排）、加寬後換版本（2026-10-06 加，以下同）| `1014_wide_struct.png` |
+| 25 | ⑤ 越難對的人加寬幫越多：位移場、速度場並排＋起點最差／中間／最好的表（`gather.py` 的 `wide_diff`）| `1014_wide_difficulty.png` |
+| 26 | ⑤ 訓練 loss：四顆的影像項、平滑項＋最後一輪的表（`gather.py` 的 `loss_final`）。平滑項不能跨版本比 | `1014_wide_loss.png` |
+| 27 | ⑤ 視覺化（大圖）：T054 整片腦三個方向，加寬位移場 vs 加寬速度場，藍框＝下一頁放大的那一塊（使用者：「可以來大圖的嗎」）| `folding_check/folding_full_pair_T054.png` |
+| 28 | ⑤ 視覺化：藍框那一塊放大，加寬位移場 vs 加寬速度場（`ASD\check_folding.py --zoom-pair` 兩張一起畫，要 GPU）| `folding_check/folding_zoom_pair_T054.png` |
+| 29 | 下一步（訓練時也用標籤 mix_exp8／9、MRS）| |
 
 📌 **③④ 段的規則（2026-10-05 跟使用者定案，細節手冊 §24.2）**：
 - Dice 數值一律寫「起點 → 配準後」，兩個一樣大，不能只放大配準後（頭頂殘留多的人起點略高、後腦杓殘留多的 3 位起點反而低，
@@ -64,6 +69,9 @@ cd ..\..\..
 cd ASD\slides_src\2026-09-20_cross
 ..\..\..\vxm_env\Scripts\python.exe make_compare.py --set lambda   # -> curve_lambda / jacobian_lambda / grid_lambda.png（要先有各顆的 vis_T054）
 ..\..\..\vxm_env\Scripts\python.exe make_compare.py --set wide     # -> curve_wide / jacobian_wide / grid_wide.png（簡報只用 curve_wide）
+cd ..\..\..
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --zoom-pair --gpu 0   # -> folding_check\folding_full_pair_T054.png、folding_zoom_pair_T054.png（第 27、28 頁）
+cd ASD\slides_src\2026-09-20_cross
 cd ..\2026-10-14_redpen
 node build.js deck.pptx
 powershell -ExecutionPolicy Bypass -File render.ps1 -Pptx deck.pptx -OutDir render
@@ -98,7 +106,7 @@ mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在�
 - 第 22 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
   10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）。
   加寬兩顆的每步秒數、小時數是 `gather.py` 從 `log/mix_wide.txt`、`log/mix_wide_vel.txt` 算的（log 沒帶回來時才退回寫死的「約 19 小時」）
-- 第 24 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
+- 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不能跨版本比」、第 27、28 頁的說明文字是照現在的數字寫的\n- 第 29 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
 
 ## 不進版控
 

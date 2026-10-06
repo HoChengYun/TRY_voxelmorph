@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-06**（10/14 簡報 24 頁：③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
+> 最後更新：**2026-10-06**（10/14 簡報 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
 > 頭頂範圍 25 mm 試過 10～60 mm 結論不變。
 > 10-05：mix_wide_vel 加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完。
 > 10-04：mix_exp6／7 速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好。
@@ -188,7 +188,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 24 頁（同一套做法＋make_method.py 畫公式頁，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 29 頁（同一套做法＋make_method.py 畫公式頁，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -643,7 +643,7 @@ p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quant
 （`top_compare.png` 那 6 位改算皮質），③④ 段全部改成標 Dice「起點 → 配準後」、「模型貢獻」改叫「Dice 進步多少」、
 殘留量改用 mm／mm³（r 幾乎不變）、第 14 頁三個位置改散佈圖、第 15 頁後腦杓改成跟第 13 頁一樣的 3 對 3、
 加顱底的 3 對 3；10-06 加「頭頂殘留厚度怎麼量」四頁（第 12～15 頁，一步一頁：圖＋編號公式 (1)～(5)＋「其中」符號說明，
-公式用 LaTeX 字型，`make_method.py`）、三個位置那頁表格附 FreeSurfer 結構名稱與標籤編號，共 **24 頁**）。
+公式用 LaTeX 字型，`make_method.py`）、三個位置那頁表格附 FreeSurfer 結構名稱與標籤編號；⑤ 補五頁（每個結構、越難的人、訓練 loss、T054 整片腦大圖、同一個位置放大對照，手冊 §23.9），共 **29 頁**）。
 重建步驟見該資料夾 README。
 ⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字、**也沒開著**（鎖檔 `meeting報告\~$...pptx`；用 `grep -F '~$'` 找，
 `grep "~\$"` 在 bash 雙引號裡會變成「行尾是 ~」，找不到）。

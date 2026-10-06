@@ -96,6 +96,12 @@ const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.
 const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
 const HAS_SIX = fs.existsSync(CH('1014_six.png'));                                // make_charts.py（2026-10-05 加）
 const HAS_BASE6 = fs.existsSync(CH('1014_six_base.png'));                         // make_charts.py（2026-10-05 加，顱底）
+// ⑤ 加寬改速度場的補充（2026-10-06 使用者：「1、2、3 項，也可以放訓練 loss 和一些視覺化比較」）：[頁, 要先有的圖]
+const WIDE_MORE = [['wide_struct', [CH('1014_wide_struct.png')]], ['wide_diff', [CH('1014_wide_difficulty.png')]],
+  ['wide_loss', [CH('1014_wide_loss.png')]], ['wide_full', [FC('folding_full_pair_T054.png')]],
+  ['wide_vis', [FC('folding_zoom_pair_T054.png')]]];
+const HAS_WM = Object.fromEntries(WIDE_MORE.map(([k, f]) => [k, f.every((x) => fs.existsSync(x))]));
+
 // 頭頂殘留怎麼量（四頁，每頁一張圖＋一個公式區塊）：make_method.py（2026-10-06 加）
 const METHOD = [1, 2, 3, 4].flatMap((k) => ['1014_method_' + k + '.png', '1014_method_eq' + k + '.png']);
 const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
@@ -105,7 +111,8 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
   'res_method', ...(HAS_METHOD ? ['res_m1', 'res_m2', 'res_m3', 'res_m4'] : []), 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back',
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
-  'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), 'next'];
+  'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
+  'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
@@ -459,9 +466,90 @@ if (HAS_BASE6) {
 if (HAS_WCURVE) {
   // ─────────────────────────────────────────────────────── ⑤ 訓練過程：版本 × 寬度四顆
   const s = base('⑤ 加寬改速度場（p25）', '訓練過程：加寬的兩顆分數一樣高，速度場從頭到尾都不擠爆');
-  fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 5.0, '四顆的驗證集 Dice 與擠爆比例');
+  fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 4.7, '四顆的驗證集 Dice 與擠爆比例');
   txt(s, '上：驗證集 51 位的 Dice，星號是挑中的那一輪。下：擠爆的比例，虛線是論文同版本的 0.366%。',
-    { x: M, y: 6.55, w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED, align: 'center' });
+    { x: M, y: 6.2, w: 12.13, h: 0.35, fontSize: 13, color: C.MUTED, align: 'center' });
+  // 2026-10-06：不用再訓練更久（gather.py 的 plateau：第 100 輪之後的範圍、上下晃的大小、每 100 輪的趨勢）
+  const PV = D.plateau.mix_wide_vel, PW = D.plateau.mix_wide;
+  txt(s, '不用再訓練更久：加寬兩顆從第 100 輪之後，驗證集都在 ' + f3(Math.min(PV.lo, PW.lo)) + '～' + f3(Math.max(PV.hi, PW.hi))
+    + ' 之間上下晃（標準差約 ' + f3(PV.sd) + '），每 100 輪的趨勢只有 ' + sgn(PV.slope100, 4) + '、' + sgn(PW.slope100, 4) + '，比晃的幅度還小',
+    { x: M, y: 6.6, w: 12.13, h: 0.35, fontSize: 13.5, bold: true, color: C.TEAL, align: 'center' });
+}
+
+if (HAS_WM.wide_struct) {
+  // ─────────────────────────────────────────────────────── ⑤ 每個結構（make_charts.py 的 1014_wide_struct.png）
+  // ⚠️「蒼白球、殼核」「方向相反」是照現在的數字寫的
+  const S = D.struct, nm = Object.keys(S.mix_wide_vel);
+  const dv = (n) => S.mix_wide_vel[n] - S.mix_exp6[n], dp = (n) => S.mix_wide[n] - S.mix_exp3[n];
+  const worse = nm.filter((n) => dv(n) < 0).sort((a, b) => dv(a) - dv(b));
+  const ver = nm.map((n) => Math.abs(S.mix_wide_vel[n] - S.mix_wide[n]));
+  const s = base('⑤ 加寬改速度場（p25）', '每個結構：加寬讓大部分結構變好；加寬之後換版本，每個結構都差不多');
+  fitImage(s, CH('1014_wide_struct.png'), M, 1.4, 12.13, 4.9, '加寬的效果、加寬後換版本，每個結構的 Dice 變化');
+  bullets(s, [
+    [{ text: '左：速度場加寬，' + nm.length + ' 種結構裡 ' + (nm.length - worse.length) + ' 種變好；', options: { bold: true } },
+     { text: '變差的是' + worse.map((n) => n + ' ' + sgn(dv(n), 3)).join('、') + '（位移場加寬時蒼白球是 ' + sgn(dp('蒼白球'), 3)
+            + '，方向相反）', options: { color: C.MUTED } }],
+    [{ text: '右：同樣加寬 2 倍，速度場和位移場每個結構都差在 ±' + f3(Math.max(...ver)) + ' 以內', options: { bold: true } },
+     { text: '　→「打平」不是平均剛好抵消，每個結構都差不多', options: { color: C.MUTED } }],
+  ], { x: M, y: 6.35, w: 12.13, h: 0.75, fontSize: 13, paraSpaceAfter: 3 });
+}
+
+if (HAS_WM.wide_diff) {
+  // ─────────────────────────────────────────────────────── ⑤ 越難對的人幫越多（1014_wide_difficulty.png）
+  const WV = D.wide_diff.vel, WP = D.wide_diff.disp;
+  const s = base('⑤ 加寬改速度場（p25）', '越難對的人，加寬幫越多：位移場、速度場都一樣');
+  fitImage(s, CH('1014_wide_difficulty.png'), M, 1.38, 12.13, 4.25, '起點 Dice 與加寬後多進步多少');
+  table(s, [
+    ['加寬後多進步多少（Dice）', '起點最差 10 位', '中間 31 位', '起點最好 10 位', '相關'],
+    ['位移場（mix_wide - mix_exp3）', sgn(WP.hard10, 4), sgn(WP.mid, 4), sgn(WP.easy10, 4), sgn(WP.r, 2)],
+    ['速度場（mix_wide_vel - mix_exp6）', sgn(WV.hard10, 4), sgn(WV.mid, 4), sgn(WV.easy10, 4), sgn(WV.r, 2)],
+  ], { x: M, y: 5.72, w: 12.13, colW: [4.0, 2.1, 2.0, 2.1, 1.93], fontSize: 12.5 });
+  txt(s, '每個點是一個人（test 51 位）。分組用「起點 Dice」（只做線性對位，兩顆模型都沒碰過），用其中一顆模型的分數分組會有回歸平均的假象',
+    { x: M, y: 6.82, w: 11.0, h: 0.3, fontSize: 11, color: C.MUTED });
+}
+
+if (HAS_WM.wide_loss) {
+  // ─────────────────────────────────────────────────────── ⑤ 訓練 loss（1014_wide_loss.png）
+  const L = D.loss_final;
+  const s = base('⑤ 加寬改速度場（p25）', '訓練 loss：加寬的兩顆影像對得比較像，兩個版本的影像項幾乎疊在一起');
+  fitImage(s, CH('1014_wide_loss.png'), M, 1.4, 12.13, 4.4, '四顆的訓練 loss：影像項、平滑項');
+  table(s, [
+    ['最後一輪（平均 100 步）', '位移場・預設', '位移場・加寬', '速度場・預設', '速度場・加寬'],
+    ['影像項（越低越像）', L.mix_exp3.image.toFixed(3), L.mix_wide.image.toFixed(3), L.mix_exp6.image.toFixed(3), L.mix_wide_vel.image.toFixed(3)],
+    ['平滑項', L.mix_exp3.smooth.toFixed(4), L.mix_wide.smooth.toFixed(4), L.mix_exp6.smooth.toFixed(4), L.mix_wide_vel.smooth.toFixed(4)],
+  ], { x: M, y: 5.85, w: 12.13, colW: [3.33, 2.2, 2.2, 2.2, 2.2], fontSize: 12.5 });
+  txt(s, '⚠️ 平滑項不能跨版本比：速度場罰的是「速度場」（積分之前）、位移場罰的是位移場本身。同一個版本裡，加寬前後幾乎一樣',
+    { x: M, y: 6.95, w: 12.13, h: 0.3, fontSize: 11.5, color: C.MUTED });
+}
+
+if (HAS_WM.wide_full) {
+  // ─────────────────────────────────────────────────────── ⑤ 視覺化（大圖）：整片腦（check_folding.py --zoom-pair 一起畫的）
+  // 2026-10-06 使用者看了放大圖：「可以來大圖的嗎」→ 整片腦、藍框＝下一頁放大的那一塊
+  const s = base('⑤ 加寬改速度場（p25）', '視覺化（大圖）：位移場的擠爆點沿著腦溝散在各處，速度場一個都沒有');
+  fitImage(s, FC('folding_full_pair_T054.png'), M, 1.38, 8.3, 5.7, 'T054 整片腦，加寬位移場 vs 加寬速度場');
+  bullets(s, [
+    [{ text: 'T054（test 的一位），三個方向各切一片', options: { bold: true } },
+     { text: '\n穿過加寬位移場最大的一團擠爆點（左大腦白質）', options: { color: C.MUTED } }],
+    [{ text: '上：加寬位移場（mix_wide）', options: { bold: true, color: C.RUST } },
+     { text: '\n紅點＝擠爆的點，沿著腦溝散在皮質和白質，不只藍框那一團', options: { color: C.MUTED } }],
+    [{ text: '下：加寬速度場（mix_wide_vel）', options: { bold: true, color: C.TEAL } },
+     { text: '\n同樣三片一個都沒有，整顆腦 0 個', options: { color: C.MUTED } }],
+    [{ text: '藍框＝下一頁放大的那一塊；格子每 4 mm 一條（放大那頁每 2 mm）', options: { color: C.MUTED, fontSize: 12 } }],
+  ], { x: M + 8.5, y: 1.6, w: 3.63, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
+}
+
+if (HAS_WM.wide_vis) {
+  // ─────────────────────────────────────────────────────── ⑤ 視覺化：同一個位置放大（check_folding.py --zoom-pair）
+  const s = base('⑤ 加寬改速度場（p25）', '視覺化：同一個位置，位移場的格子翻過去，速度場只是扭、沒有翻');
+  fitImage(s, FC('folding_zoom_pair_T054.png'), M, 1.38, 7.6, 5.65, 'T054 同一個位置，加寬位移場 vs 加寬速度場');
+  bullets(s, [
+    [{ text: 'T054，加寬位移場（mix_wide）最大的一團擠爆點，在左大腦白質', options: { bold: true } },
+     { text: '\n上：加寬位移場　下：加寬速度場（mix_wide_vel），同一個位置、同一片', options: { color: C.MUTED } }],
+    [{ text: '黃線＝格子被形變拉成的樣子，紅點＝擠爆的點', options: { color: C.MUTED } }],
+    [{ text: '位移場：格線交叉、翻過去（紅點）', options: { bold: true, color: C.RUST } }],
+    [{ text: '速度場：一樣扭得很厲害，但格子沒有翻，整顆腦 0 個擠爆點', options: { bold: true, color: C.TEAL } }],
+    [{ text: (HAS_WM.wide_full ? '上一頁大圖的藍框放大來看；' : '') + '格子每 2 mm 一條', options: { color: C.MUTED, fontSize: 12 } }],
+  ], { x: M + 7.8, y: 1.6, w: 4.33, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
 }
 
 // ───────────────────────────────────────────────────────── 14 下一步

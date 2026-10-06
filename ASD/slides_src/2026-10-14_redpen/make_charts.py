@@ -9,6 +9,9 @@
   1014_top_example.png      ③ 頭頂放大：殘留多的一位 vs 乾淨的一位（只放加標記的那張、字放大）
   1014_six.png              ③ top_compare.png 那 6 位：皮質 Dice 起點 → 配準後，附 30 個結構一起平均（簡報用精簡版）
   1014_six_back.png         ④ 同上，後腦杓殘留最多／最少各 3 位（只算大腦皮質、小腦皮質）
+  1014_wide_struct.png      ⑤ 加寬：每個結構（加寬的效果、加寬後換版本）
+  1014_wide_difficulty.png  ⑤ 加寬：越難對的人幫越多（位移場、速度場並排）
+  1014_wide_loss.png        ⑤ 加寬：四顆的訓練 loss（影像項、平滑項）
 """
 import os
 import sys
@@ -307,3 +310,111 @@ def six(metric, fname, prefix='皮質'):
 six('top', '1014_six.png')
 six('back', '1014_six_back.png')
 six('base', '1014_six_base.png', prefix='旁邊結構')       # 顱底旁邊的結構有腦幹，不能叫皮質
+
+# ── ⑤ 加寬：每個結構（2026-10-06 使用者要放進簡報）────────────────────────────────────────────
+# 左：加寬的效果（速度場 wide_vel - exp6、位移場 wide - exp3）；右：加寬之後換版本（wide_vel - wide）
+S = D.get('struct', {})
+if all(e in S for e in ('mix_exp3', 'mix_exp6', 'mix_wide', 'mix_wide_vel')):
+    names = sorted(S['mix_exp6'], key=lambda n: S['mix_wide_vel'][n] - S['mix_exp6'][n])
+    wv = np.array([S['mix_wide_vel'][n] - S['mix_exp6'][n] for n in names])
+    wdp = np.array([S['mix_wide'][n] - S['mix_exp3'][n] for n in names])
+    ver = np.array([S['mix_wide_vel'][n] - S['mix_wide'][n] for n in names])
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 5.6), facecolor=PAPER, sharey=True)
+    y = np.arange(len(names))
+    a1.barh(y + 0.2, wv, height=0.38, color=TEAL, label='速度場（mix_wide_vel - mix_exp6）')
+    a1.barh(y - 0.2, wdp, height=0.38, color='#D9895A', label='位移場（mix_wide - mix_exp3）')
+    for yy, v in zip(y + 0.2, wv):
+        a1.text(v + (0.0008 if v >= 0 else -0.0008), yy, '%+.3f' % v, va='center', ha='left' if v >= 0 else 'right',
+                fontsize=10.5, color=TEAL, fontweight='bold')
+    a2.barh(y, ver, height=0.55, color=['#2F7FD0' if v >= 0 else '#9AA09B' for v in ver])
+    for yy, v in zip(y, ver):
+        a2.text(v + (0.0005 if v >= 0 else -0.0005), yy, '%+.3f' % v, va='center', ha='left' if v >= 0 else 'right',
+                fontsize=10.5, color=INK)
+    lim1 = max(abs(wv).max(), abs(wdp).max()) + 0.009
+    a1.set_xlim(-lim1, lim1)
+    lim2 = abs(ver).max() + 0.006
+    a2.set_xlim(-lim2, lim2)
+    for ax in (a1, a2):
+        ax.axvline(0, color=INK, lw=1)
+        clean(ax)
+        ax.grid(axis='y', alpha=0)
+        ax.tick_params(axis='x', labelsize=11)
+    a1.set_yticks(y)
+    a1.set_yticklabels(names, fontsize=12.5)
+    a1.set_xlabel('加寬 2 倍，Dice 變多少（左右平均）', fontsize=12.5)
+    a1.set_title('加寬的效果：大部分結構變好', fontsize=14, fontweight='bold')
+    a1.legend(fontsize=11, frameon=False, loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2)   # 放圖外面，不壓到長條
+    a2.set_xlabel('速度場 - 位移場（都加寬 2 倍）', fontsize=12.5)
+    a2.set_title('加寬之後換版本：每個結構都在 %s 以內' % ('±%.3f' % abs(ver).max()), fontsize=14, fontweight='bold')
+    fig.tight_layout()
+    save(fig, '1014_wide_struct.png')
+
+# ── ⑤ 加寬：越難對的人幫越多（兩個版本並排；09-20 那份第 25 頁只有位移場）─────────────────────────
+WDF = D.get('wide_diff', {})
+if 'vel' in WDF and 'disp' in WDF:
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.9), facecolor=PAPER, sharey=True)
+    for ax, key, title, col in ((axes[0], 'disp', '位移場加寬（mix_wide - mix_exp3）', '#D9895A'),
+                                (axes[1], 'vel', '速度場加寬（mix_wide_vel - mix_exp6）', TEAL)):
+        w = WDF[key]
+        xb, yg = np.array(w['base']), np.array(w['gain'])
+        ax.scatter(xb, yg, s=30, color=col, alpha=0.85, edgecolors='none')
+        b1, b0 = np.polyfit(xb, yg, 1)
+        xx = np.array([xb.min(), xb.max()])
+        ax.plot(xx, b0 + b1 * xx, color=INK, lw=2, ls='--')
+        ax.axhline(0, color=MUTED, lw=0.8)
+        ax.set_title('%s\n相關 %.2f（p %s）' % (title, w['r'], '< 0.001' if w['p'] < 0.001 else '= %.2f' % w['p']),
+                     fontsize=13.5, fontweight='bold')
+        ax.text(0.02, 0.97, '起點最差 10 位：%+.4f' % w['hard10'], transform=ax.transAxes, ha='left', va='top',
+                fontsize=12, fontweight='bold', color=RUST)
+        ax.text(0.98, 0.97, '起點最好 10 位：%+.4f' % w['easy10'], transform=ax.transAxes, ha='right', va='top',
+                fontsize=12, fontweight='bold', color=TEAL)
+        ax.set_xlabel('起點 Dice（只做線性對位、還沒用模型）　← 越左越難對', fontsize=12)
+        lo_, hi_ = min(min(WDF[k]['gain']) for k in WDF), max(max(WDF[k]['gain']) for k in WDF)
+        ax.set_ylim(lo_ - 0.002, hi_ + 0.0065)              # 上面留空給「起點最差／最好 10 位」那兩行字
+        ax.tick_params(labelsize=11)
+        clean(ax)
+    axes[0].set_ylabel('加寬後多進步多少（Dice）', fontsize=12.5)
+    fig.tight_layout()
+    save(fig, '1014_wide_difficulty.png')
+
+# ── ⑤ 訓練 loss：四顆（2026-10-06 使用者要放進簡報）──────────────────────────────────────────
+# 讀法同 ASD/plot_loss_curve.py（那支 import 時就解析命令列參數，正規表示式照抄）
+import re as _re
+_LINE = _re.compile(r'epoch:\s*(\d+)\s+step:\s*(\d+)/(\d+).*?loss:\s*(-?[\d.eE+-]+)\s+'
+                    r'\((-?[\d.eE+-]+),\s*(-?[\d.eE+-]+)(?:,\s*(-?[\d.eE+-]+))?\)')
+
+
+def loss_curve(e):
+    raw = open(os.path.join(ROOT, 'log', e + '.txt'), 'rb').read()
+    for enc in ('utf-16', 'utf-8', 'cp950'):
+        try:
+            t = raw.decode(enc)
+        except Exception:
+            continue
+        if '\ufffd' not in t and 'epoch' in t:
+            break
+    acc = {}
+    for mm in _LINE.finditer(t):
+        acc.setdefault(int(mm.group(1)), []).append((float(mm.group(5)), float(mm.group(6))))
+    eps = sorted(acc)
+    return np.array(eps), np.array([np.mean(acc[k], axis=0) for k in eps])
+
+
+LOSS4 = [('mix_exp3', '位移場・預設寬度', '#D9895A', '--'), ('mix_wide', '位移場・加寬 2 倍', RUST, '-'),
+         ('mix_exp6', '速度場・預設寬度', '#5BB8B6', '--'), ('mix_wide_vel', '速度場・加寬 2 倍', TEAL, '-')]
+if all(os.path.exists(os.path.join(ROOT, 'log', e + '.txt')) for e, *_ in LOSS4):
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 4.7), facecolor=PAPER)
+    for e, lab, col, ls in LOSS4:
+        ep, mv = loss_curve(e)
+        a1.plot(ep, mv[:, 0], color=col, ls=ls, lw=2, label=lab)
+        a2.plot(ep, mv[:, 1], color=col, ls=ls, lw=2, label=lab)
+    a1.set_title('影像項（NCC，越低＝影像對得越像）', fontsize=13.5, fontweight='bold')
+    a2.set_title('平滑項（越低＝形變越平滑）', fontsize=13.5, fontweight='bold')
+    for ax in (a1, a2):
+        ax.set_xlabel('訓練輪數', fontsize=12)
+        ax.tick_params(labelsize=11)
+        clean(ax)
+    a1.set_ylim(-0.26, -0.15)
+    a1.legend(fontsize=11.5, frameon=False, loc='upper right')
+    fig.tight_layout()
+    save(fig, '1014_wide_loss.png')
