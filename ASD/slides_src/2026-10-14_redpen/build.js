@@ -106,12 +106,20 @@ const HAS_WM = Object.fromEntries(WIDE_MORE.map(([k, f]) => [k, f.every((x) => f
 const METHOD = [1, 2, 3, 4].flatMap((k) => ['1014_method_' + k + '.png', '1014_method_eq' + k + '.png']);
 const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
 
+// ⑥ 架構修改（紅字以外；2026-10-06 使用者：「把改架構的進度也加進 10/14 簡報」）：五頁。
+// 2026-10-07 使用者：「正式一點、公式 block 都很重要、不要太口語」→ 學術用語；cascade、coarse-to-fine 各一頁架構圖＋編號公式。
+// 長條圖是 make_charts.py 的，架構圖與公式是 make_arch.py 的
+const ARCH_FIGS = ['1014_arch_lit.png', '1014_arch_step0.png', '1014_arch_step0_eq.png', '1014_arch_cascade.png',
+  '1014_arch_cascade_eq.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png'];
+const HAS_ARCH = ARCH_FIGS.every((f) => fs.existsSync(CH(f))) && D.multipass && D.multipass.mix_exp6 && D.multipass_vs_wide;
+
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
   'res_method', ...(HAS_METHOD ? ['res_m1', 'res_m2', 'res_m3', 'res_m4'] : []), 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back',
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
+  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', 'arch_pyramid', 'arch_plan'] : []),
   'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
@@ -124,6 +132,9 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   txt(s, '上次老師交代的五件事', { x: M, y: 2.7, w: 11.5, h: 1.0, fontSize: 40, bold: true, color: C.WHITE });
   txt(s, '擠爆的位置、速度場調平滑權重、只算殘留旁邊的 Dice、後腦杓、加寬改速度場',
     { x: M, y: 3.75, w: 11.5, h: 0.5, fontSize: 18, color: 'D9DEDF' });
+  if (HAS_ARCH) {
+    txt(s, '另：VoxelMorph 架構修改之進度', { x: M, y: 4.25, w: 11.5, h: 0.4, fontSize: 16, color: 'D9DEDF' });
+  }
   txt(s, 'VoxelMorph 腦部影像配準', { x: M, y: 4.8, w: 11, h: 0.4, fontSize: 16, color: '8A9294' });
 }
 
@@ -146,6 +157,14 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   ], { x: M, y: 1.65, w: 12.13, colW: [3.7, 3.75, 4.68], fontSize: 13.5, rowH: 0.62 });
   txt(s, '③ 另外確認了：頭頂那層「殘留」不是 FreeSurfer 把腦畫太小，是真的沒切乾淨（第 ' + PG.res_check + ' 頁）。',
     { x: M, y: 6.0, w: 12.13, h: 0.45, fontSize: 14.5, color: C.MUTED });
+  if (HAS_ARCH) {
+    const G = D.multipass.mix_exp6.gain2;
+    txt(s, [
+      { text: '⑥（紅字以外）架構修改：', options: { bold: true, color: C.TEAL } },
+      { text: 'test-time recursion ΔDSC = ' + sgn(G.mean, 4) + '（' + G.win + '/' + G.n + '）；cascade、coarse-to-fine 已實作，待訓練（第 '
+          + PG.arch_why + '～' + PG.arch_plan + ' 頁）' },
+    ], { x: M, y: 6.42, w: 12.13, h: 0.45, fontSize: 13.5, color: C.MUTED });
+  }
 }
 
 // ───────────────────────────────────────────────────────── 03 ① 擠爆在哪
@@ -552,6 +571,85 @@ if (HAS_WM.wide_vis) {
   ], { x: M + 7.8, y: 1.6, w: 4.33, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
 }
 
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ 架構修改：文獻依據（數字照論文抄，寫死在 make_charts.py）
+  // 2026-10-07 使用者：「正式一點、公式 block 都很重要、不要太口語」→ ⑥ 全部改為學術用語＋架構圖＋編號公式（make_arch.py）
+  const s = base('⑥ 架構修改（紅字以外）', '架構修改方向：加入配準專用設計，而非更換 backbone');
+  fitImage(s, CH('1014_arch_lit.png'), M, 1.4, 12.13, 3.9, '更換 backbone 與加入 coarse-to-fine 之比較；LUMIR 2024 排名');
+  txt(s, '資料來源：Jian et al., WBIR 2024, Table 2（LPBA 200 pairs；training: OASIS、ADNI、IXI）；LUMIR 2024 test leaderboard（Learn2Reg 2024）',
+    { x: M, y: 5.33, w: 12.13, h: 0.3, fontSize: 10.5, color: C.MUTED });
+  bullets(s, [
+    [{ text: '更換 backbone（Mamba、Transformer）之 DSC 差異 < 1%；coarse-to-fine 提升 3.4%', options: { bold: true } }],
+    [{ text: 'LUMIR 2024 前段方法（SITReg、VFA）皆採 coarse-to-fine；VoxelMorph 排名後段', options: { bold: true } }],
+    [{ text: 'VoxelMorph 僅於最後一層輸出形變場（Balakrishnan et al., TMI 2019, Fig. 3）', options: { color: C.MUTED } }],
+    [{ text: '實驗設計：以 mix_exp6 為 baseline，每次僅改變一項架構因素', options: { bold: true, color: C.TEAL } }],
+  ], { x: M, y: 5.7, w: 12.13, h: 1.3, fontSize: 13.5, paraSpaceAfter: 3 });
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 0：test-time recursion（ASD/test_multipass.py；公式 make_arch.py）
+  const MP = D.multipass, E6 = MP.mix_exp6, VW = D.multipass_vs_wide;
+  const three = ['mix_exp6', 'mix_exp3', 'mix_wide_vel'].filter((e) => MP[e]);
+  const allWin = three.every((e) => MP[e].gain2.win === MP[e].gain2.n);
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 0：Test-time recursion（不重新訓練）');
+  fitImage(s, CH('1014_arch_step0.png'), M, 1.4, 7.3, 4.1, '同一模型遞迴 1、2、3 次之 test DSC');
+  bullets(s, [
+    [{ text: '2 passes：' + (allWin ? '三個模型皆 ' + E6.gain2.n + '/' + E6.gain2.n : E6.gain2.win + '/' + E6.gain2.n) + ' 位 DSC 上升',
+       options: { bold: true, color: C.TEAL } },
+     { text: '\n　mix_exp6：ΔDSC = ' + sgn(E6.gain2.mean, 4) + '（Wilcoxon ' + pval(E6.gain2.p) + '）\n　3 passes 無進一步改善',
+       options: { color: C.MUTED, fontSize: 12.5 } }],
+    [{ text: 'mix_exp6 × 2（' + f3(VW.two) + '）> mix_wide_vel（' + f3(VW.wide) + '）', options: { bold: true } },
+     { text: '\n　' + VW.win + '/' + VW.n + ' 位；參數量為其 1/4，且不需重新訓練', options: { color: C.MUTED, fontSize: 12.5 } }],
+    [{ text: '改善集中於 cortex（ΔDSC ' + sgn(E6.struct['大腦皮質'], 3) + '）', options: { bold: true } },
+     { text: '\n　affine baseline 最低 10 位 ' + sgn(E6.diff.hard10, 3) + '、最高 10 位 ' + sgn(E6.diff.easy10, 3),
+       options: { color: C.MUTED, fontSize: 12.5 } }],
+    [{ text: 'Folding：~0 → ' + Math.round(E6.passes[1].points) + ' voxels／subject（SVF）', options: { bold: true, color: C.RUST } }],
+  ], { x: 8.15, y: 1.5, w: 4.58, h: 4.0, fontSize: 14, paraSpaceAfter: 8 });
+  fitImage(s, CH('1014_arch_step0_eq.png'), M, 5.62, 12.13, 1.4, 'Test-time recursion 之公式');
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 1：Cascade（架構圖＋式 (2)(3)，make_arch.py）
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 1：Cascaded registration（Zhao et al., ICCV 2019）');
+  fitImage(s, CH('1014_arch_cascade.png'), M, 1.45, 12.13, 2.75, 'Cascade 架構圖');
+  fitImage(s, CH('1014_arch_cascade_eq.png'), M, 4.35, 12.13, 2.4, 'Cascade 公式 (2)(3)');
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 2：Coarse-to-fine（架構圖＋式 (4)(5)，make_arch.py）
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 2：Coarse-to-fine（multi-resolution pyramid + warping）');
+  fitImage(s, CH('1014_arch_pyramid.png'), M, 1.4, 12.13, 3.45, 'Coarse-to-fine 架構圖');
+  fitImage(s, CH('1014_arch_pyramid_eq.png'), M, 4.85, 12.13, 2.25, 'Coarse-to-fine 公式 (4)(5)');
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ 實驗設計（2 × 2）與進度（gather.py 的 arch）
+  // 參數從網路計算；每步倍數、顯存、訓練時間為筆電實測＋外插（寫死於 gather.py，手冊 §25.3、§25.4）
+  const byE = Object.fromEntries(D.arch.map((a) => [a.exp, a]));
+  const s = base('⑥ 架構修改（紅字以外）', '實驗設計（2 × 2）與進度');
+  const st = (e) => (done(e) ? 'DSC ' + score(e) : (e === 'mix_cascade_pyramid' ? '待前兩者結果' : '待訓練'));
+  const cell = (e) => ({ text: [{ text: e, options: { breakLine: true, fontSize: 12, color: C.MUTED } },
+                                { text: st(e), options: { bold: true, color: done(e) ? C.INK : C.RUST } }] });
+  table(s, [
+    ['', 'Single stage', 'Cascade（2 stages）'],
+    [{ text: 'Single-resolution\n（VoxelMorph）', options: { bold: true } }, cell('mix_exp6'), cell('mix_cascade')],
+    [{ text: 'Coarse-to-fine', options: { bold: true } }, cell('mix_pyramid'), cell('mix_cascade_pyramid')],
+  ], { x: M, y: 1.6, w: 6.5, colW: [2.1, 1.9, 2.5], fontSize: 14, rowH: 0.85 });
+  const NAME = { mix_exp6: 'VoxelMorph（mix_exp6）', mix_pyramid: 'Coarse-to-fine', mix_cascade: 'Cascade',
+                 mix_cascade_pyramid: 'Cascade + coarse-to-fine' };
+  table(s, [
+    ['Model', '#Params', '訓練時間（TITAN RTX）'],
+    ...['mix_exp6', 'mix_pyramid', 'mix_cascade', 'mix_cascade_pyramid'].map((e) => [
+      NAME[e], (byE[e].params / 1e6).toFixed(2) + ' M', done(e) ? '完成' : '約 ' + byE[e].hours + ' h']),
+  ], { x: 7.3, y: 1.6, w: 5.43, colW: [2.4, 0.95, 2.08], fontSize: 13 });
+  bullets(s, [
+    [{ text: '實作驗證：', options: { bold: true } },
+     { text: '1-stage cascade 與 VoxelMorph 輸出一致；translation test 確認各層 upsampling 與 composition 正確' }],
+    [{ text: '訓練順序：', options: { bold: true } },
+     { text: 'mix_exp8／9（semi-supervised）→ coarse-to-fine → cascade → cascade + coarse-to-fine' }],
+  ], { x: M, y: 4.75, w: 12.13, h: 1.4, fontSize: 15, paraSpaceAfter: 12 });
+}
+
 // ───────────────────────────────────────────────────────── 14 下一步
 {
   const s = base('NEXT', '下一步');
@@ -565,6 +663,8 @@ if (HAS_WM.wide_vis) {
   bullets(s, items.concat([
     [{ text: '訓練時也用 FreeSurfer 標籤（論文的做法）', options: { bold: true } },
      { text: '\n　標籤權重 0.5、5 兩顆，接著在 AI 上跑。測試時一樣只用影像，看 Dice 能不能再往上', options: { color: C.MUTED } }],
+    ...(HAS_ARCH ? [[{ text: '架構修改：coarse-to-fine → cascade → cascade + coarse-to-fine（第 ' + PG.arch_plan + ' 頁）', options: { bold: true } },
+                     { text: '\n　接續上述兩個模型依序訓練；皆以 mix_exp6 為 baseline，每次僅改變一項因素', options: { color: C.MUTED } }]] : []),
     [{ text: '新資料：第五包 MRS（' + D.mrs.n + ' 人）已經前處理好', options: { bold: true } },
      { text: '\n　等其他包到齊，一起併進來重新切分，當成新的一版資料', options: { color: C.MUTED } }],
     [{ text: '順帶看到：模型拿去對從沒看過的 MRS 研究，Dice ' + f3(D.mrs.after) + '（起點 ' + f3(D.mrs.before) + '）', options: { bold: true } },

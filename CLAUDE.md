@@ -1,7 +1,8 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-06**（10/14 簡報 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
+> 最後更新：**2026-10-07**（10/14 簡報 ⑥ 架構修改改成正式學術用語＋架構圖＋編號公式（`make_arch.py`），共 34 頁。
+> 10-06：改架構第 0 步＋第 1、2 步程式（待辦 5）；10/14 簡報先前 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
 > 頭頂範圍 25 mm 試過 10～60 mm 結論不變；新增文獻筆記 `文獻/`（LUMIR 排行、SITReg、VFA）。
 > 10-05：mix_wide_vel 加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完。
 > 10-04：mix_exp6／7 速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好。
@@ -198,7 +199,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 29 頁（同一套做法＋make_method.py 畫公式頁，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 34 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -241,7 +242,7 @@ C:\Users\h4524\claude_cheng\
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
 │   ├── asd_exp1\  mix_exp1~7\  mix_wide\  mix_wide_vel\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
-│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py，1014_method_*.png 是同一夾的 make_method.py）
+│   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py，1014_method_*.png 是同一夾的 make_method.py，1014_arch_{cascade,pyramid}.png 與 1014_arch_*_eq.png 是 make_arch.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
 │   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
 │   ├── author_exp1\                        # 作者預訓練模型在 4 位 OASIS 上的視覺化（手冊 §19）
@@ -655,8 +656,13 @@ p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quant
 （`top_compare.png` 那 6 位改算皮質），③④ 段全部改成標 Dice「起點 → 配準後」、「模型貢獻」改叫「Dice 進步多少」、
 殘留量改用 mm／mm³（r 幾乎不變）、第 14 頁三個位置改散佈圖、第 15 頁後腦杓改成跟第 13 頁一樣的 3 對 3、
 加顱底的 3 對 3；10-06 加「頭頂殘留厚度怎麼量」四頁（第 12～15 頁，一步一頁：圖＋編號公式 (1)～(5)＋「其中」符號說明，
-公式用 LaTeX 字型，`make_method.py`）、三個位置那頁表格附 FreeSurfer 結構名稱與標籤編號；⑤ 補五頁（每個結構、越難的人、訓練 loss、T054 整片腦大圖、同一個位置放大對照，手冊 §23.9），共 **29 頁**）。
+公式用 LaTeX 字型，`make_method.py`）、三個位置那頁表格附 FreeSurfer 結構名稱與標籤編號；⑤ 補五頁（每個結構、越難的人、訓練 loss、T054 整片腦大圖、同一個位置放大對照，手冊 §23.9），共 29 頁；
+同天再加 ⑥ 改架構（紅字之外，待辦 5）；10-07 使用者要求正式學術用語，⑥ 改成五頁：架構修改方向（文獻）、Step 0 test-time recursion、
+Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`make_arch.py`）、2 × 2 實驗設計與進度，共 **34 頁**）。
 重建步驟見該資料夾 README。
+🔴 **給老師的投影片一律用正式學術用語**（2026-10-07 使用者：「正式一點，公式 block 都很重要，不要太口語」）：
+英文術語可直接用、架構圖＋編號公式、每頁條列 2～4 行。術語對照（串兩顆 → Cascade、由粗到細 → Coarse-to-fine、擠爆 → Folding 等）
+見該資料夾 README 的 ⑥ 說明。①～⑤ 頁已定案的說法（例如「Dice 進步多少」）要不要跟著改，先問使用者。
 ⚠️ 重建後複製過去前，先確認使用者沒在那份 pptx 上改過字、**也沒開著**（鎖檔 `meeting報告\~$...pptx`；用 `grep -F '~$'` 找，
 `grep "~\$"` 在 bash 雙引號裡會變成「行尾是 ~」，找不到）。
 📌 頭頂殘留的範圍「頭頂往下 25 mm」是設計時定的、沒調過；10-06 試過 10～60 mm，170 人結論都一樣（r = −0.34～−0.44，手冊 §24.2）。
@@ -764,7 +770,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   也跟 mix_wide_vel 比「改結構 vs. 單純加寬」
 - **第 0 步**（不訓練、試水溫）✅ 10-06：現成模型連跑 2～3 次、位移接起來再算 Dice，`ASD/test_multipass.py`（手冊 §25.1）。
   三顆都是跑 2 次 **51/51 變好**（+0.008～0.009），跑 3 次反而變差：mix_exp6 0.8051 → **0.8136**、mix_exp3 0.8061 → 0.8147、
-  mix_wide_vel 0.8111 → **0.8188**。擠爆：速度場每人 0.1 → 43 點（加寬 25 點）。**mix_exp6 跑兩次就贏 mix_wide_vel**（+0.0025，39/51）
+  mix_wide_vel 0.8111 → **0.8188**。擠爆：速度場每人 0.1 → 43 點（加寬 25 點）。**mix_exp6 跑兩次就贏 mix_wide_vel**（+0.0025，38/51，跟正式 test 結果比）
 - **第 1 步**：串兩顆 = **mix_cascade**（照 RCN，ICCV 2019：各自的權重、一起訓練、相似度只看最後、每顆都罰平滑）。
   10-06 程式寫好、驗證通過（`ASD/verify_cascade.py` 四項；手冊 §25.2），操作單 `ASD/指令_mix_cascade.md`。
   顯存外插 16.9 GB（要 `set ... per_process_memory_fraction:0.85`），約 25～28 小時。**等 mix_exp8／9 跑完、AI `git pull` 後再跑**

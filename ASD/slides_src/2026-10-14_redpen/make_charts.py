@@ -418,3 +418,79 @@ if all(os.path.exists(os.path.join(ROOT, 'log', e + '.txt')) for e, *_ in LOSS4)
     a1.legend(fontsize=11.5, frameon=False, loc='upper right')
     fig.tight_layout()
     save(fig, '1014_wide_loss.png')
+
+# ── ⑥ 架構修改（紅字以外；2026-10-06 加入簡報，10-07 依使用者要求改為正式用語。架構圖與公式在 make_arch.py）──────────────────────
+from matplotlib.patches import FancyBboxPatch
+
+TEAL_L = '#5BB8B6'
+# 文獻依據（數字照論文抄，寫死；出處見 文獻/對位模型文獻筆記.md §1、§6）
+# 左：Jian et al., "Mamba? Catch The Hype Or Rethink What Really Helps for Image Registration", WBIR 2024, Table 2 的 LPBA 欄
+#     （訓練用 OASIS／ADNI／IXI，LPBA 40 人沒看過、隨機 200 對；DSC %）。2026-10-06 對過原文 HTML：
+#     VXM 67.0、Mam-VXM 67.5、TM 67.3、DWP（兩張分開抽特徵＋每層先搬過去＋金字塔＝我們的第 2 步）70.4、DWCPI（四種全加）71.3
+#     （只有兩張分開抽特徵 Dual 是 66.4，比原本還低：功勞在由粗到細，不在分開抽特徵）
+LIT_MAMBA = [('VoxelMorph（baseline）', 67.0, '#9AA09B'), ('Mamba backbone', 67.5, '#7FA7D0'),
+             ('Transformer backbone', 67.3, '#7FA7D0'), ('Coarse-to-fine（DWP）', 70.4, TEAL_L),
+             ('All four designs（DWCPI）', 71.3, TEAL)]
+LIT_LUMIR = [('SITReg（1st）', 0.785, TEAL, 'coarse-to-fine'), ('VFA', 0.777, TEAL, 'coarse-to-fine'),
+             ('TransMorph', 0.762, '#7FA7D0', 'Transformer'), ('uniGradICON', 0.742, '#9AA09B', ''),
+             ('SynthMorph', 0.722, '#9AA09B', ''), ('VoxelMorph', 0.714, RUST, 'baseline（本研究）'),
+             ('ANTs SyN', 0.703, '#9AA09B', 'classical')]
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(13, 4.3), facecolor=PAPER, gridspec_kw={'width_ratios': [1, 1.15]})
+y = np.arange(len(LIT_MAMBA))[::-1]
+a1.barh(y, [v - 60 for _, v, _ in LIT_MAMBA], left=60, height=0.6, color=[c for *_, c in LIT_MAMBA])
+for yy, (n, v, c) in zip(y, LIT_MAMBA):
+    a1.text(v + 0.15, yy, '%.1f' % v, va='center', fontsize=13, fontweight='bold', color=TEAL if c in (TEAL, TEAL_L) else INK)
+a1.text(67.75, 2.5, 'backbone 替換：< 1%', va='center', fontsize=12, color='#2F7FD0')
+a1.set_yticks(y)
+a1.set_yticklabels([n for n, *_ in LIT_MAMBA], fontsize=12.5)
+a1.set_xlim(60, 73.5)
+a1.set_xlabel('DSC (%)（LPBA，zero-shot；橫軸起點 60）', fontsize=11.5)
+a1.set_title('Jian et al., WBIR 2024', fontsize=13.5, fontweight='bold')
+y = np.arange(len(LIT_LUMIR))[::-1]
+a2.barh(y, [v - 0.68 for _, v, _, _ in LIT_LUMIR], left=0.68, height=0.6, color=[c for _, _, c, _ in LIT_LUMIR])
+for yy, (n, v, c, note) in zip(y, LIT_LUMIR):
+    a2.text(v + 0.0015, yy, '%.3f%s' % (v, '　' + note if note else ''), va='center', fontsize=12,
+            fontweight='bold' if note in ('coarse-to-fine', 'baseline（本研究）') else 'normal', color=c if c in (TEAL, RUST) else INK)
+a2.set_yticks(y)
+a2.set_yticklabels([n for n, *_ in LIT_LUMIR], fontsize=12.5)
+a2.set_xlim(0.68, 0.825)
+a2.set_xlabel('DSC（test, n = 590；橫軸起點 0.68）', fontsize=11.5)
+a2.set_title('LUMIR 2024 test leaderboard', fontsize=13.5, fontweight='bold')
+for ax in (a1, a2):
+    clean(ax)
+    ax.grid(axis='y', alpha=0)
+    ax.tick_params(axis='x', labelsize=11)
+fig.tight_layout(w_pad=3)
+save(fig, '1014_arch_lit.png')
+
+# Step 0：test-time recursion，同一模型遞迴 1、2、3 次（gather.py 的 multipass）
+MPD = D.get('multipass', {})
+GROUPS = [('mix_exp6', 'SVF'), ('mix_exp3', 'Displacement field'), ('mix_wide_vel', 'SVF, 2× width')]
+if all(e in MPD for e, _ in GROUPS):
+    fig, ax = plt.subplots(figsize=(8.2, 4.6), facecolor=PAPER)
+    PC = [('#B4B2A9', 1.0), (TEAL, 1.0), (TEAL, 0.4)]
+    lo = 0.800
+    pts = lambda v: '{:,.0f}'.format(v)
+    for gi, (e, lab) in enumerate(GROUPS):
+        ps = MPD[e]['passes']
+        for k, p in enumerate(ps):
+            x = gi * 4 + k
+            col, al = PC[k]
+            ax.bar(x, p['mean'] - lo, bottom=lo, width=0.85, color=col, alpha=al)
+            ax.text(x, p['mean'] + 0.0003, '%.4f' % p['mean'], ha='center', va='bottom', fontsize=11,
+                    fontweight='bold' if k == 1 else 'normal', color=TEAL if k == 1 else INK)
+        tr = ax.get_xaxis_transform()                  # x 用資料座標、y 用軸的比例：字固定在軸下面
+        ax.text(gi * 4 + 1, -0.04, '%s\n%s' % (e, lab), transform=tr, ha='center', va='top', fontsize=12, fontweight='bold')
+        ax.text(gi * 4 + 1, -0.205, 'Folding（voxels / subject）\n' + ' → '.join(pts(p['points']) for p in ps),
+                transform=tr, ha='center', va='top', fontsize=10.5, color=MUTED, linespacing=1.3)
+    ax.set_xticks([])
+    ax.set_xlim(-0.8, 10.8)
+    ax.set_ylim(lo, 0.8215)
+    ax.set_ylabel('Test DSC（n = 51）', fontsize=11.5)
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(color=col, alpha=al, label='%d pass%s' % (k + 1, '（原模型）' if k == 0 else 'es'))
+                       for k, (col, al) in enumerate(PC)], fontsize=11.5, frameon=False, loc='upper left', ncol=3)
+    clean(ax)
+    ax.grid(axis='x', alpha=0)
+    fig.subplots_adjust(left=0.1, right=0.985, top=0.97, bottom=0.25)
+    save(fig, '1014_arch_step0.png')

@@ -37,6 +37,10 @@ CFG = {
     'mix_exp3': ('位移場', 1.0, '預設', '全尺寸'),
     'mix_wide': ('位移場', 1.0, '加寬 2 倍', '全尺寸'),
     'mix_wide_vel': ('速度場', 1.0, '加寬 2 倍', '全尺寸'),
+    # ⑥ 改架構（2026-10-06 加；都跟 mix_exp6 一樣是速度場、全尺寸、權重 1，只差架構）。還沒在 AI 上跑 → pending
+    'mix_cascade': ('速度場', 1.0, '串兩顆', '全尺寸'),
+    'mix_pyramid': ('速度場', 1.0, '由粗到細', '全尺寸'),
+    'mix_cascade_pyramid': ('速度場', 1.0, '串兩顆＋由粗到細', '全尺寸'),
 }
 
 
@@ -368,6 +372,71 @@ def step_time(e):
 
 
 D['train_time'] = {e: step_time(e) for e in ('mix_wide', 'mix_wide_vel')}
+
+# ── ⑥ 改架構（老師紅字之外；2026-10-06 使用者決定先做，CLAUDE.md 待辦 5、手冊 §25）──────────────────────
+# 第 0 步：不訓練，現成模型連跑 2～3 次（ASD/test_multipass.py 的 CSV；mix_wide_vel 是筆電半精度跑的 _amp 版）
+from scipy.stats import wilcoxon
+MP = {'mix_exp6': 'multipass_0190.csv', 'mix_exp3': 'multipass_0240.csv', 'mix_wide_vel': 'multipass_0240_amp.csv'}
+mp = {}
+for e, fn in MP.items():
+    p = J('models', e, fn)
+    if not os.path.exists(p):
+        continue
+    with open(p, encoding='utf-8') as f:
+        rr = list(csv.DictReader(f))
+    by = {(r['file'][:-4], int(r['pass'])): r for r in rr}
+    npass = max(int(r['pass']) for r in rr)
+    Dp = np.array([[float(by[(k, i)]['dice_mean']) for k in K] for i in range(1, npass + 1)])
+    Jp = np.array([[int(by[(k, i)]['jneg_n']) for k in K] for i in range(1, npass + 1)])
+    Sp = np.array([[float(by[(k, i)]['step_mm']) for k in K] for i in range(1, npass + 1)])
+    ent = {'passes': [{'mean': float(Dp[i].mean()), 'points': float(Jp[i].mean()), 'points_max': int(Jp[i].max()),
+                       'n_any': int((Jp[i] > 0).sum()), 'step_mm': float(Sp[i].mean())} for i in range(npass)]}
+    for i in range(1, npass):                         # 第 i+1 次 vs 第 1 次（逐人配對）
+        g = Dp[i] - Dp[0]
+        ent['gain%d' % (i + 1)] = {'mean': float(g.mean()), 'win': int((g > 0).sum()), 'n': len(g),
+                                   'p': float(wilcoxon(Dp[i], Dp[0]).pvalue)}
+    if npass >= 3:
+        g = Dp[2] - Dp[1]
+        ent['p3_vs_p2'] = {'mean': float(g.mean()), 'win': int((g > 0).sum()), 'n': len(g)}
+    # 越難對的人幫越多？用起點 Dice 分組（同 wide_diff）
+    bs = np.array([base[k] for k in K])
+    g = Dp[1] - Dp[0]
+    o = np.argsort(bs)
+    rho, pv = pearsonr(bs, g)
+    ent['diff'] = {'r': float(rho), 'p': float(pv), 'hard10': float(g[o[:10]].mean()),
+                   'mid': float(g[o[10:-10]].mean()), 'easy10': float(g[o[-10:]].mean())}
+    # 每個結構（17 種，左右平均）：第 2 次 − 第 1 次
+    ent['struct'] = {n: float(np.mean([np.nanmean([float(by[(k, 2)]['label_%d' % l]) - float(by[(k, 1)]['label_%d' % l])
+                                                   for k in K]) for l in ls])) for n, ls in PAIRS.items()}
+    mp[e] = ent
+D['multipass'] = mp
+# mix_exp6 連跑兩次 vs mix_wide_vel（正式的 test CSV）
+if 'mix_exp6' in mp and 'mix_wide_vel' in per:
+    with open(J('models', 'mix_exp6', MP['mix_exp6']), encoding='utf-8') as f:
+        two = {r['file'][:-4]: float(r['dice_mean']) for r in csv.DictReader(f) if r['pass'] == '2'}
+    a_ = np.array([two[k] for k in K])
+    b_ = np.array([per['mix_wide_vel'][k] for k in K])
+    D['multipass_vs_wide'] = {'mean': float((a_ - b_).mean()), 'win': int((a_ > b_).sum()), 'n': len(K),
+                              'p': float(wilcoxon(a_, b_).pvalue), 'two': float(a_.mean()), 'wide': float(b_.mean())}
+
+# 第 1、2 步與疊在一起（程式寫好、驗證通過，等 AI 跑）。參數直接從網路數（跟影像大小無關，用小影像蓋）；
+# 每步倍數、顯存、AI 時數是筆電實測＋外插（手冊 §25.3、§25.4），不是 CSV —— 寫死在這裡
+os.environ.setdefault('VXM_BACKEND', 'pytorch')
+os.environ.setdefault('NEURITE_BACKEND', 'pytorch')
+from arch import VxmCascade, VxmPyramid                                   # noqa: E402
+import voxelmorph as vxm                                                    # noqa: E402
+_s = (32, 32, 32)
+npar = lambda net: int(sum(p.numel() for p in net.parameters()))
+D['arch'] = [
+    # 實驗, 改什麼, 參數, 每步倍數, 顯存 GB（實際）, AI 上幾小時
+    {'exp': 'mix_exp6', 'what': '原本的 VoxelMorph', 'params': npar(vxm.networks.VxmDense(_s, int_downsize=1)),
+     'tmul': 1.00, 'mem': 8.8, 'hours': None},
+    {'exp': 'mix_cascade', 'what': '串兩顆', 'params': npar(VxmCascade(_s, n_cascades=2, int_downsize=1)),
+     'tmul': 1.89, 'mem': 16.9, 'hours': 25},
+    {'exp': 'mix_pyramid', 'what': '由粗到細', 'params': npar(VxmPyramid(_s)), 'tmul': 1.49, 'mem': 9.7, 'hours': 19},
+    {'exp': 'mix_cascade_pyramid', 'what': '兩個疊在一起',
+     'params': npar(VxmCascade(_s, n_cascades=2, int_downsize=1, stage='pyramid')), 'tmul': 2.86, 'mem': 19.0, 'hours': 37},
+]
 
 
 def no_nan(o):

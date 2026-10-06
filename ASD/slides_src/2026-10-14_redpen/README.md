@@ -2,10 +2,10 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（29 頁；mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（34 頁；⑥ 架構修改五頁要先有 `1014_arch_*.png` 七張圖（`make_charts.py` 兩張、`make_arch.py` 五張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
-給老師看的版本，所以文字盡量少、圖盡量多、不用術語。
+給老師看的版本，所以文字盡量少、圖盡量多。①～⑤ 沿用 10-05 以前定案的說法；⑥ 起改用正式學術用語（見下方 ⑥ 的說明）。
 
 | 頁 | 內容 | 圖 |
 |---|---|---|
@@ -23,7 +23,21 @@
 | 26 | ⑤ 訓練 loss：四顆的影像項、平滑項＋最後一輪的表（`gather.py` 的 `loss_final`）。平滑項不能跨版本比 | `1014_wide_loss.png` |
 | 27 | ⑤ 視覺化（大圖）：T054 整片腦三個方向，加寬位移場 vs 加寬速度場，藍框＝下一頁放大的那一塊（使用者：「可以來大圖的嗎」）| `folding_check/folding_full_pair_T054.png` |
 | 28 | ⑤ 視覺化：藍框那一塊放大，加寬位移場 vs 加寬速度場（`ASD\check_folding.py --zoom-pair` 兩張一起畫，要 GPU）| `folding_check/folding_zoom_pair_T054.png` |
-| 29 | 下一步（訓練時也用標籤 mix_exp8／9、MRS）| |
+| 29 | ⑥ 架構修改方向：加入配準專用設計，而非更換 backbone（老師紅字之外，2026-10-06 使用者：「把改架構的進度也加進 10/14 簡報」）。左 Jian et al., WBIR 2024 Table 2（LPBA）、右 LUMIR 2024 test leaderboard；圖下一行資料來源 | `1014_arch_lit.png` |
+| 30 | ⑥ Step 0：Test-time recursion（不重新訓練）。三顆模型 1、2、3 passes 並排＋右側重點（gather.py 的 `multipass`、`multipass_vs_wide`）＋式 (1) | `1014_arch_step0.png`、`1014_arch_step0_eq.png` |
+| 31 | ⑥ Step 1：Cascaded registration（Zhao et al., ICCV 2019）。架構圖＋式 (2)(3) | `1014_arch_cascade.png`、`1014_arch_cascade_eq.png` |
+| 32 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
+| 33 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（沒結果的格子寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練順序 | （表格）|
+| 34 | 下一步（訓練時也用標籤 mix_exp8／9、架構修改的順序、MRS）| |
+
+📌 **⑥ 架構修改（第 29～33 頁）的寫法（2026-10-07 定案）**：使用者：「這個 block 有些太口語了」「由粗到細老師肯定不知道」
+「正式一點，公式 block 都很重要，不要太口語」。因此 ⑥ 全部改成**正式學術用語＋架構圖＋編號公式 (1)～(5)**，每頁條列 2～4 行：
+- 術語對照（使用者認可）：串兩顆 → Cascade（2 stages）、Stage 1／Stage 2；由粗到細 → Coarse-to-fine（multi-resolution pyramid）；
+  先拉過去／接成一個 → warp／compose；兩張影像各自抽特徵 → Dual-stream encoder；同一顆多跑一次 → Test-time recursion（不重新訓練）；
+  擠爆 → Folding（|J| ≤ 0）；原始／目標 → Moving（affine only）／Fixed（MNI152）
+- 合成照 VoxelMorph 記號 $(m\circ\phi)(x)=m(\phi(x))$：先 $\phi_1$、再對 $m\circ\phi_1$ 估計 $\phi_2$，總形變 $\Phi=\phi_1\circ\phi_2$
+  （位移 $U(x)=u_2(x)+u_1(x+u_2(x))$，跟 `ASD/arch.py` 一致）
+- 架構圖與公式區塊由 `make_arch.py` 畫（公式樣式同 `make_method.py`）。原本第 31 頁用 T054 真影像講解的 `1014_arch_explain.png` 已拿掉
 
 📌 **③④ 段的規則（2026-10-05 跟使用者定案，細節手冊 §24.2）**：
 - Dice 數值一律寫「起點 → 配準後」，兩個一樣大，不能只放大配準後（頭頂殘留多的人起點略高、後腦杓殘留多的 3 位起點反而低，
@@ -50,9 +64,10 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `gather.py` | 從 `models/*/dice_*.csv`、`models/folding_check/`、`models/skullstrip_check/` 算出 `deck_data.json` |
-| `make_charts.py` | 產生 `models/deck_charts/1014_*.png`（第 12～15 頁那 8 張除外）|
+| `gather.py` | 從 `models/*/dice_*.csv`、`models/folding_check/`、`models/skullstrip_check/`、第 0 步的 `models/<exp>/multipass_*.csv` 算出 `deck_data.json`；參數量用 `ASD/arch.py` 蓋網路數 |
+| `make_charts.py` | 產生 `models/deck_charts/1014_*.png`（第 12～15 頁那 8 張、⑥ 的架構圖與公式區塊除外）|
 | `make_method.py` | 第 12～15 頁「頭頂殘留厚度怎麼量」的 4 張圖＋4 個公式區塊，順便寫 `models/skullstrip_check/top_band_sensitivity.csv` |
+| `make_arch.py` | ⑥ 第 31、32 頁的架構圖（cascade、coarse-to-fine）＋第 30～32 頁的公式區塊 (1)～(5)，不讀資料、幾秒 |
 | `build.js` | pptxgenjs 產生器：版面、文字、表格、圖片 |
 | `render.ps1` | 用 PowerPoint 把每頁轉成 PNG，做版面檢查。PowerPoint 本來就開著的話不會把它關掉 |
 
@@ -63,6 +78,7 @@ cd ASD\slides_src\2026-10-14_redpen
 ..\..\..\vxm_env\Scripts\python.exe gather.py          # -> deck_data.json
 ..\..\..\vxm_env\Scripts\python.exe make_charts.py     # -> models\deck_charts\1014_*.png（要先有 deck_data.json）
 ..\..\..\vxm_env\Scripts\python.exe make_method.py     # -> 1014_method_{1..4}.png、1014_method_eq{1..4}.png（約 1～2 分鐘）
+..\..\..\vxm_env\Scripts\python.exe make_arch.py       # -> 1014_arch_{cascade,pyramid}.png、1014_arch_{step0,cascade,pyramid}_eq.png
 cd ..\..\..
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 mix_wide_vel:0240 --gpu 0   # 速度場三顆的擠爆位置（位移場三顆 09-30 算過）
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png（6 欄：左 3 顆速度場、右 3 顆位移場）
@@ -93,6 +109,8 @@ mix_exp6、mix_exp7（10-04）、mix_wide_vel（10-05）都帶回來了，現在
 **結果帶回來放進 `models/<exp>/` 之後，照上面重建一次就會補上**，不用改程式。
 一個資料夾有好幾份 test CSV 的話，用 `dice_curve_val.csv` 裡驗證集最好的那個 epoch。
 mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在「下一步」寫一行；結果要放進來得另外加頁。
+⑥ 架構修改的三顆（mix_cascade、mix_pyramid、mix_cascade_pyramid）在 `gather.py` 的 `CFG` 裡，還沒跑 → 第 33 頁 2 × 2 表寫「待訓練」（mix_cascade_pyramid 寫「待前兩者結果」）；
+結果帶回來（`models/<exp>/dice_<epoch>.csv`）重建就會換成 Dice。
 
 ## 寫死在程式裡、不是從 CSV 來的
 
@@ -106,7 +124,14 @@ mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在�
 - 第 22 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
   10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）。
   加寬兩顆的每步秒數、小時數是 `gather.py` 從 `log/mix_wide.txt`、`log/mix_wide_vel.txt` 算的（log 沒帶回來時才退回寫死的「約 19 小時」）
-- 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不能跨版本比」、第 27、28 頁的說明文字是照現在的數字寫的\n- 第 29 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
+- 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不能跨版本比」、第 27、28 頁的說明文字是照現在的數字寫的
+- 第 34 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
+- ⑥ 架構修改（第 29～33 頁）：文獻數字照論文抄、寫在 `make_charts.py`（Jian et al., WBIR 2024 Table 2 的 LPBA 欄
+  67.0／67.5／67.3／70.4／71.3，2026-10-06 對過原文 HTML；LUMIR 2024 測試集 Dice，出處見 `文獻/對位模型文獻筆記.md`），
+  第 29 頁的資料來源與四行重點寫在 `build.js`；第 30 頁右側重點的數字從 CSV 算，文字（「3 passes 無進一步改善」等）照現在的數字寫；
+  第 30～32 頁的公式 (1)～(5) 與「其中」說明（λ = 1、7 steps、參數 0.41 M、引用文獻）寫在 `make_arch.py`；
+  第 33 頁每顆的每步倍數、顯存、訓練時間寫在 `gather.py` 的 `arch`（筆電實測＋外插，手冊 §25.3、§25.4），參數是由網路計算的；
+  「實作驗證」「訓練順序」兩行是照現在的狀態寫的文字
 
 ## 不進版控
 
