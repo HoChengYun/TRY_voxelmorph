@@ -2652,3 +2652,41 @@ VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一�
 **操作單**：`ASD/指令_mix_pyramid.md`（Drive 傳輸站\reg\script\mix_pyramid\ 也有一份）。一次只跑一顆。
 
 **判讀**：跟 mix_exp6 只差架構（差多少＝由粗到細的貢獻）；跟 mix_wide_vel 比參數只有 1/3；跟 mix_cascade 比兩種設計哪個有用，之後可以疊在一起。
+
+### 25.4 兩個疊在一起：mix_cascade_pyramid（2 × 2 的最後一格）
+
+|  | 不串 | 串兩顆 |
+|---|---|---|
+| **原本的 VoxelMorph** | mix_exp6 | mix_cascade |
+| **由粗到細** | mix_pyramid | **mix_cascade_pyramid** |
+
+**做法**：`VxmCascade(stage='pyramid')`——串兩顆，每一顆都是 `VxmPyramid`；接法跟串接一樣。
+平滑項是「每一顆的每一層」都罰（2 × 5 = 10 項）。參數 816,254。
+指令：`run_train.py --arch cascade --n-cascades 2 --stage pyramid`。**建議等 mix_cascade、mix_pyramid 都有進步再跑**。
+
+**驗證**（`verify_pyramid.py` 第 5～8 項，10-06 全部通過）：
+5. 只串 1 顆、放同一組權重 → 跟由粗到細本身完全一樣
+6. 串 2 顆、兩顆放同一組權重 → 跟「由粗到細自己跑兩次、手動接起來」完全一樣（差 0）
+7. 平移測試：第 1 顆只在最粗層加 (0.25, 0, 0)、第 2 顆只在原尺寸加 (0, 1.5, 0) → 總位移 (4, 1.5, 0)（差 8e-5）
+8. 存檔再讀回來一樣，config 記著 `arch=cascade`、`stage=pyramid`
+
+筆電試跑：兩顆各五層出速度場的卷積都有更新；全尺寸經 `run_train.py`（加 `--grad-checkpoint`）跑 1 步正常。
+
+**省顯存模式 `--grad-checkpoint`**（串接才有）：每一顆的中間結果不留、反向傳播時再算一次（`torch.utils.checkpoint`）。
+筆電 112×128×112 實測：loss 一模一樣、梯度最大差 2.3e-7（梯度本身最大 0.49），顯存峰值 3.70 → 1.88 GB，慢 1.24 倍。
+**算出來的數字一樣**，只在顯存不夠時用；存出來的 .pt 跟一般模式一樣。
+
+**四種＋省顯存的速度、顯存**（筆電 112×128×112，輪流量取中位數；顯存外插到全尺寸）：
+
+| | 每步倍數 | 參數 | 顯存（實際）| AI 上預估 |
+|---|---|---|---|---|
+| 一顆（mix_exp6）| 1.00 | 301,411 | 8.8 GB | 1.84 秒／步（實測）|
+| 串兩顆（mix_cascade）| 1.89 | 602,822 | 16.9 GB | 約 3.5 秒、25 小時 |
+| 由粗到細（mix_pyramid）| 1.49 | 408,127 | 9.7 GB | 約 2.7 秒、19 小時 |
+| **疊在一起（mix_cascade_pyramid）** | **2.86** | 816,254 | **19.0 GB** | **約 5.3 秒、37 小時**（要 `set ...:0.9`）|
+| 疊在一起＋省顯存 | 3.54 | 同上 | 9.7 GB | 約 6.5 秒、45 小時 |
+
+**操作單**：`ASD/指令_mix_cascade_pyramid.md`（Drive 傳輸站\reg\script\mix_cascade_pyramid\ 也有一份）。
+
+**判讀**：（疊在一起 − mix_exp6）跟（mix_cascade − mix_exp6）＋（mix_pyramid − mix_exp6）比。
+差不多＝兩種設計各補各的；明顯比較小＝兩個在補同一件事（第 0 步就看到「多跑一次」和「加寬」幫到的是同一批人，r = 0.65）。

@@ -33,6 +33,11 @@ VxmPyramid：由粗到細（第 2 步；Mamba 那篇的 dual stream + pyramid + 
     訓練時 model(受試者, atlas) -> (搬好的受試者, [每一層積分前的速度場])，平滑項每一層都算。
     （粗的層用的是粗格子的單位；粗格子上的差分剛好就是實際形變的梯度，所以同一個 λ 對每一層的意思一樣。）
 
+兩個疊在一起：VxmCascade(stage='pyramid') —— 串兩顆，每一顆都是 VxmPyramid（mix_cascade_pyramid）
+---------------------------------------------------------------------
+    接法跟串接一樣，只是每一顆換成由粗到細的網路；平滑項是「每一顆的每一層」都罰（2 顆 × 5 層 = 10 項）。
+    用來看兩種設計的進步加不加得起來（跟 mix_exp6、mix_cascade、mix_pyramid 湊成 2 × 2）。
+
 load_model(path, device)：看存檔裡的 config['arch'] 決定蓋哪一種網路；沒有 arch 就是原本的 VxmDense。
 """
 import os
@@ -40,6 +45,7 @@ import sys
 
 import torch
 import torch.nn as nn
+import torch.utils.checkpoint
 from torch.distributions.normal import Normal
 
 ROOT =os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -67,26 +73,45 @@ def stage_flows(m, source, target):
 
 
 class VxmCascade(LoadableModel):
-    """n 顆 VxmDense 串起來，最後接成一個總位移。參數名稱跟 VxmDense 一樣，多一個 n_cascades。"""
+    """n 顆網路串起來，最後接成一個總位移。參數名稱跟 VxmDense 一樣，多 n_cascades 和 stage：
+        stage='vxm'（預設）    每一顆是 VxmDense —— 第 1 步 mix_cascade
+        stage='pyramid'        每一顆是 VxmPyramid —— 串接和由粗到細疊在一起（mix_cascade_pyramid）"""
 
     @store_config_args
     def __init__(self, inshape, nb_unet_features=None, int_steps=7, int_downsize=2, n_cascades=2,
-                 arch='cascade'):
+                 arch='cascade', stage='vxm'):
         super().__init__()
         assert arch == 'cascade', arch
         assert n_cascades >= 1, n_cascades
+        assert stage in ('vxm', 'pyramid'), stage
+        net = vxm.networks.VxmDense if stage == 'vxm' else VxmPyramid
+        self.stage = stage
         self.stages = nn.ModuleList([
-            vxm.networks.VxmDense(inshape, nb_unet_features=nb_unet_features,
-                                  int_steps=int_steps, int_downsize=int_downsize)
+            net(inshape, nb_unet_features=nb_unet_features, int_steps=int_steps, int_downsize=int_downsize)
             for _ in range(n_cascades)])
         self.transformer = vxm.torch.layers.SpatialTransformer(inshape)
+        # 省顯存用（訓練腳本 --grad-checkpoint 會打開，不存進 config）：每一顆的中間結果不留，反向傳播時再算一次。
+        # 算出來的數字一樣，只是比較慢；給顯存不夠的時候用。
+        self.grad_ckpt = False
+
+    def _run_stage(self, m, src, target):
+        """一顆的（總位移, 積分前的形變場…），攤平成一個 tuple（checkpoint 要這樣）。"""
+        if self.stage == 'vxm':
+            u, pre = stage_flows(m, src, target)
+            return (u, pre)
+        u, pre = m.fields(src, target)                    # 由粗到細：每一層一個速度場，全部都要罰
+        return (u,) + tuple(pre)
 
     def forward(self, source, target, registration=False):
         U, pres = None, []
         for m in self.stages:
             src = source if U is None else self.transformer(source, U)
-            u, pre = stage_flows(m, src, target)
-            pres.append(pre)
+            if self.grad_ckpt and self.training and torch.is_grad_enabled():
+                out = torch.utils.checkpoint.checkpoint(self._run_stage, m, src, target, use_reentrant=False)
+            else:
+                out = self._run_stage(m, src, target)
+            u = out[0]
+            pres.extend(out[1:])
             U = u if U is None else u + self.transformer(U, u)
         moved = self.transformer(source, U)
         if registration:
@@ -155,7 +180,8 @@ class VxmPyramid(LoadableModel):
             feats.append(blk(feats[-1]))
         return feats                                      # feats[k] = 第 k 層（0 是影像本身）
 
-    def forward(self, source, target, registration=False):
+    def fields(self, source, target):
+        """回傳（全尺寸的總位移, [每一層積分前的速度場]）。forward 和串接（VxmCascade stage='pyramid'）都用這個。"""
         fm, ff = self.encode(source), self.encode(target)
         U, h, pres = None, None, []
         for k in range(self.n, -1, -1):                   # 從最粗（1/16）到原尺寸
@@ -170,6 +196,10 @@ class VxmPyramid(LoadableModel):
             pres.append(v)
             u = self.integrate[k](v) if self.integrate is not None else v
             U = u if U is None else u + self.warp[k](U, u)          # U_k(x) = u_k(x) + U↑(x + u_k(x))
+        return U, pres
+
+    def forward(self, source, target, registration=False):
+        U, pres = self.fields(source, target)
         moved = self.warp[0](source, U)
         if registration:
             return moved, U

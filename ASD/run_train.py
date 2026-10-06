@@ -60,6 +60,11 @@ ap.add_argument('--atlas-seg', default=None, help='--seg-weight 用的 atlas 標
 #   pyramid = 由粗到細（第 2 步）：兩張影像各自抽特徵、解碼器每一層都出形變；只支援 --int-downsize 1
 ap.add_argument('--arch', default='vxm', choices=['vxm', 'cascade', 'pyramid'], help='網路架構；vxm = 原本的 VoxelMorph')
 ap.add_argument('--n-cascades', type=int, default=2, help='--arch cascade 時串幾顆')
+#   --arch cascade --stage pyramid = 兩個疊在一起：串 n 顆，每一顆都是由粗到細的網路
+ap.add_argument('--stage', default='vxm', choices=['vxm', 'pyramid'],
+                help='--arch cascade 時每一顆用什麼；pyramid = 跟由粗到細疊在一起')
+# 串接時省顯存：每一顆的中間結果不留、反向傳播時再算一次。數字一樣（10-06 實測梯度差 2e-7），顯存約一半，慢約 1.24 倍
+ap.add_argument('--grad-checkpoint', action='store_true', help='串接時省顯存（數字一樣，比較慢）')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
                 help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
@@ -77,12 +82,21 @@ if SEG and ARCH:
 TRAIN = (os.path.join(ROOT, 'ASD', 'train_semisup.py') if SEG
          else os.path.join(ROOT, 'ASD', 'train_arch.py') if ARCH
          else os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py'))
-if args.arch == 'pyramid' and args.int_downsize != 1:
-    sys.exit('[X] --arch pyramid 只支援 --int-downsize 1（粗的層本來就是縮小過的）')
-# 每步時間、存檔大小大約是一顆 VoxelMorph 的幾倍（2026-10-06 筆電實測：串兩顆 1.89 倍、由粗到細 1.49 倍；參數 2 倍、1.35 倍）
-TMUL = {'vxm': 1.0, 'cascade': 0.95 * args.n_cascades, 'pyramid': 1.5}[args.arch]
-NMUL = {'vxm': 1.0, 'cascade': float(args.n_cascades), 'pyramid': 1.35}[args.arch]
-ARCH_DESC = {'cascade': '串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），每一顆都罰平滑' % args.n_cascades,
+PYR = args.arch == 'pyramid' or (args.arch == 'cascade' and args.stage == 'pyramid')
+if args.stage != 'vxm' and args.arch != 'cascade':
+    sys.exit('[X] --stage 只在 --arch cascade 時有意義')
+if PYR and args.int_downsize != 1:
+    sys.exit('[X] 由粗到細只支援 --int-downsize 1（粗的層本來就是縮小過的）')
+if args.grad_checkpoint and args.arch != 'cascade':
+    sys.exit('[X] --grad-checkpoint 目前只給串接（--arch cascade）用')
+# 每步時間、存檔大小大約是一顆 VoxelMorph 的幾倍（2026-10-06 筆電實測：串兩顆 1.89、由粗到細 1.49、
+# 疊在一起 2.86、疊在一起＋省顯存 3.54 倍；參數 2、1.35、2.7 倍）
+per = 1.43 if args.stage == 'pyramid' else 0.95                         # 串接時每一顆的時間倍數
+TMUL = {'vxm': 1.0, 'cascade': per * args.n_cascades, 'pyramid': 1.5}[args.arch] * (1.24 if args.grad_checkpoint else 1.0)
+NMUL = {'vxm': 1.0, 'cascade': (1.35 if args.stage == 'pyramid' else 1.0) * args.n_cascades, 'pyramid': 1.35}[args.arch]
+ARCH_DESC = {'cascade': ('串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），每一顆都罰平滑' % args.n_cascades
+                         if args.stage == 'vxm' else
+                         '串 %d 顆由粗到細的網路（兩個疊在一起；ASD/train_arch.py），每一顆的每一層都罰平滑' % args.n_cascades),
              'pyramid': '由粗到細（兩張影像各自抽特徵、每一層都出形變；ASD/train_arch.py），每一層都罰平滑'}.get(args.arch)
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
@@ -200,7 +214,7 @@ if args.enc or args.dec:
     print('      U-Net       : enc %s / dec %s  <- 非預設架構'
           % (args.enc or '預設', args.dec or '預設'))
 if ARCH:
-    print('      架構        : %s' % ARCH_DESC)
+    print('      架構        : %s%s' % (ARCH_DESC, '；省顯存模式（--grad-checkpoint）' if args.grad_checkpoint else ''))
 print('      訓練資料    : %s' % DATA)
 print('      模型輸出    : %s' % MODEL_DIR)
 print('      記錄檔      : %s' % LOG_FILE)
@@ -232,7 +246,10 @@ if args.dec:
 if SEG:
     cmd += ['--seg-weight', str(args.seg_weight), '--atlas-seg', ATLAS_SEG]
 if ARCH:
-    cmd += ['--arch', args.arch] + (['--n-cascades', str(args.n_cascades)] if args.arch == 'cascade' else [])
+    cmd += ['--arch', args.arch] + (['--n-cascades', str(args.n_cascades), '--stage', args.stage]
+                                    if args.arch == 'cascade' else [])
+    if args.grad_checkpoint:
+        cmd += ['--grad-checkpoint']
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]

@@ -94,6 +94,7 @@ python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name 
 | 看到 | 怎麼辦 |
 |---|---|
 | 噴 `CUDA out of memory` | 把 `set` 那行的 `0.85` 改成 `0.9` 重打，再跑下面的續跑指令 |
+| `0.9` 還是 OOM | 續跑指令最後再加 `--grad-checkpoint`（省顯存模式：數字一樣、顯存約一半、慢約 1.24 倍；之後續跑也要一直加著）|
 | 每步**超過 8 秒** | 多半是 `set` 沒生效（溢位到一般記憶體）。`Ctrl + C` 停掉，`echo` 檢查、重打 `set`，再續跑 |
 | 還是不對 | 先停下來跟我說，**不要自己改參數** |
 

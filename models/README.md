@@ -27,6 +27,7 @@
 | `mix_exp9/` | **準備中**：同上，標籤權重 γ 5 | — | — | — |
 | `mix_cascade/` | **準備中**：同 mix_exp6，**兩顆 VoxelMorph 串起來**（改架構第 1 步，RCN；`ASD/train_arch.py`；操作單 `ASD/指令_mix_cascade.md`）| — | — | — |
 | `mix_pyramid/` | **準備中**：同 mix_exp6，**由粗到細**（改架構第 2 步：兩張影像各自抽特徵、每一層都出形變；操作單 `ASD/指令_mix_pyramid.md`）| — | — | — |
+| `mix_cascade_pyramid/` | **準備中**：**串兩顆＋每一顆都由粗到細**（2 × 2 最後一格；等前兩顆都有進步再跑；操作單 `ASD/指令_mix_cascade_pyramid.md`）| — | — | — |
 
 **第 0 步（不訓練）**：現成模型連跑 2～3 次的結果在 `mix_exp6/multipass_0190.csv`、`mix_exp3/multipass_0240.csv`、
 `mix_wide_vel/multipass_0240_amp.csv`（`ASD/test_multipass.py`；手冊 §25.1）。跑 2 次三顆都 51/51 變好：

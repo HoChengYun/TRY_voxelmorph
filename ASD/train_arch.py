@@ -4,6 +4,7 @@
     --arch cascade：把 n 顆 VoxelMorph 串起來（第 1 步，RCN）
     --arch pyramid：由粗到細（第 2 步）—— 兩張影像各自抽特徵，解碼器每一層都出形變、先把移動影像的特徵拉過去再修
                     （串接的說明換成「每一層」：影像項只算最後，每一層積分前的速度場都罰平滑；只支援 --int-downsize 1）
+    --arch cascade --stage pyramid：兩個疊在一起 —— 串 n 顆，每一顆都是由粗到細的網路（每一顆的每一層都罰平滑）
 
 跟 voxelmorph-code/scripts/torch/train.py 一樣的部分：
     參數名稱、每步從訓練資料隨機抽一位、scan-to-atlas（受試者 → atlas）、NCC／MSE、
@@ -61,6 +62,10 @@ parser.add_argument('--image-loss', default='mse')
 parser.add_argument('--lambda', type=float, dest='weight', default=0.01)
 parser.add_argument('--arch', required=True, choices=['cascade', 'pyramid'])
 parser.add_argument('--n-cascades', type=int, default=2, help='--arch cascade 時串幾顆')
+parser.add_argument('--stage', default='vxm', choices=['vxm', 'pyramid'],
+                    help='--arch cascade 時每一顆用什麼：vxm = 原本的 VoxelMorph；pyramid = 由粗到細（兩個疊在一起）')
+parser.add_argument('--grad-checkpoint', action='store_true',
+                    help='串接時省顯存：每一顆的中間結果不留、反向傳播時再算一次（數字一樣，比較慢）')
 parser.add_argument('--crop', type=int, nargs=3, help='測試用：只取中間這麼大一塊（每邊要能被 16 整除）')
 parser.add_argument('--max-steps', type=int, default=0, help='測試用：總共只跑幾步就停，並印顯存峰值（0 = 不限）')
 args = parser.parse_args()
@@ -104,14 +109,18 @@ dec_nf = args.dec if args.dec else [32, 32, 32, 32, 32, 16, 16]
 if args.load_model:
     model = load_model(args.load_model, device)
     assert model.config.get('arch') == args.arch and \
-        (args.arch != 'cascade' or model.config['n_cascades'] == args.n_cascades), \
+        (args.arch != 'cascade' or (model.config['n_cascades'] == args.n_cascades
+                                    and model.config.get('stage', 'vxm') == args.stage)), \
         '--load-model 的架構跟這次的參數不一樣：%s' % model.config
 elif args.arch == 'cascade':
     model = VxmCascade(inshape, nb_unet_features=[enc_nf, dec_nf], int_steps=args.int_steps,
-                       int_downsize=args.int_downsize, n_cascades=args.n_cascades)
+                       int_downsize=args.int_downsize, n_cascades=args.n_cascades, stage=args.stage)
 else:
     model = VxmPyramid(inshape, nb_unet_features=[enc_nf, dec_nf], int_steps=args.int_steps,
                        int_downsize=args.int_downsize)
+if args.grad_checkpoint:
+    assert args.arch == 'cascade', '--grad-checkpoint 目前只給串接用'
+    model.grad_ckpt = True
 model.to(device)
 model.train()
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -127,11 +136,13 @@ grad_loss = vxm.losses.Grad('l2', loss_mult=args.int_downsize).loss      # 同 t
 atlas_t = torch.from_numpy(cut(atlas_vol))[None, None].to(device).repeat(args.batch_size, 1, 1, 1, 1)
 
 n_par = sum(p.numel() for p in model.parameters())
-desc = ('串 %d 顆 VoxelMorph（RCN）' % args.n_cascades if args.arch == 'cascade'
+desc = ('串 %d 顆 VoxelMorph（RCN）' % args.n_cascades if args.arch == 'cascade' and args.stage == 'vxm'
+        else '串 %d 顆由粗到細的網路（兩個疊在一起）' % args.n_cascades if args.arch == 'cascade'
         else '由粗到細（兩張影像各自抽特徵、每一層都出形變）')
 print('架構：%s，共 %d 個參數；影像項 %s，λ = %g（每一%s都罰）；int_steps %d、int_downsize %d；'
       '%d 位訓練資料；影像 %s%s'
-      % (desc, n_par, args.image_loss, args.weight, '顆' if args.arch == 'cascade' else '層',
+      % (desc + ('，省顯存模式（--grad-checkpoint）' if args.grad_checkpoint else ''), n_par, args.image_loss, args.weight,
+         ('顆' if args.stage == 'vxm' else '顆的每一層') if args.arch == 'cascade' else '層',
          args.int_steps, args.int_downsize, len(files),
          'x'.join(map(str, inshape)), '（--crop 測試用）' if args.crop else ''), flush=True)
 

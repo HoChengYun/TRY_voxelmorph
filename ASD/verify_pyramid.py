@@ -8,6 +8,12 @@
 3. 存檔、再用 load_model() 讀回來 → 輸出一模一樣，config 記著 arch = pyramid
 4. 參數量（跟 VxmDense 的 301,411 比）
 
+兩個疊在一起（VxmCascade stage='pyramid'，2026-10-06 加）：
+5. 只串 1 顆、放同一組權重 → 跟由粗到細本身一模一樣
+6. 串 2 顆、兩顆放同一組權重 → 跟「由粗到細自己跑兩次、手動把位移接起來」一樣
+7. 平移測試：第 1 顆只在最粗層加 (c, 0, 0)、第 2 顆只在原尺寸加 (0, b, 0) → 總位移 (16c, b, 0)
+8. 存檔、再用 load_model() 讀回來 → 輸出一模一樣，config 記著 arch = cascade、stage = pyramid
+
 用法：python ASD\\verify_pyramid.py --test-dir data\\mixed_preprocessed_v2\\test
 """
 import os
@@ -31,7 +37,7 @@ args = ap.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 import torch                                    # noqa: E402
-from arch import VxmPyramid, load_model         # noqa: E402
+from arch import VxmPyramid, VxmCascade, load_model         # noqa: E402
 
 for _stream in (sys.stdout, sys.stderr):
     try:
@@ -92,10 +98,68 @@ with torch.no_grad():
     print('[%s] 3. 存檔再讀回來：%s，config arch=%s，輸出最大差 %.1e（總位移最大 %.2f 格）'
           % ('v' if good else 'X', type(m2).__name__, m2.config.get('arch'), e, ua.abs().max().item()))
     ok &= good
+    del m2, mb, ub
+
+    # 5. 串 1 顆由粗到細 = 由粗到細本身
+    sd = model.state_dict()
+    c1 = VxmCascade(inshape, n_cascades=1, int_downsize=1, stage='pyramid').to(device).eval()
+    c1.stages[0].load_state_dict(sd)
+    m1, u1 = c1(v, a, registration=True)
+    e = max((u1 - ua).abs().max().item(), (m1 - ma).abs().max().item())
+    print('[%s] 5. 串 1 顆由粗到細 vs 由粗到細本身：最大差 %.1e' % ('v' if e < 1e-5 else 'X', e))
+    ok &= e < 1e-5
+    del c1, m1, u1
+
+    # 6. 串 2 顆（同一組權重）= 由粗到細自己跑兩次、手動接起來
+    warp = model.warp[0]
+    _, U1 = model(v, a, registration=True)
+    _, u2 = model(warp(v, U1), a, registration=True)
+    U_ref = u2 + warp(U1, u2)
+    c2 = VxmCascade(inshape, n_cascades=2, int_downsize=1, stage='pyramid').to(device).eval()
+    for s in c2.stages:
+        s.load_state_dict(sd)
+    _, U2 = c2(v, a, registration=True)
+    e = (U2 - U_ref).abs().max().item()
+    print('[%s] 6. 串 2 顆（同一組權重）vs 自己跑兩次再接：總位移最大差 %.1e（總位移最大 %.2f 格）'
+          % ('v' if e < 1e-4 else 'X', e, U2.abs().max().item()))
+    ok &= e < 1e-4
+    del U1, u2, U_ref, U2
+
+    # 7. 疊在一起的平移測試
+    for s in c2.stages:
+        for f in s.flows:
+            f.weight.zero_()
+            f.bias.zero_()
+    c2.stages[0].flows[c2.stages[0].n].bias.copy_(torch.tensor([c, 0.0, 0.0]))   # 第 1 顆的最粗層
+    c2.stages[1].flows[0].bias.copy_(torch.tensor([0.0, b, 0.0]))                 # 第 2 顆的原尺寸
+    _, Ut = c2(v, a, registration=True)
+    inner = Ut[0, :, 48:-48, 56:-56, 48:-48]
+    want = torch.tensor([c * 2 ** c2.stages[0].n, b, 0.0], device=device).view(3, 1, 1, 1)
+    e = (inner - want).abs().max().item()
+    print('[%s] 7. 疊在一起的平移測試：要 (%.2f, %.2f, 0)，最大差 %.1e' % ('v' if e < 1e-3 else 'X', c * 16, b, e))
+    ok &= e < 1e-3
+    del Ut
+
+    # 8. 存檔 → load_model 讀回來
+    for s in c2.stages:
+        for f in s.flows:
+            f.weight.normal_(0, 1e-2)
+    c2.save(tmp)
+    c3 = load_model(tmp, device).to(device).eval()
+    os.remove(tmp)
+    _, ux = c2(v, a, registration=True)
+    _, uy = c3(v, a, registration=True)
+    e = (ux - uy).abs().max().item()
+    good = (type(c3).__name__ == 'VxmCascade' and c3.config.get('stage') == 'pyramid'
+            and c3.config.get('n_cascades') == 2 and e == 0)
+    print('[%s] 8. 疊在一起存檔再讀回來：%s，config arch=%s stage=%s，輸出最大差 %.1e'
+          % ('v' if good else 'X', type(c3).__name__, c3.config.get('arch'), c3.config.get('stage'), e))
+    ok &= good
 
 # 4. 參數量
 n_par = sum(p.numel() for p in model.parameters())
-print('[i] 4. 參數 %d 個（VxmDense 301,411 個，%.2f 倍）' % (n_par, n_par / 301411))
+print('[i] 4. 參數 %d 個（VxmDense 301,411 個，%.2f 倍）；疊在一起（串 2 顆）%d 個'
+      % (n_par, n_par / 301411, sum(p.numel() for p in c2.parameters())))
 
 print()
 print('全部通過' if ok else '有沒通過的，看上面 [X]')
