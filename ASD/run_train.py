@@ -55,9 +55,10 @@ ap.add_argument('--steps-per-epoch', type=int, default=100)
 # 🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文 γ 0.01 / 0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5 / 5（見 train_semisup.py 檔頭）
 ap.add_argument('--seg-weight', type=float, default=0.0, help='標籤項權重 γ；0 = 不用標籤（原本的 train.py）')
 ap.add_argument('--atlas-seg', default=None, help='--seg-weight 用的 atlas 標籤，預設 IXI/atlas_mni152_09c_v3_seg.npz')
-# 2026-10-06：改架構（CLAUDE.md 待辦 5）。不給就是原本的 VoxelMorph（train.py）；
-# cascade = 把 n 顆 VoxelMorph 串起來（RCN，ICCV 2019），改跑 ASD/train_arch.py，其他參數照舊。
-ap.add_argument('--arch', default='vxm', choices=['vxm', 'cascade'], help='網路架構；vxm = 原本的 VoxelMorph')
+# 2026-10-06：改架構（CLAUDE.md 待辦 5）。不給就是原本的 VoxelMorph（train.py）；其他兩種改跑 ASD/train_arch.py，其他參數照舊：
+#   cascade = 把 n 顆 VoxelMorph 串起來（第 1 步，RCN，ICCV 2019）
+#   pyramid = 由粗到細（第 2 步）：兩張影像各自抽特徵、解碼器每一層都出形變；只支援 --int-downsize 1
+ap.add_argument('--arch', default='vxm', choices=['vxm', 'cascade', 'pyramid'], help='網路架構；vxm = 原本的 VoxelMorph')
 ap.add_argument('--n-cascades', type=int, default=2, help='--arch cascade 時串幾顆')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
@@ -76,7 +77,13 @@ if SEG and ARCH:
 TRAIN = (os.path.join(ROOT, 'ASD', 'train_semisup.py') if SEG
          else os.path.join(ROOT, 'ASD', 'train_arch.py') if ARCH
          else os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py'))
-NMUL = args.n_cascades if ARCH else 1      # 串 n 顆：每步時間、存檔大小約 n 倍
+if args.arch == 'pyramid' and args.int_downsize != 1:
+    sys.exit('[X] --arch pyramid 只支援 --int-downsize 1（粗的層本來就是縮小過的）')
+# 每步時間、存檔大小大約是一顆 VoxelMorph 的幾倍（2026-10-06 筆電實測：串兩顆 1.89 倍、由粗到細 1.49 倍；參數 2 倍、1.35 倍）
+TMUL = {'vxm': 1.0, 'cascade': 0.95 * args.n_cascades, 'pyramid': 1.5}[args.arch]
+NMUL = {'vxm': 1.0, 'cascade': float(args.n_cascades), 'pyramid': 1.35}[args.arch]
+ARCH_DESC = {'cascade': '串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），每一顆都罰平滑' % args.n_cascades,
+             'pyramid': '由粗到細（兩張影像各自抽特徵、每一層都出形變；ASD/train_arch.py），每一層都罰平滑'}.get(args.arch)
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
@@ -193,13 +200,13 @@ if args.enc or args.dec:
     print('      U-Net       : enc %s / dec %s  <- 非預設架構'
           % (args.enc or '預設', args.dec or '預設'))
 if ARCH:
-    print('      架構        : 串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），每一顆都罰平滑' % args.n_cascades)
+    print('      架構        : %s' % ARCH_DESC)
 print('      訓練資料    : %s' % DATA)
 print('      模型輸出    : %s' % MODEL_DIR)
 print('      記錄檔      : %s' % LOG_FILE)
 print()
 print('      預估 : 每步約 %.1f 秒 -> %.1f 小時（實際看 GPU）'
-      % (1.5 * NMUL, remain * args.steps_per_epoch * 1.5 * NMUL / 3600))
+      % (1.5 * TMUL, remain * args.steps_per_epoch * 1.5 * TMUL / 3600))
 print('      磁碟 : 每 epoch 存一個 .pt（%.2f MB）-> 約 %d MB' % (1.16 * NMUL, round(args.epochs * 1.16 * NMUL)))
 
 if args.check_only:
@@ -225,7 +232,7 @@ if args.dec:
 if SEG:
     cmd += ['--seg-weight', str(args.seg_weight), '--atlas-seg', ATLAS_SEG]
 if ARCH:
-    cmd += ['--arch', args.arch, '--n-cascades', str(args.n_cascades)]
+    cmd += ['--arch', args.arch] + (['--n-cascades', str(args.n_cascades)] if args.arch == 'cascade' else [])
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]

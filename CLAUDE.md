@@ -174,9 +174,10 @@ C:\Users\h4524\claude_cheng\
 │   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
 │   ├── test_multipass.py               # 改架構第 0 步：不訓練，同一顆模型連跑 2～3 次、位移接起來再算 Dice（待辦 5）
-│   ├── arch.py                         # 改架構用的網路：VxmCascade（串 n 顆，RCN）＋ load_model()（評估腳本都改用它讀 .pt，舊模型照舊）
-│   ├── train_arch.py                   # 訓練新架構（run_train.py --arch cascade 會改跑這支）；--crop / --max-steps 是筆電試跑用
+│   ├── arch.py                         # 改架構用的網路：VxmCascade（串 n 顆，RCN）、VxmPyramid（由粗到細）＋ load_model()（評估腳本都改用它讀 .pt，舊模型照舊）
+│   ├── train_arch.py                   # 訓練新架構（run_train.py --arch cascade / pyramid 會改跑這支）；--crop / --max-steps 是筆電試跑用
 │   ├── verify_cascade.py               # 串接網路的四項驗證（串 1 顆 = VxmDense、串 2 顆 = 第 0 步連跑兩次、存讀一致、舊模型照舊）
+│   ├── verify_pyramid.py               # 由粗到細的驗證（一開始幾乎不動、平移測試、存讀一致）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
@@ -190,6 +191,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_wide_vel.md            # mix_wide_vel（加寬 2 倍＋速度場，老師 p25「改看看速度」），Drive 傳輸站\reg\script\mix_wide_vel\ 也有一份
 │   ├── 指令_mix_exp8_9.md              # mix_exp8／9（訓練時也用標籤，γ 0.5／5，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_exp8_9\ 也有一份
 │   ├── 指令_mix_cascade.md             # mix_cascade（改架構第 1 步：串兩顆，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_cascade\ 也有一份
+│   ├── 指令_mix_pyramid.md             # mix_pyramid（改架構第 2 步：由粗到細，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_pyramid\ 也有一份
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -765,7 +767,9 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 - **第 1 步**：串兩顆 = **mix_cascade**（照 RCN，ICCV 2019：各自的權重、一起訓練、相似度只看最後、每顆都罰平滑）。
   10-06 程式寫好、驗證通過（`ASD/verify_cascade.py` 四項；手冊 §25.2），操作單 `ASD/指令_mix_cascade.md`。
   顯存外插 16.9 GB（要 `set ... per_process_memory_fraction:0.85`），約 25～28 小時。**等 mix_exp8／9 跑完、AI `git pull` 後再跑**
-- **第 2 步**：由粗到細（金字塔＋每層先把影像拉過去）—— 還沒寫
+- **第 2 步**：由粗到細 = **mix_pyramid**（`VxmPyramid`：兩張影像各自抽特徵、解碼器從 1/16 起每一層都出形變、先把移動影像的特徵拉過去再修；
+  參數 41 萬）。10-06 程式寫好、驗證通過（`ASD/verify_pyramid.py`，含平移測試；手冊 §25.3），操作單 `ASD/指令_mix_pyramid.md`。
+  顯存外插 9.7 GB，約 19 小時（筆電公平量：比一顆慢 1.49 倍；串兩顆 1.89 倍）。**一次只跑一顆**
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

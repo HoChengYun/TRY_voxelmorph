@@ -19,6 +19,20 @@ VxmCascade：把 n 顆 VoxelMorph 串起來（RCN：Zhao et al., ICCV 2019）
 這個接法跟 ASD/test_multipass.py（第 0 步：同一顆模型連跑幾次）完全一樣；
 cascade_from_single() 把同一顆的權重放進每一顆，結果要跟 test_multipass.py 一致（試跑時用來對答案）。
 
+VxmPyramid：由粗到細（第 2 步；Mamba 那篇的 dual stream + pyramid + warping、Dual-PRNet、LapIRN 同一類）
+---------------------------------------------------------------------
+    VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一次（TMI 2019 Fig. 3）。這裡改成：
+    1. 兩張影像**各自**用同一個編碼器抽特徵（共用權重），不再一開始就疊在一起
+       —— 才能只把「移動影像的特徵」照目前的形變拉過去（由粗到細一定要這樣，兩件事綁在一起）
+    2. 解碼器從 1/16 開始，**每一層都出一個速度場**、積分成這一層的小修正 u_k，接到前面的總位移上，再放大到下一層：
+             U_k(x) = u_k(x) + U↑(x + u_k(x))      （U↑ = 上一層的總位移放大 2 倍、向量也乘 2）
+       下一層先用 U↑ 把移動影像的特徵拉過去，看到的是已經對好大半的樣子，只要修細節。
+    其他照 VxmDense：層數與通道數（預設 enc 16 32 32 32、dec 32 32 32 32 32 16 16，原文 Fig. 3）、
+    3×3×3 卷積＋LeakyReLU(0.2)、步長 2 縮小、最近鄰放大、跳接、速度場積分 7 次（每一層都積分，每一段本身不會翻）。
+    參數約 41 萬（VxmDense 30 萬）：解碼器每層多吃一份「固定影像的特徵」。
+    訓練時 model(受試者, atlas) -> (搬好的受試者, [每一層積分前的速度場])，平滑項每一層都算。
+    （粗的層用的是粗格子的單位；粗格子上的差分剛好就是實際形變的梯度，所以同一個 λ 對每一層的意思一樣。）
+
 load_model(path, device)：看存檔裡的 config['arch'] 決定蓋哪一種網路；沒有 arch 就是原本的 VxmDense。
 """
 import os
@@ -26,8 +40,9 @@ import sys
 
 import torch
 import torch.nn as nn
+from torch.distributions.normal import Normal
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT =os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.path.join(ROOT, 'voxelmorph-code') not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, 'voxelmorph-code'))
 os.environ.setdefault('VXM_BACKEND', 'pytorch')
@@ -79,7 +94,89 @@ class VxmCascade(LoadableModel):
         return moved, pres
 
 
-ARCHS = {'cascade': VxmCascade}
+class VxmPyramid(LoadableModel):
+    """由粗到細：兩張影像各自抽特徵，解碼器每一層都出形變、先把移動影像的特徵拉過去再修（見檔頭）。"""
+
+    @store_config_args
+    def __init__(self, inshape, nb_unet_features=None, int_steps=7, int_downsize=1, arch='pyramid'):
+        super().__init__()
+        assert arch == 'pyramid', arch
+        assert int_downsize == 1, '由粗到細只做全尺寸積分（--int-downsize 1），粗的層本來就是縮小過的'
+        ndims = len(inshape)
+        enc_nf, dec_nf = nb_unet_features or ([16, 32, 32, 32], [32, 32, 32, 32, 32, 16, 16])
+        n = len(enc_nf)                                   # 縮小幾次（預設 4：1/2、1/4、1/8、1/16）
+        assert len(dec_nf) > n, '解碼器的長度要比編碼器多（VoxelMorph 的慣例是「層數 + 3」）'
+        assert all(s % 2 ** n == 0 for s in inshape), '影像每邊要能被 %d 整除：%s' % (2 ** n, inshape)
+        self.n = n
+        shapes = [tuple(s // 2 ** k for s in inshape) for k in range(n + 1)]   # 第 k 層 = 原尺寸 / 2^k
+        Conv = getattr(nn, 'Conv%dd' % ndims)
+        Block = vxm.networks.ConvBlock                    # 3×3×3 卷積 + LeakyReLU(0.2)，跟 VxmDense 同一個
+
+        # 編碼器（兩張影像共用）：輸入 1 個通道，每次步長 2
+        self.enc = nn.ModuleList()
+        prev = 1
+        for nf in enc_nf:
+            self.enc.append(Block(ndims, prev, nf, stride=2))
+            prev = nf
+
+        # 解碼器：第 k 層吃「搬過的移動影像特徵 + 固定影像特徵 + 上一層放大的解碼特徵」
+        self.blocks = nn.ModuleList()
+        out_ch = []
+        for k in range(n + 1):
+            if k == 0:                                    # 原尺寸：跟 VxmDense 的 extras 一樣（影像本身 1+1 個通道）
+                prev, chain = 2 + dec_nf[n - 1], nn.ModuleList()
+                for nf in dec_nf[n:]:
+                    chain.append(Block(ndims, prev, nf))
+                    prev = nf
+            else:                                         # 第 k 層：一個卷積，通道數照 VxmDense 的 dec_nf
+                cin = 2 * enc_nf[k - 1] + (dec_nf[n - k - 1] if k < n else 0)
+                prev = dec_nf[n - k]
+                chain = nn.ModuleList([Block(ndims, cin, prev)])
+            self.blocks.append(chain)
+            out_ch.append(prev)
+
+        # 每一層一個「出速度場」的卷積，初始權重很小（同 VxmDense），一開始每一層都幾乎不動
+        self.flows = nn.ModuleList()
+        for c in out_ch:
+            f = Conv(c, ndims, kernel_size=3, padding=1)
+            f.weight = nn.Parameter(Normal(0, 1e-5).sample(f.weight.shape))
+            f.bias = nn.Parameter(torch.zeros(f.bias.shape))
+            self.flows.append(f)
+
+        self.integrate = (nn.ModuleList([vxm.torch.layers.VecInt(s, int_steps) for s in shapes])
+                          if int_steps > 0 else None)
+        self.warp = nn.ModuleList([vxm.torch.layers.SpatialTransformer(s) for s in shapes])
+        self.up_flow = vxm.torch.layers.ResizeTransform(0.5, ndims)     # 放大 2 倍、向量也乘 2
+        self.up_feat = nn.Upsample(scale_factor=2, mode='nearest')     # 跟 VxmDense 的解碼器一樣
+
+    def encode(self, x):
+        feats = [x]
+        for blk in self.enc:
+            feats.append(blk(feats[-1]))
+        return feats                                      # feats[k] = 第 k 層（0 是影像本身）
+
+    def forward(self, source, target, registration=False):
+        fm, ff = self.encode(source), self.encode(target)
+        U, h, pres = None, None, []
+        for k in range(self.n, -1, -1):                   # 從最粗（1/16）到原尺寸
+            if U is not None:
+                U, h = self.up_flow(U), self.up_feat(h)
+            m_k = fm[k] if U is None else self.warp[k](fm[k], U)   # 移動影像的特徵先照目前的形變拉過去
+            x = torch.cat([m_k, ff[k]] + ([h] if h is not None else []), dim=1)
+            for blk in self.blocks[k]:
+                x = blk(x)
+            h = x
+            v = self.flows[k](h)
+            pres.append(v)
+            u = self.integrate[k](v) if self.integrate is not None else v
+            U = u if U is None else u + self.warp[k](U, u)          # U_k(x) = u_k(x) + U↑(x + u_k(x))
+        moved = self.warp[0](source, U)
+        if registration:
+            return moved, U
+        return moved, pres
+
+
+ARCHS = {'cascade': VxmCascade, 'pyramid': VxmPyramid}
 
 
 def load_model(path, device):
