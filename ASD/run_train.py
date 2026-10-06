@@ -55,6 +55,10 @@ ap.add_argument('--steps-per-epoch', type=int, default=100)
 # 🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文 γ 0.01 / 0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5 / 5（見 train_semisup.py 檔頭）
 ap.add_argument('--seg-weight', type=float, default=0.0, help='標籤項權重 γ；0 = 不用標籤（原本的 train.py）')
 ap.add_argument('--atlas-seg', default=None, help='--seg-weight 用的 atlas 標籤，預設 IXI/atlas_mni152_09c_v3_seg.npz')
+# 2026-10-06：改架構（CLAUDE.md 待辦 5）。不給就是原本的 VoxelMorph（train.py）；
+# cascade = 把 n 顆 VoxelMorph 串起來（RCN，ICCV 2019），改跑 ASD/train_arch.py，其他參數照舊。
+ap.add_argument('--arch', default='vxm', choices=['vxm', 'cascade'], help='網路架構；vxm = 原本的 VoxelMorph')
+ap.add_argument('--n-cascades', type=int, default=2, help='--arch cascade 時串幾顆')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
                 help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
@@ -66,8 +70,13 @@ args = ap.parse_args()
 
 PY = sys.executable                    # 就是目前這個 venv 的 python
 SEG = args.seg_weight > 0
+ARCH = args.arch != 'vxm'
+if SEG and ARCH:
+    sys.exit('[X] --seg-weight 跟 --arch 還不能一起用（train_semisup.py 只會蓋原本的 VoxelMorph）')
 TRAIN = (os.path.join(ROOT, 'ASD', 'train_semisup.py') if SEG
+         else os.path.join(ROOT, 'ASD', 'train_arch.py') if ARCH
          else os.path.join(ROOT, 'voxelmorph-code', 'scripts', 'torch', 'train.py'))
+NMUL = args.n_cascades if ARCH else 1      # 串 n 顆：每步時間、存檔大小約 n 倍
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
@@ -183,13 +192,15 @@ print('      steps/epoch : %d' % args.steps_per_epoch)
 if args.enc or args.dec:
     print('      U-Net       : enc %s / dec %s  <- 非預設架構'
           % (args.enc or '預設', args.dec or '預設'))
+if ARCH:
+    print('      架構        : 串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），每一顆都罰平滑' % args.n_cascades)
 print('      訓練資料    : %s' % DATA)
 print('      模型輸出    : %s' % MODEL_DIR)
 print('      記錄檔      : %s' % LOG_FILE)
 print()
-print('      預估 : 每步約 1.5 秒 -> %.1f 小時（實際看 GPU）'
-      % (remain * args.steps_per_epoch * 1.5 / 3600))
-print('      磁碟 : 每 epoch 存一個 .pt（1.16 MB）-> 約 %d MB' % round(args.epochs * 1.16))
+print('      預估 : 每步約 %.1f 秒 -> %.1f 小時（實際看 GPU）'
+      % (1.5 * NMUL, remain * args.steps_per_epoch * 1.5 * NMUL / 3600))
+print('      磁碟 : 每 epoch 存一個 .pt（%.2f MB）-> 約 %d MB' % (1.16 * NMUL, round(args.epochs * 1.16 * NMUL)))
 
 if args.check_only:
     print()
@@ -213,6 +224,8 @@ if args.dec:
     cmd += ['--dec'] + [str(x) for x in args.dec]
 if SEG:
     cmd += ['--seg-weight', str(args.seg_weight), '--atlas-seg', ATLAS_SEG]
+if ARCH:
+    cmd += ['--arch', args.arch, '--n-cascades', str(args.n_cascades)]
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]

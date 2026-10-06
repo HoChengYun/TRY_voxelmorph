@@ -2,7 +2,7 @@
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
 > 最後更新：**2026-10-06**（10/14 簡報 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
-> 頭頂範圍 25 mm 試過 10～60 mm 結論不變。
+> 頭頂範圍 25 mm 試過 10～60 mm 結論不變；新增文獻筆記 `文獻/`（LUMIR 排行、SITReg、VFA）。
 > 10-05：mix_wide_vel 加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完。
 > 10-04：mix_exp6／7 速度場平滑權重 2 → 1 +0.0025、再降到 0.5 沒再變好。
 > 09-30：mix_exp5 功勞全在解析度；`train_avg` 更正。09-28：mix_wide 完成、去顱骨殘留分析、`--int-downsize` 的真正作用）
@@ -11,7 +11,7 @@
 
 ## 📌 文件定位：本文是唯一事實來源
 
-專案有四份說明文件。**歷史文件的新舊順序跟直覺相反**：
+專案有四份說明文件，另有一份文獻筆記。**歷史文件的新舊順序跟直覺相反**：
 
 | 文件 | 涵蓋範圍 | 內容停在 | 狀態 |
 |------|---------|---------|------|
@@ -19,11 +19,13 @@
 | **`ASD/ASD相關手冊.md`** | **ASD 資料集（老師提供）那條線** | 2026/09，mix / tiger exp2–exp3 | ✅ **ASD 相關一律看這份** |
 | `IXI/ixi相關手冊.md` | IXI 操作細節 | 2026/04，v2 / resample 時期 | 🟡 已加更正框，仍需小心 |
 | `VoxelMorph_PyTorch_實作指南.md` | VoxelMorph 原理 / OASIS 時期 | 2026/03 | 🔴 最舊，多處失效 |
+| `文獻/對位模型文獻筆記.md` | 別人的新模型：LUMIR 比賽排行、熱門程度、模型方塊、SITReg、VFA | 2026-10-06 | ✅ 文獻整理（數字不能跟我們的直接比）|
 
 **該讀哪一份**：
 - 要動 **ASD / FreeSurfer 標籤 / Dice** → `ASD/ASD相關手冊.md`
 - 要動 **IXI 訓練或調參** → 本文（操作細節可搭 `IXI/ixi相關手冊.md`，但以本文為準）
 - 想看 **VoxelMorph 原理** → `VoxelMorph_PyTorch_實作指南.md` §1、§8（其餘章節已失效）
+- 想看 **別人的新模型、比賽排行**（SITReg、VFA、TransMorph、uniGradICON…）→ `文獻/對位模型文獻筆記.md`
 
 ⚠️ **本文舊版曾寫「先讀 `ixi相關手冊.md`（操作細節最完整）」——那句話是錯的**，
 會把人帶去讀一份停在 v2 的文件。已刪除。兩份舊文件的具體問題見文末「舊文件的已知錯誤」。
@@ -171,6 +173,10 @@ C:\Users\h4524\claude_cheng\
 │   ├── check_top_residue.py            # 頭頂的「殘留」是貼在皮質外面的東西還是漏標的皮質：放大圖、亮度剖面（手冊 §24.2 最後）
 │   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）
+│   ├── test_multipass.py               # 改架構第 0 步：不訓練，同一顆模型連跑 2～3 次、位移接起來再算 Dice（待辦 5）
+│   ├── arch.py                         # 改架構用的網路：VxmCascade（串 n 顆，RCN）＋ load_model()（評估腳本都改用它讀 .pt，舊模型照舊）
+│   ├── train_arch.py                   # 訓練新架構（run_train.py --arch cascade 會改跑這支）；--crop / --max-steps 是筆電試跑用
+│   ├── verify_cascade.py               # 串接網路的四項驗證（串 1 顆 = VxmDense、串 2 顆 = 第 0 步連跑兩次、存讀一致、舊模型照舊）
 │   ├── visualize_dice.py               # ⭐ 標籤重疊 / 輪廓 / 逐結構長條圖
 │   ├── plot_dice_curve.py              # dice_curve.csv -> Dice 曲線 + 折疊率兩格圖
 │   ├── plot_loss_curve.py              # 訓練 log -> 每個 epoch 的 loss 曲線（總 / 影像 / 平滑）
@@ -183,6 +189,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_exp7.md                # mix_exp7（速度場＋全解析度＋平滑權重 0.5），Drive 傳輸站\reg\script\mix_exp7\ 也有一份
 │   ├── 指令_mix_wide_vel.md            # mix_wide_vel（加寬 2 倍＋速度場，老師 p25「改看看速度」），Drive 傳輸站\reg\script\mix_wide_vel\ 也有一份
 │   ├── 指令_mix_exp8_9.md              # mix_exp8／9（訓練時也用標籤，γ 0.5／5，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_exp8_9\ 也有一份
+│   ├── 指令_mix_cascade.md             # mix_cascade（改架構第 1 步：串兩顆，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_cascade\ 也有一份
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -242,6 +249,8 @@ C:\Users\h4524\claude_cheng\
 ├── oasis\                              # OASIS：oasis_npz\（vol + seg35）、prepare_author_check.py（作者模型對照，手冊 §19）
 ├── meeting報告\                        # 簡報 pptx（.gitignore）
 ├── 前一AI擔心的\                        # 文件稽核報告（另一個 session 產出）
+├── 文獻\                               # 對位模型文獻筆記.md（LUMIR 排行、熱門程度、SITReg、VFA）＋ img\（make_*.py 畫的教學圖）
+├── voxelmorph_citations_dev.bib        # 官方 dev 分支的論文清單（作者群的後續論文，文獻筆記 §6）
 ├── FreeSurfer_到_VoxelMorph_交接.md    # FreeSurfer 端寫的接入說明
 ├── VoxelMorph_PyTorch_實作指南.md      # 🔴 最舊，見文末
 └── IXI\ixi相關手冊.md                  # 🟡 停在 v2，見文末
@@ -740,6 +749,25 @@ D:\MyHome\MRI\FreeSurfer\docs\ASD_全部資料夾清單.txt   （170 個，含�
 FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者與老師**）：
 - 第一段：IXI 上 train + test，標籤統一用 SynthSeg → 主結果，cohort 一致
 - 第二段：ASD 當 **external validation**，明講是跨 cohort / 跨機器
+
+---
+
+### 5. 改架構：一次加一種「對位專用的設計」（2026-10-06 使用者決定先這樣做）
+
+文獻依據見 `文獻/對位模型文獻筆記.md` §3、§6、§7：換方塊（Transformer／Mamba）幫助不大，
+有用的是「重複修正」「由粗到細」「兩張影像各自抽特徵」「比對」這類對位專用的設計。
+
+- **規則**：每次只改一個地方，其他都跟 mix_exp6 一樣（速度場、全尺寸、λ 1、mixed_v2、250 輪、val 挑 epoch）；
+  也跟 mix_wide_vel 比「改結構 vs. 單純加寬」
+- **第 0 步**（不訓練、試水溫）✅ 10-06：現成模型連跑 2～3 次、位移接起來再算 Dice，`ASD/test_multipass.py`（手冊 §25.1）。
+  三顆都是跑 2 次 **51/51 變好**（+0.008～0.009），跑 3 次反而變差：mix_exp6 0.8051 → **0.8136**、mix_exp3 0.8061 → 0.8147、
+  mix_wide_vel 0.8111 → **0.8188**。擠爆：速度場每人 0.1 → 43 點（加寬 25 點）。**mix_exp6 跑兩次就贏 mix_wide_vel**（+0.0025，39/51）
+- **第 1 步**：串兩顆 = **mix_cascade**（照 RCN，ICCV 2019：各自的權重、一起訓練、相似度只看最後、每顆都罰平滑）。
+  10-06 程式寫好、驗證通過（`ASD/verify_cascade.py` 四項；手冊 §25.2），操作單 `ASD/指令_mix_cascade.md`。
+  顯存外插 16.9 GB（要 `set ... per_process_memory_fraction:0.85`），約 25～28 小時。**等 mix_exp8／9 跑完、AI `git pull` 後再跑**
+- **第 2 步**：由粗到細（金字塔＋每層先把影像拉過去）—— 還沒寫
+- 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
+  不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 
 ---
 

@@ -25,6 +25,11 @@
 | `mix_wide_vel/` | 加寬 2 倍＋速度場、平滑權重 1（老師 09-30 紅字「加寬改看看速度場」）。跟 mix_wide 只差版本、跟 mix_exp6 只差寬度 | 0240 | **0.8111** | 0.000001% |
 | `mix_exp8/` | **準備中**：同 mix_exp6，**訓練時也用 FreeSurfer 標籤**（γ 0.5，`ASD/train_semisup.py`；操作單 `ASD/指令_mix_exp8_9.md`）| — | — | — |
 | `mix_exp9/` | **準備中**：同上，標籤權重 γ 5 | — | — | — |
+| `mix_cascade/` | **準備中**：同 mix_exp6，**兩顆 VoxelMorph 串起來**（改架構第 1 步，RCN；`ASD/train_arch.py`；操作單 `ASD/指令_mix_cascade.md`）| — | — | — |
+
+**第 0 步（不訓練）**：現成模型連跑 2～3 次的結果在 `mix_exp6/multipass_0190.csv`、`mix_exp3/multipass_0240.csv`、
+`mix_wide_vel/multipass_0240_amp.csv`（`ASD/test_multipass.py`；手冊 §25.1）。跑 2 次三顆都 51/51 變好：
+0.8051 → 0.8136、0.8061 → 0.8147、0.8111 → 0.8188；跑 3 次反而變差。
 
 **每一步各貢獻多少**（逐人配對 51 位）：
 

@@ -122,6 +122,7 @@ if args.step != 1 and not args.model_dir:
 
 import torch
 import voxelmorph as vxm
+from arch import load_model    # 2026-10-06：新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
 
 # Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
 # 不要求使用者記得設 PYTHONIOENCODING —— 忘一次就白跑一輪。
@@ -209,7 +210,7 @@ def evaluate(model_path):
         from author_model import load_author_h5
         model = load_author_h5(model_path, device)
     else:
-        model = vxm.networks.VxmDense.load(model_path, device)
+        model = load_model(model_path, device)
     model.to(device)
     model.eval()
 

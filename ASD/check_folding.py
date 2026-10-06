@@ -106,6 +106,7 @@ def run():
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     import torch
     import voxelmorph as vxm
+    from arch import load_model           # 新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
     from scipy import ndimage
 
     device = torch.device('cuda' if args.gpu != '-1' and torch.cuda.is_available() else 'cpu')
@@ -122,7 +123,7 @@ def run():
         exp, ep = spec.split(':')
         with open(os.path.join(ROOT, 'models', exp, 'dice_%s.csv' % ep), encoding='utf-8') as fh:
             ref = {r['file'][:-4]: float(r['jneg_pct']) for r in csv.DictReader(fh)}
-        model = vxm.networks.VxmDense.load(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
+        model = load_model(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
         model.to(device)
         model.eval()
         heat = np.zeros(seg.shape, np.uint8)
@@ -296,6 +297,7 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     import torch
     import voxelmorph as vxm
+    from arch import load_model           # 新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
     from scipy import ndimage
     import matplotlib
     matplotlib.use('Agg')
@@ -309,7 +311,7 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     atlas = np.load(args.atlas)['vol'].astype(np.float32)
     seg = np.load(args.atlas_seg)['seg'].astype(np.int32)
     vol = np.load(os.path.join(args.test_dir, subject + '.npz'))['vol'].astype(np.float32)
-    model = vxm.networks.VxmDense.load(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
+    model = load_model(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -465,6 +467,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     import torch
     import voxelmorph as vxm
+    from arch import load_model           # 新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
     from scipy import ndimage
     import matplotlib
     matplotlib.use('Agg')
@@ -482,7 +485,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
     res = []
     for spec in specs:
         exp, ep = spec.split(':')
-        model = vxm.networks.VxmDense.load(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
+        model = load_model(os.path.join(ROOT, 'models', exp, ep + '.pt'), device)
         model.to(device)
         model.eval()
         with torch.no_grad():

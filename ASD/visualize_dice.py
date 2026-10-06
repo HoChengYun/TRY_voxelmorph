@@ -59,6 +59,7 @@ if not (args.subject and os.path.exists(args.subject)) and not args.test_dir:
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 import torch
 import voxelmorph as vxm
+from arch import load_model               # 新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -124,7 +125,7 @@ if args.model.endswith('.h5'):
     from author_model import load_author_h5
     model = load_author_h5(args.model, device)
 else:
-    model = vxm.networks.VxmDense.load(args.model, device)
+    model = load_model(args.model, device)
 model.to(device).eval()
 warp_nn = vxm.torch.layers.SpatialTransformer(atlas_vol.shape, mode='nearest').to(device)
 

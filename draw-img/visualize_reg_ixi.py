@@ -34,6 +34,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'ASD'))          # author_model.py、orient.py 在那裡
 from orient import canonical_axes, to_ras, flow_to_ras, axcode
+from arch import load_model                            # 新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -75,7 +76,7 @@ if args.model.endswith('.h5'):
     from author_model import load_author_h5
     model = load_author_h5(args.model, device)
 else:
-    model = vxm.networks.VxmDense.load(args.model, device)
+    model = load_model(args.model, device)
 model.to(device)
 model.eval()
 

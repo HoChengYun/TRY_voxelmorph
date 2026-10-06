@@ -2534,3 +2534,85 @@ B 的話結論要改成「標籤缺一塊」，跟殘留、跟配準都無關。
 - ⚠️ 每個人都有一條「左右腦中間」和一條「大腦與小腦之間」的亮帶（大腦鐮、小腦天幕這兩片腦膜），
   這個指標會有一個大家共同的底；人跟人的差別還是看得出殘留，但數值不能當成「殘留幾 mm」的絕對值
 - 圖：`models\skullstrip_check\back_compare.png`（含受試者切片，還沒放進 `ASD/img/`）
+
+## 25. 改架構：一次加一種「對位專用的設計」（2026-10-06～）
+
+使用者 10-06 決定先這樣做（CLAUDE.md 待辦 5）。文獻依據見 `文獻/對位模型文獻筆記.md` §3、§6、§7：
+換方塊（Transformer／Mamba）幫助不大，有用的是「重複修正」「由粗到細」「兩張影像各自抽特徵」這類對位專用的設計。
+
+- **規則**：每次只改一個地方，其他都跟 mix_exp6 一樣（速度場、全尺寸積分、λ 1、mixed_v2、250 epoch、val 挑 epoch）；
+  也跟 mix_wide_vel 比「改結構 vs. 單純加寬」
+- **順序**：第 0 步（不訓練、試水溫）→ 第 1 步 串兩顆（RCN）→ 第 2 步 由粗到細
+- 🔴 **老師可能不希望改架構**（使用者說到時候會講）：改動都是「加上去的」——新檔案（`arch.py`、`train_arch.py`）＋ `--arch`，
+  不給 `--arch` 就是原本的 VoxelMorph；評估腳本改用的 `load_model()` 遇到舊模型就是原本的 `VxmDense.load`
+
+### 25.1 第 0 步：同一顆模型連跑兩三次（不用訓練）
+
+`ASD/test_multipass.py`：受試者先對一次（位移 U1），把搬好的影像再丟進**同一顆**模型得到修正 u2，接成一個總位移
+$U_2(x) = u_2(x) + U_1(x + u_2(x))$（SpatialTransformer 的慣例是 out(x) = in(x + u(x))）。
+每次的輸入都從原圖重新內插（不會越搬越糊），標籤只用最後的總位移搬一次。
+**自我檢查**：第 1 次的 Dice 要跟 `test_dice.py` 存的 `dice_<epoch>.csv` 一樣（三顆最大差 1.2～1.4e-4，GPU 的正常誤差）。
+
+```powershell
+python ASD\test_multipass.py --model models\mix_exp6\0190.pt --test-dir data\mixed_preprocessed_v2\test --passes 3
+```
+
+結果（test 51 位；CSV 在 `models\<實驗>\multipass_<epoch>.csv`）：
+
+| 模型 | 跑 1 次 | 跑 2 次 | 跑 3 次 | 擠爆（每人幾點）1 → 2 → 3 次 |
+|---|---|---|---|---|
+| mix_exp6（速度場、預設寬度）| 0.8050 | **0.8136**（+0.0085，51/51）| 0.8115 | 0.1 → 43 → 123 |
+| mix_exp3（位移場、預設寬度）| 0.8061 | **0.8147**（+0.0086，51/51）| 0.8124 | 16,407 → 24,000 → 27,986 |
+| mix_wide_vel（速度場、加寬 2 倍）| 0.8111 | **0.8188**（+0.0077，51/51）| 0.8180 | 0.1 → 25 → 66 |
+
+1. **三顆都是 51 位全部變好**（p = 5e-10），幅度 +0.008～0.009；**第 3 次反而比第 2 次差**，只要多跑一次就好
+2. 進步集中在**皮質**（+0.03～0.04）、第三腦室、側腦室、白質；腦脊髓液、脈絡叢小退（−0.003～−0.014）。
+   跟平滑權重降到 0.5（mix_exp7）是同一型，但 mix_exp7 整體沒有進步、連跑兩次有
+3. **越難的人幫越多**（用起點 Dice 分組）：r = −0.74～−0.82；起點最差 10 位 +0.011～0.015、最好 10 位 +0.005。
+   跟加寬幫到的是同一批人（兩者的進步 r = 0.65）
+4. **mix_exp6 跑兩次（0.8136）贏 mix_wide_vel 跑一次（0.8111）**：+0.0025、39/51、p = 3e-5——不用訓練、參數只有 1/4
+5. 代價是擠爆變多：速度場從每人約 0 點變成幾十點（43 點 ≈ 0.0005%，仍然遠少於位移場的上萬點）
+6. RCN 論文（ICCV 2019）同一種測法（只訓練一顆的 VTN，測試時跑 2 次）是 +0.008，幅度一樣
+7. ⚠️ mix_wide_vel 在筆電（8 GB）上全精度會溢位到系統記憶體（20 多分鐘跑不完）、限制記憶體又 OOM，
+   所以加了 `--amp`（網路用半精度，接位移、Jacobian、Dice 照舊單精度）；自我檢查第 1 次最大差 1.2e-4，跟全精度一樣在正常誤差內。
+   CSV 叫 `multipass_0240_amp.csv`
+
+👉 **重複修正這條路有用**，第 1 步值得花 AI 一天訓練。這不是真的串接：模型沒學過「修正」，真的訓練一顆專門修的第二顆應該更好。
+
+### 25.2 第 1 步：串兩顆（mix_cascade，照 RCN）
+
+**做法**（Zhao et al., ICCV 2019：Recursive Cascaded Networks）：兩顆完整的 VxmDense，各自的權重、一起訓練；
+第二顆拿「照第一顆搬好的影像」再修一次，位移照 25.1 的接法接成一個；影像項只算最後搬好的影像，
+**每一顆積分前的形變場都罰平滑**：$L = L_{sim}(atlas, m \circ U_2) + \lambda \sum_k L_{smooth}(v_k)$。
+每一顆都是速度場（各自積分，每一段本身不會翻）。RCN 的 VoxelMorph 是位移場、影像縮成 128³；我們是速度場、全尺寸。
+
+**程式**（全部是新的或只改讀檔那一行）：
+
+| 檔案 | 做什麼 |
+|---|---|
+| `ASD/arch.py` | `VxmCascade`（n 顆串起來；`registration=True` 時跟 VxmDense 一樣回傳「搬好的影像、一個總位移」）、`load_model()`（看 `config['arch']` 決定蓋哪種網路，沒有就是 VxmDense）、`cascade_from_single()`（把一顆的權重放進每一顆，對答案用）|
+| `ASD/train_arch.py` | 訓練串接網路。參數、抽樣、log 格式都跟 `train.py` 一樣（平滑項是兩顆加起來）；`--crop`、`--max-steps` 是筆電試跑用（印顯存峰值）|
+| `ASD/run_train.py` | 加 `--arch cascade --n-cascades 2`，給了就改跑 `train_arch.py`；跟 `--seg-weight` 不能一起用 |
+| `test_dice.py`、`check_folding.py`、`visualize_dice.py`、`draw-img/visualize_reg_ixi.py`、`test_multipass.py` | 讀檔改用 `load_model()`，算法不動 |
+| `ASD/verify_cascade.py` | 四項驗證（下面）|
+
+**驗證**（`python ASD\verify_cascade.py --model models\mix_exp6\0190.pt --test-dir data\mixed_preprocessed_v2\test --n 3`，10-06 全部通過）：
+1. 只串 1 顆、放 mix_exp6 的權重 → 跟 VxmDense 完全一樣（差 0）
+2. 串 2 顆、兩顆都放 mix_exp6 的權重 → 跟第 0 步「連跑 2 次」的 Dice 一樣（3 位，最大差 2.4e-7）
+3. 存檔再用 `load_model()` 讀回來 → 輸出完全一樣，config 記著 `arch`、`n_cascades`
+4. `load_model()` 讀以前的模型 → 還是 VxmDense
+
+**筆電試跑**（96×112×96，全尺寸的 1/8）：60 步之後兩顆的權重都有更新（梯度傳得回第一顆）；從存檔續跑正常。
+全尺寸經 `run_train.py --arch cascade` 跑 1 步也正常（指令記錄有 `--arch cascade --n-cascades 2`、存出來的 .pt 讀得回來；
+筆電顯存不夠、溢位，1 步 108 秒，AI 上不會）。
+
+| | 參數 | 顯存（實際／PyTorch 預留）| 乘 8 外插到全尺寸 |
+|---|---|---|---|
+| 1 顆（＝ mix_exp6）| 301,411 | 1.10／1.93 GB | 8.8 GB（之前量 8.7，對得上）|
+| **串 2 顆** | 602,822 | 2.11／2.94 GB | **16.9 GB**、預留約 23.5 GB |
+
+AI 24 GB：要 `set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85`。每步預估 3.5～4 秒（一顆在 AI 上 1.84 秒），250 epoch 約 25～28 小時。
+
+**操作單**：`ASD/指令_mix_cascade.md`（Drive 傳輸站\reg\script\mix_cascade\ 也有一份）。**等 mix_exp8／9 跑完再跑**。
+
+**判讀**：跟第 0 步的 0.8136 比——更高＝第二顆學會修、串接值得；差不多＝好處主要來自多跑一次；擠爆預期比第 0 步的每人 43 點少。
