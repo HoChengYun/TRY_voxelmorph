@@ -35,9 +35,27 @@ function pngSize(p) { const b = fs.readFileSync(p); return { w: b.readUInt32BE(1
 function txt(s, text, o) {
   s.addText(text, Object.assign({ fontFace: F.SANS, color: C.INK, margin: 0, isTextBox: true, valign: 'top', lang: 'zh-TW' }, o));
 }
+// 講稿（講稿.md）→ 每頁的備忘稿（PowerPoint 簡報者檢視）。2026-10-07 使用者：「感覺可以來個講稿」
+// 標題行「## 第 N 頁 … <!-- key -->」的 key 對應 ORDER；遇到「# 」開頭（如「可能的提問」）就停止收集
+const NOTES = {};
+{
+  const f = path.join(__dirname, '講稿.md');
+  if (fs.existsSync(f)) {
+    let key = null;
+    for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
+      const h = line.match(/^## 第 (\d+) 頁.*<!--\s*(\w+)\s*-->/);
+      if (h) { key = h[2]; NOTES[key] = { page: +h[1], text: [] }; continue; }
+      if (/^#{1,2} /.test(line)) { key = null; continue; }
+      if (key) NOTES[key].text.push(line.replace(/\*\*/g, ''));
+    }
+  }
+}
+const noteOf = (k) => (NOTES[k] ? NOTES[k].text.join('\n').trim() : '');
+
 function base(eyebrow, title, notes) {
   const s = pres.addSlide();
   page += 1;
+  notes = notes || noteOf(ORDER[page - 1]);
   s.background = { color: C.PAPER };
   txt(s, eyebrow, { x: M, y: 0.42, w: 11.5, h: 0.28, fontFace: F.SANS, fontSize: 12, bold: true, color: C.MUTED, charSpacing: 2 });
   txt(s, title, { x: M, y: 0.74, w: 12.1, h: 0.7, fontSize: 26, bold: true });
@@ -138,6 +156,7 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   const s = pres.addSlide();
   page += 1;
   s.background = { color: '1A2125' };
+  if (noteOf('cover')) s.addNotes(noteOf('cover'));
   txt(s, '2026-10-14   MEETING', { x: M, y: 2.2, w: 11, h: 0.3, fontFace: F.MONO, fontSize: 12, color: '8A9294', charSpacing: 4 });
   txt(s, '09-30 會議意見之回覆', { x: M, y: 2.7, w: 11.5, h: 1.0, fontSize: 40, bold: true, color: C.WHITE });
   txt(s, 'Folding 之位置、SVF 之 λ、殘留鄰近結構之 Dice、枕部殘留、2× width SVF',
@@ -747,5 +766,12 @@ if (HAS_ARCH) {
   ]), { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16, paraSpaceAfter: 16 });
 }
 
+if (Object.keys(NOTES).length) {                 // 講稿的頁碼、缺漏檢查（只提醒，不擋）
+  ORDER.forEach((k, i) => {
+    if (!NOTES[k]) console.warn('[!] 講稿.md 缺第 ' + (i + 1) + ' 頁（' + k + '）');
+    else if (NOTES[k].page !== i + 1) console.warn('[!] 講稿.md 的 ' + k + ' 標成第 ' + NOTES[k].page + ' 頁，實際是第 ' + (i + 1) + ' 頁');
+  });
+  Object.keys(NOTES).filter((k) => !ORDER.includes(k)).forEach((k) => console.warn('[!] 講稿.md 有 ' + k + '，但簡報沒有這一頁'));
+}
 if (page !== ORDER.length) throw new Error('頁數對不上：做了 ' + page + ' 頁，ORDER 排了 ' + ORDER.length + ' 頁（內文引用的頁碼會錯）');
 pres.writeFile({ fileName: OUT }).then(() => console.log('ok ->', OUT, '｜' + page + ' 頁'));

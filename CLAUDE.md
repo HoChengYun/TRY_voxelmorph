@@ -207,7 +207,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 37 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 37 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義＋講稿.md 寫進每頁備忘稿，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
