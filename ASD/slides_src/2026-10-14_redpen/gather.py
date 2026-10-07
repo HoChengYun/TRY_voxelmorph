@@ -293,7 +293,18 @@ FSNAME = {2: 'Left-Cerebral-White-Matter', 3: 'Left-Cerebral-Cortex', 4: 'Left-L
           41: 'Right-Cerebral-White-Matter', 42: 'Right-Cerebral-Cortex', 43: 'Right-Lateral-Ventricle',
           46: 'Right-Cerebellum-White-Matter', 47: 'Right-Cerebellum-Cortex', 49: 'Right-Thalamus', 50: 'Right-Caudate',
           51: 'Right-Putamen', 52: 'Right-Pallidum', 53: 'Right-Hippocampus', 54: 'Right-Amygdala',
-          60: 'Right-VentralDC', 63: 'Right-choroid-plexus'}
+          60: 'Right-VentralDC', 63: 'Right-choroid-plexus', 85: 'Optic-Chiasm'}
+EVAL30 = {l for ls in PAIRS.values() for l in ls}                          # 30 個評估結構（labels.npz）
+
+
+def fs_merged(ls):
+    """[3, 42] -> 'Cerebral-Cortex'（左右合併時拿掉 Left-／Right-）；單一標籤照 LUT 原名"""
+    side, _, rest = FSNAME[ls[0]].partition('-')
+    return rest if len(ls) == 2 and side in ('Left', 'Right') else FSNAME[ls[0]]
+
+
+# 2026-10-07 使用者：結構名稱要附英文（FreeSurferColorLUT 名稱）→ 第 9、24 頁的圖、第 11 頁的表
+D['struct_en'] = {n: fs_merged(ls) for n, ls in PAIRS.items()}
 
 
 def fs_pairs(labs):
@@ -307,6 +318,35 @@ def fs_pairs(labs):
              '%s（%s）' % ('Left/Right-' + key if len(ls) == 2 else FSNAME[ls[0]], '、'.join(str(l) for l in sorted(ls)))]
             for key, ls in groups.items()]
 
+
+def near_groups(shares, included):
+    """第 11 頁表格（2026-10-07 改成一個結構一列、附 FreeSurfer 名稱）：
+    '左大腦皮質 52.0%、右大腦皮質 47.9%' -> [{zh, fs, labels, shares, included, note}]，左右合併、照原本順序"""
+    inc = {LID[n] for n in included.split('、')}
+    out, idx = [], {}
+    for item in shares.split('、'):
+        name, pct = item.rsplit(' ', 1)
+        l = LID[name]
+        side, _, rest = FSNAME[l].partition('-')
+        key = rest if side in ('Left', 'Right') else FSNAME[l]
+        if key not in idx:
+            idx[key] = len(out)
+            out.append({'zh': LNAME[l].lstrip('左右'), 'items': []})
+        out[idx[key]]['items'].append((l, float(pct.rstrip('%'))))
+    for g in out:
+        g['items'].sort()
+        ls = [l for l, _ in g['items']]
+        g['labels'] = ls
+        g['shares'] = [s for _, s in g['items']]
+        g['fs'] = ('Left/Right-' + fs_merged(ls) if len(ls) == 2 else FSNAME[ls[0]]) + '（%s）' % '、'.join(map(str, ls))
+        g['included'] = all(l in inc for l in ls)
+        g['note'] = ('' if g['included'] else
+                     '非 30 個評估結構' if not any(l in EVAL30 for l in ls) else '占比 < 5%')
+        del g['items']
+    return out
+
+
+D['residue_near'] = {k: near_groups(res[k]['near_shares_pooled'], res[k]['labels_pooled']) for k in REG}
 
 mm = {}
 for k, metric in REG.items():

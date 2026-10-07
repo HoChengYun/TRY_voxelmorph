@@ -24,11 +24,11 @@
 | 1–2 | 封面、一頁看完（五件事的結果表）| |
 | 3–6 | ① 擠爆的位置（第 4 頁「不同設定」要先有 `folding_params.png`）| `folding_check/folding_views.png`、`folding_check/folding_params.png`、`1014_folding_regions.png`、`folding_check/folding_zoom_T054.png` |
 | 7–10 | ② 速度場的平滑權重（9、10 頁只在 mix_exp6、7 都有結果時才出現）| `1014_ablation.png`（09-20 那份 `ablation.png` 的正式用語版，`make_charts.py` 畫；09-20 的產生器不動）、`1014_lambda.png`、`1014_lambda_struct.png`、`grid_lambda.png` |
-| 11 | ③ 老師的做法：只平均殘留旁邊的結構 | （表格）|
+| 11 | ③ 老師的做法：只平均殘留旁邊的結構。表格一個結構一列：中文、FreeSurfer 名稱（標籤編號）、左／右占比、是否納入（`gather.py` 的 `residue_near`，2026-10-07 改）| （表格）|
 | 12–15 | ③ 頭頂殘留厚度怎麼量（1/4～4/4）：每一步一頁，上面是圖、下面是編號公式 (1)～(5)＋「其中」符號說明（`make_method.py`）| `1014_method_{1..4}.png`、`1014_method_eq{1..4}.png` |
 | 16–18、20、21 | ③ 第 16 頁散佈圖＋2×2 Dice 表；第 17 頁 test 頭頂殘留最多／最少各 3 位；第 18 頁三個位置的散佈圖＋Dice 表（附 FreeSurfer 結構名稱與標籤編號）；第 20 頁顱底的 3 對 3；第 21 頁是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_six.png`、`1014_regions.png`、`1014_six_base.png`、`1014_top_example.png` |
 | 19 | ④ 後腦杓（test 後腦杓殘留最多／最少各 3 位，跟第 17 頁同一個樣子）| `1014_six_back.png` |
-| 22 | ⑤ 加寬＋速度場（2×2 表格：版本 × 寬度；右邊逐人配對；下面顯存設定前後每步時間）| （表格）|
+| 22 | ⑤ 加寬＋速度場（2×2 表格：版本 × 寬度；右邊逐人配對）。原本下方的「附記」（顯存設定前後每步時間）2026-10-07 使用者在 PowerPoint 刪掉，`build.js` 同步拿掉 | （表格）|
 | 23 | ⑤ 訓練過程：版本 × 寬度四顆的驗證集 Dice 與擠爆比例，下面一行「不用再訓練更久」（`gather.py` 的 `plateau`）| `deck_charts/curve_wide.png` |
 | 24 | ⑤ 每個結構：加寬的效果（兩個版本並排）、加寬後換版本（2026-10-06 加，以下同）| `1014_wide_struct.png` |
 | 25 | ⑤ 越難對的人加寬幫越多：位移場、速度場並排＋起點最差／中間／最好的表（`gather.py` 的 `wide_diff`）| `1014_wide_difficulty.png` |
@@ -137,9 +137,10 @@ mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在�
   第 20 頁「此 6 位中，殘留多者之 ΔDice 略高」「殘留多位於腦之前下方」這幾個字是照現在的數字寫的（數字本身從 CSV 算）
 - 第 12～15 頁（`make_method.py`）：例子 sub-0043、第 87 片、column x=74／101；「腦膜與腦組織之間原有一層腦脊髓液」「該處頭皮傾斜」
   這些解釋是寫死的文字；圖上和公式說明裡的數字（0.62、0.31、0.23～0.32、8,980、31,524、3.51、r 範圍）都從資料算
-- 第 22 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 餘秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
-  10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）。
-  加寬兩顆的每步秒數、小時數是 `gather.py` 從 `log/mix_wide.txt`、`log/mix_wide_vel.txt` 算的（log 沒帶回來時才退回寫死的「約 19 小時」）
+- 第 2 頁的「註：SVF = stationary velocity field…」（2026-10-07 使用者：「P2 就和老師說 SVF」）
+- 第 5、9、24 頁圖上的英文結構名稱：第 9、24 頁是 FreeSurferColorLUT 名稱左右合併（`gather.py` 的 `struct_en`）；
+  第 5 頁是區域分組（多個標籤），英文是描述性的（`make_charts.py` 的 `SHOW`）
+- 第 22 頁原本的附記（約 33 GB／24 GB、每步秒數）已拿掉；`gather.py` 仍算 `train_time`（從 `log/mix_wide*.txt`），簡報不再使用
 - 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不可跨參數化比較」、第 27、28 頁的說明文字是照現在的數字寫的
 - 第 34 頁「半監督訓練…γ = 0.5、5」：照 `ASD/指令_mix_exp8_9.md`；「Eq. 10」照 `ASD/train_semisup.py` 檔頭（論文式 (9)、(10)）
 - ⑥ 架構修改（第 29～33 頁）：文獻數字照論文抄、寫在 `make_charts.py`（Jian et al., WBIR 2024 Table 2 的 LPBA 欄

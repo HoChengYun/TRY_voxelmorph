@@ -52,6 +52,9 @@ def save(fig, name):
 
 # ── ② 平滑權重 ─────────────────────────────────────────────────────────
 M = D['models']
+# 結構名稱附英文（FreeSurferColorLUT 名稱，左右合併；gather.py 的 struct_en）：2026-10-07 使用者要求
+EN = D.get('struct_en', {})
+zh_en = lambda n: '%s  %s' % (n, EN[n]) if n in EN else n
 W = [2.0, 1.0, 0.5]                      # 由左到右越放鬆
 # 2026-10-07 使用者要求正式用語：圖上的字一律用學術用語（術語對照見 README）
 SERIES = [('SVF（full-res.）', TEAL, {2.0: 'mix_exp5', 1.0: 'mix_exp6', 0.5: 'mix_exp7'}),
@@ -148,7 +151,7 @@ if all(e in S for e in ('mix_exp5', 'mix_exp6', 'mix_exp7')):
     names = sorted(S['mix_exp5'], key=lambda n: S['mix_exp7'][n] - S['mix_exp5'][n])
     d1 = np.array([S['mix_exp6'][n] - S['mix_exp5'][n] for n in names])
     d05 = np.array([S['mix_exp7'][n] - S['mix_exp5'][n] for n in names])
-    fig, ax = plt.subplots(figsize=(9.2, 7.0), facecolor=PAPER)    # 簡報上放左半邊，圖小一點、字才不會縮太小
+    fig, ax = plt.subplots(figsize=(10.4, 7.0), facecolor=PAPER)   # 簡報上放左半邊；10-07 加英文名稱後加寬
     y = np.arange(len(names))
     ax.barh(y + 0.2, d1, height=0.38, color='#5BB8B6', label='λ = 1（mix_exp6）')
     ax.barh(y - 0.2, d05, height=0.38, color='#0A4F4E', label='λ = 0.5（mix_exp7）')
@@ -157,7 +160,7 @@ if all(e in S for e in ('mix_exp5', 'mix_exp6', 'mix_exp7')):
                 fontsize=12, color='#0A4F4E', fontweight='bold')
     ax.axvline(0, color=INK, lw=1)
     ax.set_yticks(y)
-    ax.set_yticklabels(names, fontsize=13.5)
+    ax.set_yticklabels([zh_en(n) for n in names], fontsize=13)
     ax.tick_params(axis='x', labelsize=11.5)
     lim = max(abs(d05).max(), abs(d1).max()) + 0.014
     ax.set_xlim(-lim, lim)
@@ -237,9 +240,12 @@ save(fig, '1014_regions.png')
 # ── ① 擠爆的點落在哪些區域（佔幾 %）─────────────────────────────────────────
 FOLD = D['folding']
 REG = ['大腦皮質', '大腦白質', '腦內、沒有標籤', '腦室・腦脊髓液・脈絡叢', '小腦・腦幹', '深部灰質・海馬・杏仁核', '腦外（背景）']
-SHOW = {'大腦皮質': '大腦皮質', '大腦白質': '大腦白質', '腦內、沒有標籤': '腦內未標記區域（多為腦溝）',
-        '腦室・腦脊髓液・脈絡叢': '腦室・腦脊髓液', '小腦・腦幹': '小腦・腦幹',
-        '深部灰質・海馬・杏仁核': '深部灰質・海馬・杏仁核', '腦外（背景）': '腦外'}
+# 區域是多個 FreeSurfer 標籤的分組（check_folding.py 的 GROUPS），英文寫在第二行（2026-10-07）
+SHOW = {'大腦皮質': '大腦皮質\nCerebral-Cortex', '大腦白質': '大腦白質\nCerebral-White-Matter',
+        '腦內、沒有標籤': '腦內未標記區域（多為腦溝）\nUnlabeled (mostly sulcal)',
+        '腦室・腦脊髓液・脈絡叢': '腦室・腦脊髓液・脈絡叢\nVentricles, CSF, choroid plexus',
+        '小腦・腦幹': '小腦・腦幹\nCerebellum, Brain-Stem',
+        '深部灰質・海馬・杏仁核': '深部灰質・海馬・杏仁核\nDeep GM, Hippocampus, Amygdala', '腦外（背景）': '腦外\nOutside the brain'}
 FCOL = {'mix_exp4': '#D9895A', 'mix_exp3': '#A34F1B', 'mix_wide': '#6B3FA0'}
 FLAB = {'mix_exp4': 'Displacement・λ = 2', 'mix_exp3': 'Displacement・λ = 1', 'mix_wide': 'Displacement・λ = 1・2× width'}
 fig, ax = plt.subplots(figsize=(12, 4.6), facecolor=PAPER)
@@ -251,7 +257,7 @@ for i, r in enumerate(REG):
     ax.text(max(FOLD[e]['share'][r] for e in ('mix_exp4', 'mix_exp3', 'mix_wide')) + 0.8, i, '%.1f%%' % FOLD['mix_exp3']['share'][r],
             va='center', fontsize=12.5, fontweight='bold', color=FCOL['mix_exp3'])
 ax.set_yticks(range(len(REG)))
-ax.set_yticklabels([SHOW[r] for r in REG], fontsize=13)
+ax.set_yticklabels([SHOW[r] for r in REG], fontsize=12, linespacing=1.15)
 ax.invert_yaxis()
 ax.set_xlabel('Folding voxel 所占比例（%；數值標示為 λ = 1）', fontsize=12)
 ax.legend(fontsize=12, frameon=False, loc='lower right')
@@ -390,7 +396,7 @@ if all(e in S for e in ('mix_exp3', 'mix_exp6', 'mix_wide', 'mix_wide_vel')):
         ax.grid(axis='y', alpha=0)
         ax.tick_params(axis='x', labelsize=11)
     a1.set_yticks(y)
-    a1.set_yticklabels(names, fontsize=12.5)
+    a1.set_yticklabels([zh_en(n) for n in names], fontsize=12)
     a1.set_xlabel('ΔDice（2× width − default width，左右平均）', fontsize=12.5)
     a1.set_title('加寬之效果：多數結構上升', fontsize=14, fontweight='bold')
     a1.legend(fontsize=11, frameon=False, loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2)   # 放圖外面，不壓到長條

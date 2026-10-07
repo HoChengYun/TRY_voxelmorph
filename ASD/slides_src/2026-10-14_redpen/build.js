@@ -84,7 +84,7 @@ function fitImage(s, p, x, y, maxW, maxH, alt) {
 const CH = (n) => path.join(MROOT, 'deck_charts', n);
 const FC = (n) => path.join(MROOT, 'folding_check', n);
 
-const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check, TT = D.train_time || {};
+const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check;
 const MM = D.residue_mm;            // ③④ 原始數值版（mm／mm³、Dice 進步不扣平均、用 mm 分組），2026-10-05 起第 12、14、15 頁用這個
 const done = (e) => m[e].status === 'done';
 const score = (e) => (done(e) ? f3(m[e].mean) : '訓練中');
@@ -158,6 +158,13 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
     ['④ 枕部殘留（p22）', '量測枕部殘留厚度', '有殘留，與 ΔDice 無顯著相關'],
     ['⑤ 2× width 改用 SVF（p25）', '2× width U-Net + SVF', wide],
   ], { x: M, y: 1.65, w: 12.13, colW: [3.7, 3.75, 4.68], fontSize: 13.5, rowH: 0.62 });
+  // 2026-10-07 使用者：「P2 就和老師說 SVF」→ SVF 第一次出現的地方寫出全名與定義
+  txt(s, [
+    { text: '註：SVF', options: { bold: true } },
+    { text: ' = stationary velocity field（穩態速度場），φ = exp(v)；' },
+    { text: 'displacement field', options: { bold: true } },
+    { text: '：直接輸出位移 u，φ = Id + u（VoxelMorph 論文 Table I 之版本）' },
+  ], { x: M, y: 5.52, w: 12.13, h: 0.35, fontSize: 12.5, color: C.MUTED });
   txt(s, '③ 另確認：顱頂殘留並非 FreeSurfer 分割低估所致，而係去顱骨不完全（第 ' + PG.res_check + ' 頁）',
     { x: M, y: 6.0, w: 12.13, h: 0.45, fontSize: 14.5, color: C.MUTED });
   if (HAS_ARCH) {
@@ -293,22 +300,26 @@ if (HAS_LAM) {
   const s = base(EB.res, '評估方式：僅平均殘留鄰近結構之 Dice，不平均全部 30 個結構');
   txt(s, '對每個殘留 voxel 找出距離最近之結構；占殘留 voxel ≥ 5% 且屬於 30 個評估結構者，納入平均。',
     { x: M, y: 1.55, w: 12.13, h: 0.45, fontSize: 15 });
-  table(s, [
-    ['殘留部位', '鄰近結構（占殘留 voxel 之比例）', '納入 Dice 平均之結構'],
-    ['顱頂', R.top.near_shares_pooled, R.top.labels_pooled],
-    ['顱底', R.base.near_shares_pooled, R.base.labels_pooled],
-    ['枕部', R.back.near_shares_pooled, R.back.labels_pooled],
-  ], { x: M, y: 2.25, w: 12.13, colW: [1.25, 5.55, 5.33], fontSize: 13 });
-  card(s, M, 4.55, 12.13, 0.8, 'FFF3E8');
+  // 2026-10-07 使用者：結構要附英文名稱 → 一個結構一列：中文、FreeSurferColorLUT 名稱（標籤編號）、左／右占比、是否納入
+  // （gather.py 的 residue_near；視交叉「不屬於 30 個評估結構」、枕部腦幹「占比 < 5%」也在表裡交代）
+  const RN = D.residue_near;
+  const body = [];
+  [['top', '顱頂'], ['base', '顱底'], ['back', '枕部']].forEach(([k, nm]) => {
+    RN[k].forEach((g, i) => {
+      const share = g.shares.map((x) => x.toFixed(1) + '%').join('／');
+      const inc = g.included ? { text: '納入', options: { bold: true, color: C.TEAL } }
+                             : { text: '不納入（' + g.note + '）', options: { color: C.MUTED } };
+      body.push([...(i === 0 ? [{ text: nm, options: { rowspan: RN[k].length, bold: true } }] : []),
+                 g.zh, { text: g.fs, options: { color: C.MUTED } }, share, inc]);
+    });
+  });
+  table(s, [['殘留部位', '鄰近結構', 'FreeSurfer 名稱（標籤編號）', '占殘留 voxel（左／右）', 'Dice 平均']].concat(body),
+    { x: M, y: 2.15, w: 12.13, colW: [1.1, 1.35, 4.2, 2.4, 3.08], fontSize: 13, rowH: 0.34 });
+  card(s, M, 5.75, 12.13, 0.8, 'FFF3E8');
   txt(s, [
     { text: '理由：', options: { bold: true } },
     { text: '殘留位於腦組織外側，鄰近結構幾乎皆為大腦皮質；若將視丘、海馬迴等遠離殘留之結構一併平均，其影響將被稀釋。' },
-  ], { x: M + 0.3, y: 4.74, w: 11.5, h: 0.45, fontSize: 15, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0 });
-  const oc = R.base.near_shares_pooled.match(/視交叉 ([0-9.]+%)/);
-  if (oc) {
-    txt(s, '視交叉（顱底 ' + oc[1] + '）不屬於 30 個評估結構，故未納入。',
-      { x: M, y: 5.75, w: 12.13, h: 0.4, fontSize: 12.5, color: C.MUTED });
-  }
+  ], { x: M + 0.3, y: 5.94, w: 11.5, h: 0.45, fontSize: 15, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0 });
 }
 
 if (HAS_METHOD) {
@@ -460,17 +471,8 @@ if (HAS_BASE6) {
     ], { x: X0, y: 1.6, w: WW, h: 3.5, fontSize: 14.5, paraSpaceAfter: 8 });
     txt(s, '→ Dice 與目前最高之 mix_wide 相當，且幾近無 folding：目前最佳模型',
       { x: M, y: 4.45, w: 8.2, h: 0.45, fontSize: 16, bold: true, color: C.TEAL });
-    card(s, M, 5.2, 12.13, 1.7, 'FFF3E8');
-    const t = TT.mix_wide_vel, t0 = TT.mix_wide;
-    txt(s, [
-      { text: '附記：2× width 模型訓練時間超出預估之原因', options: { bold: true } },
-      { text: '\nPyTorch 快取配置器預留之 GPU 記憶體（約 33 GB）超過 TITAN RTX 之 24 GB，超出部分由系統記憶體支應，導致速度下降。' },
-      { text: '\n訓練前設定記憶體上限（僅限制配置，不影響計算）'
-          + (t && t0 ? '：本模型每步 ' + t.sec.toFixed(1) + ' 秒、共 ' + Math.round(t.hours) + ' 小時；mix_wide 未設定，每步 '
-                       + t0.sec.toFixed(1) + ' 秒、共 ' + Math.round(t0.hours) + ' 小時' : '')
-          + '（mix_exp6、7 同時訓練時：每步 10 餘秒 → 約 3 秒）。',
-        options: { color: C.MUTED } },
-    ], { x: M + 0.3, y: 5.35, w: 11.5, h: 1.45, fontSize: 14, paraSpaceAfter: 4 });
+    // 原本下方有「附記：2× width 模型訓練時間超出預估之原因」（顯存與每步時間）；
+    // 2026-10-07 使用者在 PowerPoint 裡刪掉了，這裡同步拿掉，重建才不會又出現（資料仍在 gather.py 的 train_time）
   } else {
     bullets(s, [
       [{ text: '寬度比較（同一參數化）', options: { bold: true } },
@@ -478,14 +480,6 @@ if (HAS_BASE6) {
       [{ text: '參數化比較', options: { bold: true } },
        sub('\n2× width 下，SVF 是否仍優於 displacement field 且無 folding')],
     ], { x: X0, y: 1.7, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
-    card(s, M, 4.45, 12.13, 2.35, 'FFF3E8');
-    txt(s, [
-      { text: '附記：2× width 模型訓練時間超出預估之原因', options: { bold: true } },
-      { text: '\nPyTorch 快取配置器預留之 GPU 記憶體（約 33 GB）超過 TITAN RTX 之 24 GB，超出部分由系統記憶體支應，導致速度下降。' },
-      { text: '\n訓練前設定記憶體上限（僅限制配置，不影響計算）；mix_exp6、7 同時訓練時已驗證：每步 10 餘秒 → 約 3 秒。',
-        options: { color: C.MUTED } },
-      { text: '\n2× width SVF 亦採此設定，預估約 19 小時（mix_wide 為 26 小時）。', options: { color: C.MUTED } },
-    ], { x: M + 0.3, y: 4.62, w: 11.5, h: 2.05, fontSize: 14.5, paraSpaceAfter: 4 });
   }
 }
 
