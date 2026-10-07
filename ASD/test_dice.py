@@ -51,6 +51,17 @@ Affine 已吸收大部分尺寸差（實測受試者被放大約 1.44 倍），�
 
 --test-dir 必填，直接給路徑（2026-09-13 改）：原本的 --dataset ASD 會自己組出
 data/ASD_preprocessed_v1，指令上看不出用的是哪一版；有了 v2 之後還會安靜地拿 v1 去跑。
+
+--surface（2026-10-07 加）：另外算 HD95 與 SDlogJ（Learn2Reg 的報告方式），寫到 surface_<epoch>.csv
+    HD95  ：每個結構，兩個標籤的邊界點到對方邊界的最短距離，兩個方向各取第 95 百分位、取較大者
+            （同 MONAI、DeepMind surface-distance 的 robust Hausdorff）；1 voxel = 1 mm，單位 mm，越小越好
+    SDlogJ：log|J| 的標準差，在 atlas 腦遮罩（seg > 0）內計算；|J| ≤ 0 先截到 1e-9 再取 log。越小 = 形變越平滑
+    ⚠️ 已有 dice_<epoch>.csv 時不會覆蓋（那是正式結果），只拿重算的 Dice 跟它對一次，確認推論可重現。
+    --amp：網路用半精度（2× width 模型在 8 GB 筆電上要加），輸出檔名多 _amp。
+    只支援 --model 與 --baseline（--model-dir 掃 epoch 時太慢）。
+
+    python ASD\\test_dice.py --model models\\mix_exp6\\0190.pt --test-dir data\\mixed_preprocessed_v2\\test --surface
+    python ASD\\test_dice.py --baseline --test-dir data\\mixed_preprocessed_v2\\test --exp-name mix_exp2 --surface
 """
 
 import os
@@ -86,7 +97,12 @@ ap.add_argument('--exp-name', default=None,
                      '之後翻舊實驗不用另外找對照。不給則寫到 models/<test 上一層的資料夾名>_baseline/')
 ap.add_argument('--out-csv', default=None)
 ap.add_argument('--gpu', default='0')
+ap.add_argument('--surface', action='store_true',
+                help='另外算 HD95（mm）與 SDlogJ，寫到 surface_<epoch>.csv（見檔頭）')
+ap.add_argument('--amp', action='store_true', help='網路用半精度（float16）跑，省顯存；標籤搬移與指標照舊單精度')
 args = ap.parse_args()
+if args.surface and args.model_dir:
+    sys.exit('[X] --surface 只支援 --model 與 --baseline（掃 epoch 時 HD95 太慢）')
 
 args.test_dir = os.path.normpath(args.test_dir)
 if not os.path.isdir(args.test_dir):
@@ -122,6 +138,7 @@ if args.step != 1 and not args.model_dir:
 
 import torch
 import voxelmorph as vxm
+from scipy import ndimage
 from arch import load_model    # 2026-10-06：新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
 
 # Windows 主控台預設 cp950，印到 emoji 會 UnicodeEncodeError 直接中斷程式。
@@ -183,16 +200,57 @@ warp_lin = vxm.torch.layers.SpatialTransformer(inshape, mode='bilinear').to(devi
 warp_nn = vxm.torch.layers.SpatialTransformer(inshape, mode='nearest').to(device)
 
 
-def jacobian_negative_ratio(flow):
-    """負 Jacobian determinant 比例（沿用 batch_test_ixi.py 的算法）。"""
+def jacobian_det(flow):
+    """每個 voxel 的 Jacobian determinant det(I + ∇u)（中央差分，沿用 batch_test_ixi.py 的算法）。"""
     d = [[np.gradient(flow[c], axis=a) for a in range(3)] for c in range(3)]
     j11, j12, j13 = 1 + d[0][0], d[0][1], d[0][2]
     j21, j22, j23 = d[1][0], 1 + d[1][1], d[1][2]
     j31, j32, j33 = d[2][0], d[2][1], 1 + d[2][2]
-    det = (j11 * (j22 * j33 - j23 * j32)
-           - j12 * (j21 * j33 - j23 * j31)
-           + j13 * (j21 * j32 - j22 * j31))
+    return (j11 * (j22 * j33 - j23 * j32)
+            - j12 * (j21 * j33 - j23 * j31)
+            + j13 * (j21 * j32 - j22 * j31))
+
+
+def jacobian_negative_ratio(flow, det=None):
+    """負 Jacobian determinant 比例，分母是整個影像（舊定義，jneg_pct 欄位；保留是為了跟以前的 CSV 對得上）。"""
+    det = jacobian_det(flow) if det is None else det
     return float((det <= 0).sum() / det.size)
+
+
+def folding_fg(det):
+    """負 Jacobian determinant 比例，分母是 atlas 非背景 voxel（jneg_fg_pct 欄位）。
+    2026-10-07 起報告一律用這個（使用者：「folding 比例的分母我想和 VoxelMorph 一樣」）。"""
+    return float((det[FG] <= 0).mean())
+
+
+# SDlogJ 與 jneg_fg_pct 的計算範圍：fixed image（atlas）的非背景 voxel（1,867,705 個，約占全影像 22.6%）。
+# 🔴 2026-10-07：VoxelMorph 論文文字是「count all non-background voxels for which |J| ≤ 0」（§V-A-2），但 Table I 標題寫明
+#    百分比的分母是固定的 5.2 M voxel（他們的「腦內」）。我們的分母（非背景 1.87 M、整個影像 8.26 M）都不同，
+#    百分比不能跟論文的 0.366% 直接比 → 跟論文比較一律用 folding voxel 數（論文 VoxelMorph (CC) 19,077）。
+FG = atlas_vol > 0
+
+
+def sdlogj(det):
+    """log|J| 的標準差（atlas 非背景內）。|J| ≤ 0 的地方 log 無定義，先截到 1e-9（同 Learn2Reg 的做法）。"""
+    return float(np.log(np.clip(det[FG], 1e-9, 1e9)).std())
+
+
+def hd95(x, y):
+    """兩個二值標籤的 95% Hausdorff distance（voxel = 1 mm）。
+    邊界 = 標籤內、至少一個 6 鄰居不在標籤內的 voxel；兩個方向各取第 95 百分位，回傳較大者
+    （同 MONAI compute_hausdorff_distance(percentile=95)、DeepMind surface-distance 的 robust Hausdorff）。
+    為了快，只在兩個標籤的聯集外框（外擴 2 voxel）內算距離轉換；邊界都在框內，距離不受影響。"""
+    if not x.any() or not y.any():
+        return np.nan
+    idx = np.argwhere(x | y)
+    lo, hi = np.maximum(idx.min(0) - 2, 0), idx.max(0) + 3
+    sl = tuple(slice(a, b) for a, b in zip(lo, hi))
+    x, y = x[sl], y[sl]
+    bx = x & ~ndimage.binary_erosion(x)
+    by = y & ~ndimage.binary_erosion(y)
+    to_x = ndimage.distance_transform_edt(~bx)       # 每個 voxel 到 x 邊界的距離
+    to_y = ndimage.distance_transform_edt(~by)
+    return float(max(np.percentile(to_y[bx], 95), np.percentile(to_x[by], 95)))
 
 
 def dice(a, b, lab):
@@ -226,7 +284,9 @@ def evaluate(model_path):
             v = torch.from_numpy(vol)[None, None].to(device)
             # ⭐ source=受試者, target=atlas（跟訓練時的 [scan, atlas] 一致）
             # ⭐ registration=True -> 拿積分過、全解析度的 pos_flow
-            moved, flow = model(v, atlas_t, registration=True)
+            with torch.autocast('cuda', dtype=torch.float16, enabled=args.amp):
+                moved, flow = model(v, atlas_t, registration=True)
+            flow = flow.float()
 
             # ⭐ 標籤用最近鄰搬
             s = torch.from_numpy(seg.astype(np.float32))[None, None].to(device)
@@ -239,20 +299,71 @@ def evaluate(model_path):
             per = {lab: dice(seg_w, atlas_seg, lab) for lab in LABELS}
             vals = np.array([per[l] for l in LABELS], dtype=float)
             fl = flow[0].cpu().numpy()
-            rows.append({
+            det = jacobian_det(fl)
+            r = {
                 'file': os.path.basename(f),
                 'dice_mean': float(np.nanmean(vals)),
-                'jneg_pct': 100 * jacobian_negative_ratio(fl),
+                'jneg_pct': 100 * jacobian_negative_ratio(fl, det),      # 舊定義（分母：整個影像）
+                'jneg_fg_pct': 100 * folding_fg(det),                    # 分母：atlas 非背景 ← 報告用這個（比我們自己的模型）
                 'per': per,
-            })
+            }
+            if args.surface:
+                add_surface(r, seg_w, det)
+            rows.append(r)
     return rows
+
+
+def add_surface(r, seg_w, det):
+    """--surface：每個結構的 HD95＋這位受試者的 SDlogJ（det 為 None = 沒有形變，SDlogJ 定義為 0）。"""
+    r['hd'] = {lab: hd95(seg_w == lab, atlas_seg == lab) for lab in LABELS}
+    r['hd95_mean'] = float(np.nanmean([r['hd'][l] for l in LABELS]))
+    r['sdlogj'] = 0.0 if det is None else sdlogj(det)
+    r['jneg_fg_pct'] = 0.0 if det is None else 100 * folding_fg(det)                 # 分母：atlas 非背景
+    print('    %-30s Dice %.4f  HD95 %.2f mm  SDlogJ %.4f  folding（非背景）%.4f%%'
+          % (r['file'][:30], r['dice_mean'], r['hd95_mean'], r['sdlogj'], r['jneg_fg_pct']), flush=True)
+
+
+def write_surface(rows, out):
+    import csv
+    with open(out, 'w', newline='', encoding='utf-8') as fh:
+        w = csv.writer(fh)
+        w.writerow(['file', 'dice_mean', 'jneg_pct', 'jneg_fg_pct', 'hd95_mean', 'sdlogj']
+                   + ['hd95_label_%d' % l for l in LABELS])
+        for r in rows:
+            w.writerow([r['file'], '%.6f' % r['dice_mean'], '%.6f' % r['jneg_pct'], '%.6f' % r['jneg_fg_pct'],
+                        '%.4f' % r['hd95_mean'], '%.6f' % r['sdlogj']] + ['%.4f' % r['hd'][l] for l in LABELS])
+    hd = np.array([r['hd95_mean'] for r in rows])
+    sj = np.array([r['sdlogj'] for r in rows])
+    print()
+    print('  HD95   %.3f ± %.3f mm（30 個結構平均，再平均 %d 位）' % (hd.mean(), hd.std(), len(rows)))
+    print('  SDlogJ %.4f ± %.4f' % (sj.mean(), sj.std()))
+    print('  folding：分母整個影像 %.4f%%；分母 atlas 非背景 %.4f%%'
+          % (np.mean([r['jneg_pct'] for r in rows]), np.mean([r['jneg_fg_pct'] for r in rows])))
+    print('  CSV -> %s' % out)
+
+
+def keep_existing(out, rows):
+    """--surface 或 --amp 時，已有的 dice CSV 是正式結果，不覆蓋；拿重算的 Dice 跟它對一次（推論可重現的檢查）。
+    回傳 True = 保留舊檔、不要寫。"""
+    if not ((args.surface or args.amp) and os.path.exists(out)):
+        return False
+    import csv
+    with open(out, encoding='utf-8') as fh:
+        old = {r['file']: float(r['dice_mean']) for r in csv.DictReader(fh)}
+    diff = [abs(old[r['file']] - r['dice_mean']) for r in rows if r['file'] in old]
+    print()
+    print('  [i] 保留既有的 %s（正式結果，不覆蓋）' % os.path.basename(out))
+    print('      重算的 Dice 與它比：%d 位，最大差 %.2e、平均差 %.2e%s'
+          % (len(diff), max(diff), float(np.mean(diff)), '（--amp 半精度，有小差異屬正常）' if args.amp else ''))
+    return True
 
 
 def summarize(rows, tag):
     dm = np.array([r['dice_mean'] for r in rows])
     jn = np.array([r['jneg_pct'] for r in rows])
-    print('  %-14s Dice %.4f ± %.4f   %%|J|<=0 %.4f%%' % (tag, dm.mean(), dm.std(), jn.mean()))
-    return dm.mean(), jn.mean()
+    jf = np.array([r['jneg_fg_pct'] for r in rows])
+    print('  %-14s Dice %.4f ± %.4f   folding（非背景）%.4f%%' % (tag, dm.mean(), dm.std(), jf.mean()))
+    return dm.mean(), jn.mean(), jf.mean()
 
 
 def evaluate_baseline():
@@ -263,10 +374,14 @@ def evaluate_baseline():
         seg = d['seg'].astype(np.int32)
         per = {lab: dice(seg, atlas_seg, lab) for lab in LABELS}
         vals = np.array([per[l] for l in LABELS], dtype=float)
-        rows.append({'file': os.path.basename(f),
-                     'dice_mean': float(np.nanmean(vals)),
-                     'jneg_pct': 0.0,          # 沒有形變場，定義上為 0
-                     'per': per})
+        r = {'file': os.path.basename(f),
+             'dice_mean': float(np.nanmean(vals)),
+             'jneg_pct': 0.0,          # 沒有形變場，定義上為 0
+             'jneg_fg_pct': 0.0,
+             'per': per}
+        if args.surface:
+            add_surface(r, seg, None)
+        rows.append(r)
     return rows
 
 
@@ -306,14 +421,17 @@ if args.baseline:
         ROOT, 'models', args.exp_name or (prep_name + '_baseline'),
         'dice_baseline%s.csv' % _split_suffix(args.test_dir))
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    with open(out, 'w', newline='', encoding='utf-8') as fh:
-        w = csv.writer(fh)
-        w.writerow(['file', 'dice_mean'] + ['label_%d' % l for l in LABELS])
-        for r in rows:
-            w.writerow([r['file'], '%.6f' % r['dice_mean']]
-                       + ['%.6f' % r['per'][l] for l in LABELS])
-    print()
-    print('  CSV -> %s' % out)
+    if not keep_existing(out, rows):
+        with open(out, 'w', newline='', encoding='utf-8') as fh:
+            w = csv.writer(fh)
+            w.writerow(['file', 'dice_mean'] + ['label_%d' % l for l in LABELS])
+            for r in rows:
+                w.writerow([r['file'], '%.6f' % r['dice_mean']]
+                           + ['%.6f' % r['per'][l] for l in LABELS])
+        print()
+        print('  CSV -> %s' % out)
+    if args.surface:
+        write_surface(rows, os.path.join(os.path.dirname(out), 'surface_baseline%s.csv' % _split_suffix(args.test_dir)))
 
 # ── 單一模型 ────────────────────────────────────────────────────────
 elif args.model:
@@ -323,11 +441,11 @@ elif args.model:
     print()
     t0 = time.time()
     rows = evaluate(mp)
-    print('  %-38s %8s %10s' % ('受試者', 'Dice', '%|J|<=0'))
+    print('  %-38s %8s %10s' % ('受試者', 'Dice', 'folding'))
     for r in rows:
-        print('  %-38s %8.4f %9.4f%%' % (r['file'][:38], r['dice_mean'], r['jneg_pct']))
+        print('  %-38s %8.4f %9.4f%%' % (r['file'][:38], r['dice_mean'], r['jneg_fg_pct']))
     print('  ' + '-' * 60)
-    dm, jn = summarize(rows, '平均')
+    dm, jn, jf = summarize(rows, '平均')
     print('  耗時 %.1f 秒' % (time.time() - t0))
 
     # 逐結構
@@ -344,14 +462,19 @@ elif args.model:
         os.path.dirname(mp),
         'dice_%s%s.csv' % (os.path.basename(mp)[:-3], _split_suffix(args.test_dir)))
     import csv
-    with open(out, 'w', newline='', encoding='utf-8') as fh:
-        w = csv.writer(fh)
-        w.writerow(['file', 'dice_mean', 'jneg_pct'] + ['label_%d' % l for l in LABELS])
-        for r in rows:
-            w.writerow([r['file'], '%.6f' % r['dice_mean'], '%.6f' % r['jneg_pct']]
-                       + ['%.6f' % r['per'][l] for l in LABELS])
-    print()
-    print('  CSV -> %s' % out)
+    if not keep_existing(out, rows):
+        with open(out, 'w', newline='', encoding='utf-8') as fh:
+            w = csv.writer(fh)
+            w.writerow(['file', 'dice_mean', 'jneg_pct', 'jneg_fg_pct'] + ['label_%d' % l for l in LABELS])
+            for r in rows:
+                w.writerow([r['file'], '%.6f' % r['dice_mean'], '%.6f' % r['jneg_pct'], '%.6f' % r['jneg_fg_pct']]
+                           + ['%.6f' % r['per'][l] for l in LABELS])
+        print()
+        print('  CSV -> %s' % out)
+    if args.surface:
+        write_surface(rows, os.path.join(os.path.dirname(out), 'surface_%s%s%s.csv'
+                                         % (os.path.basename(mp)[:-3], _split_suffix(args.test_dir),
+                                            '_amp' if args.amp else '')))
 
 # ── 掃過多個 epoch ──────────────────────────────────────────────────
 else:
@@ -366,25 +489,24 @@ else:
     for p in pts:
         ep = int(os.path.basename(p)[:-3])
         rows = evaluate(p)
-        dm, jn = summarize(rows, 'epoch %04d' % ep)
-        curve.append((ep, dm, jn))
+        dm, jn, jf = summarize(rows, 'epoch %04d' % ep)
+        curve.append((ep, dm, jn, jf))
 
     import csv
     out = args.out_csv or os.path.join(md, 'dice_curve%s.csv' % _split_suffix(args.test_dir))
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
-        w.writerow(['epoch', 'dice_mean', 'jneg_pct'])
-        w.writerows([[e, '%.6f' % d, '%.6f' % j] for e, d, j in curve])
+        w.writerow(['epoch', 'dice_mean', 'jneg_pct', 'jneg_fg_pct'])
+        w.writerows([[e, '%.6f' % d, '%.6f' % j, '%.6f' % jf] for e, d, j, jf in curve])
     print()
     print('  CSV -> %s' % out)
 
     best = max(curve, key=lambda x: x[1])
     print()
-    print('  ★ Dice 最高：epoch %d   Dice %.4f   %%|J|<=0 %.4f%%' % best)
+    print('  ★ Dice 最高：epoch %d   Dice %.4f   folding（非背景）%.4f%%' % (best[0], best[1], best[3]))
     print()
     print('  ⚠️ 挑 epoch 時不要只看 Dice —— 亂折疊也可以把 Dice 衝高。')
-    print('     論文 Table I 的 %|J|<=0：VoxelMorph(CC) 0.366%、ANTs SyN 0.185%。')
-    print('     0.1% 量級屬正常，2% 以上要避開。')
+    print('     跟論文比較請用 folding voxel 數（論文 Table I 的百分比分母是 5.2 M voxel，跟這裡不同）：VoxelMorph(CC) 19,077、ANTs SyN 9,662。')
 
 print()
 print(BAR)

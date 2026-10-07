@@ -29,6 +29,7 @@ D = json.load(open(os.path.join(HERE, 'deck_data.json'), encoding='utf-8'))
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
 plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
 plt.rcParams['axes.unicode_minus'] = False
@@ -57,11 +58,18 @@ EN = D.get('struct_en', {})
 zh_en = lambda n: '%s  %s' % (n, EN[n]) if n in EN else n
 W = [2.0, 1.0, 0.5]                      # 由左到右越放鬆
 # 2026-10-07 使用者要求正式用語：圖上的字一律用學術用語（術語對照見 README）
+# folding 跟論文比較一律用 voxel 數（2026-10-07 使用者決定）：論文 Table I 的百分比分母是固定的 5.2 M voxel
+# （標題原文 "for our volumes with 5.2 million voxels within the brain"），我們 atlas 非背景只有 1.87 M，百分比不能直接比；
+# 論文同一張表也列了 folding voxel 數（VoxelMorph (CC) 19,077），voxel 都是 1 mm³，數量可以直接比。
+# models[e]['points'] = 每位平均 folding voxel 數（dice CSV 的 jneg_pct × 整個影像大小，精確值）
+PAPER_N = 19077                                       # 論文 Table I，VoxelMorph (CC) 之 folding voxel 數
+FOLD_TITLE = 'Folding voxels（每位平均）'
+ntxt = lambda y: '0' if y == 0 else ('%.1f' % y if y < 10 else '{:,.0f}'.format(y))
 SERIES = [('SVF（full-res.）', TEAL, {2.0: 'mix_exp5', 1.0: 'mix_exp6', 0.5: 'mix_exp7'}),
           ('Displacement field（full-res.）', RUST, {2.0: 'mix_exp4', 1.0: 'mix_exp3'})]
 fig, axes = plt.subplots(1, 2, figsize=(13, 4.9), facecolor=PAPER)
 jtxt = lambda y: '0%' if y == 0 else ('< 0.001%' if y < 0.001 else '%.3f%%' % y)   # 速度場權重 1、0.5 只有零星幾點
-for ax, key, title in ((axes[0], 'mean', 'Dice（test, n = 51）'), (axes[1], 'jneg', 'Folding ratio（%|J| ≤ 0）')):
+for ax, key, title in ((axes[0], 'mean', 'Dice（test, n = 51）'), (axes[1], 'points', FOLD_TITLE)):
     pts = {name: {i: M[exps[w]][key] for i, w in enumerate(W) if w in exps and M[exps[w]]['status'] == 'done'}
            for name, col, exps in SERIES}
     for name, col, exps in SERIES:
@@ -75,7 +83,7 @@ for ax, key, title in ((axes[0], 'mean', 'Dice（test, n = 51）'), (axes[1], 'j
                 ax.annotate('%.3f' % y, (x, y), textcoords='offset points', xytext=(0, 11 if up else -13),
                             ha='center', va='bottom' if up else 'top', fontsize=12, fontweight='bold', color=col)
             else:
-                ax.annotate(jtxt(y), (x, y), textcoords='offset points', xytext=(0, 11), ha='center',
+                ax.annotate(ntxt(y), (x, y), textcoords='offset points', xytext=(0, 11), ha='center',
                             fontsize=12, fontweight='bold', color=col)
         for i, w in enumerate(W):
             if w in exps and M[exps[w]]['status'] == 'pending':
@@ -93,9 +101,11 @@ for ax, key, title in ((axes[0], 'mean', 'Dice（test, n = 51）'), (axes[1], 'j
     clean(ax)
 axes[0].set_ylim(0.795, 0.812)
 axes[0].legend(fontsize=11.5, frameon=False, loc='upper left')
-axes[1].set_ylim(0, 0.42)
-axes[1].axhline(0.366, color=RED, ls='--', lw=1.2)
-axes[1].text(len(W) - 0.55, 0.373, 'VoxelMorph（TMI 2019, Table I）0.366%', ha='right', va='bottom', fontsize=11, color=RED)
+fmax = max([PAPER_N] + [M[e]['points'] for _, _, exps in SERIES for e in exps.values() if M[e]['status'] == 'done'])
+axes[1].set_ylim(0, fmax * 1.18)
+axes[1].axhline(PAPER_N, color=RED, ls='--', lw=1.2)
+axes[1].text(len(W) - 0.55, PAPER_N + fmax * 0.012, 'VoxelMorph (CC)（TMI 2019, Table I）19,077', ha='right', va='bottom', fontsize=11, color=RED)
+axes[1].yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: '{:,.0f}'.format(v)))
 fig.tight_layout(rect=[0, 0.04, 1, 1])
 save(fig, '1014_lambda.png')
 
@@ -105,7 +115,7 @@ AB = [('mix_exp2', 'SVF\nhalf-res.\nλ = 2', TEAL), ('mix_exp5', 'SVF\nfull-res.
       ('mix_exp4', 'Displacement\nfull-res.\nλ = 2', '#D9895A'), ('mix_exp3', 'Displacement\nfull-res.\nλ = 1', RUST)]
 if all(M[e]['status'] == 'done' for e, *_ in AB):
     vals = [M[e]['mean'] for e, *_ in AB]
-    jv = [M[e]['jneg'] for e, *_ in AB]
+    jv = [M[e]['points'] for e, *_ in AB]
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.3), facecolor=PAPER, gridspec_kw={'width_ratios': [1.35, 1]})
     ax = axes[0]
     for i, ((e, lab, col), v) in enumerate(zip(AB, vals)):
@@ -130,14 +140,15 @@ if all(M[e]['status'] == 'done' for e, *_ in AB):
     ax = axes[1]
     for i, ((e, lab, col), v) in enumerate(zip(AB, jv)):
         ax.bar(i, v, color=col, width=.6)
-        ax.text(i, v + .006, '%.3f%%' % v, ha='center', fontsize=13, fontweight='bold')
-    ax.axhline(0.366, ls='--', color=RED, lw=1.3)
-    ax.text(len(AB) - .58, 0.375, 'VoxelMorph（TMI 2019, Table I）0.366%', ha='right', color=RED, fontsize=10)
+        ax.text(i, v + max(jv) * 0.015, ntxt(v), ha='center', fontsize=13, fontweight='bold')
+    ax.axhline(PAPER_N, ls='--', color=RED, lw=1.3)
+    ax.text(-0.4, PAPER_N + max(jv) * 0.012, 'VoxelMorph (CC)（TMI 2019, Table I）19,077', ha='left', va='bottom', color=RED, fontsize=10)
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: '{:,.0f}'.format(v)))
     ax.set_xticks(range(len(AB)))
     ax.set_xticklabels([a[1] for a in AB], fontsize=10)
-    ax.set_ylim(0, 0.45)
-    ax.set_ylabel('Folding ratio（%）', fontsize=11)
-    ax.set_title('Folding ratio（%|J| ≤ 0）', fontsize=13, fontweight='bold')
+    ax.set_ylim(0, max(jv + [PAPER_N]) * 1.18)
+    ax.set_ylabel('Folding voxels', fontsize=11)
+    ax.set_title(FOLD_TITLE, fontsize=13, fontweight='bold')
     for ax in axes:
         clean(ax)
         ax.grid(axis='x', alpha=0)

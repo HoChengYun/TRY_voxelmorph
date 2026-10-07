@@ -115,6 +115,12 @@ const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
 const ARCH_FIGS = ['1014_arch_lit.png', '1014_arch_step0.png', '1014_arch_step0_eq.png', '1014_arch_cascade.png',
   '1014_arch_cascade_eq.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png'];
 const HAS_ARCH = ARCH_FIGS.every((f) => fs.existsSync(CH(f))) && D.multipass && D.multipass.mix_exp6 && D.multipass_vs_wide;
+// 補充評估指標（2026-10-07 使用者：「把 HD95 和 SDlogJ 加進去，然後可以更新這次 meeting 簡報」）：定義一頁＋結果一頁
+// 數值：ASD/test_dice.py --surface → models/<exp>/surface_<epoch>.csv → gather.py 的 surface；圖與公式：make_metrics.py
+const SF = D.surface || {};
+const HAS_METRIC = SF.affine && ['mix_exp2', 'mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp4', 'mix_exp3', 'mix_wide', 'mix_wide_vel']
+  .every((e) => SF[e]) && ['1014_metric_demo.png', '1014_metric_eq.png'].every((f) => fs.existsSync(CH(f)));
+const FOLD_FG = Object.values(m).every((x) => x.status !== 'done' || x.fold_def === 'fg');   // folding 百分比是否已改用「分母：atlas 非背景」（跟論文比較用 voxel 數）
 
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
@@ -122,6 +128,7 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   'res_method', ...(HAS_METHOD ? ['res_m1', 'res_m2', 'res_m3', 'res_m4'] : []), 'res_result', ...(HAS_SIX ? ['res_six'] : []), 'res_regions', 'back',
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
+  ...(HAS_METRIC ? ['met_def', 'met_res'] : []),
   ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', 'arch_pyramid', 'arch_plan'] : []),
   'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
@@ -174,6 +181,14 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
       { text: 'test-time recursion ΔDSC = ' + sgn(G.mean, 4) + '（' + G.win + '/' + G.n + '）；cascade、coarse-to-fine 已實作，待訓練（第 '
           + PG.arch_why + '～' + PG.arch_plan + ' 頁）' },
     ], { x: M, y: 6.42, w: 12.13, h: 0.45, fontSize: 13.5, color: C.MUTED });
+  }
+  if (HAS_METRIC) {
+    // 2026-10-07 加：補充評估指標兩頁（HD95、SDlogJ、folding；跟論文比較用 voxel 數）
+    txt(s, [
+      { text: '補充評估指標：', options: { bold: true, color: C.TEAL } },
+      { text: 'HD95、SDlogJ；folding 百分比之分母為 atlas 非背景 voxel，與論文比較改用 folding voxel 數（第 '
+          + PG.met_def + '～' + PG.met_res + ' 頁）' },
+    ], { x: M, y: 6.8, w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED });
   }
 }
 
@@ -487,7 +502,7 @@ if (HAS_WCURVE) {
   // ─────────────────────────────────────────────────────── ⑤ 訓練過程：版本 × 寬度四顆
   const s = base(EB.wide, '訓練曲線：2× width 兩模型之 Dice 相當；SVF 全程無 folding');
   fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 4.7, '四個模型之 validation Dice 與 folding ratio');
-  txt(s, '上：validation set（51 位）之 Dice，星號為選定之 epoch。下：folding ratio，虛線為 VoxelMorph（TMI 2019, Table I）之 0.366%。',
+  txt(s, '上：validation set（51 位）之 Dice，星號為選定之 epoch。下：每位平均 folding voxel 數，虛線為論文 VoxelMorph (CC) 之 19,077。',
     { x: M, y: 6.2, w: 12.13, h: 0.35, fontSize: 13, color: C.MUTED, align: 'center' });
   // 2026-10-06：不用再訓練更久（gather.py 的 plateau：第 100 輪之後的範圍、上下晃的大小、每 100 輪的趨勢）
   const PV = D.plateau.mix_wide_vel, PW = D.plateau.mix_wide;
@@ -570,6 +585,67 @@ if (HAS_WM.wide_vis) {
     [{ text: 'SVF：形變幅度相近，網格未翻轉（全腦 0 個 folding voxel）', options: { bold: true, color: C.TEAL } }],
     [{ text: (HAS_WM.wide_full ? '上一頁藍框之放大；' : '') + '網格間距 2 mm', options: { color: C.MUTED, fontSize: 12 } }],
   ], { x: M + 7.8, y: 1.6, w: 4.33, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
+}
+
+if (HAS_METRIC) {
+  // ─────────────────────────────────────────────────────── 補充評估指標：定義（make_metrics.py 的示意圖＋式 (1)～(3)）
+  const s = base('補充　評估指標', 'HD95、SDlogJ 與 folding 之定義');
+  fitImage(s, CH('1014_metric_demo.png'), M, 1.38, 12.13, 2.75, 'HD95 與 SDlogJ 之示意（合成之 2D 例子）');
+  fitImage(s, CH('1014_metric_eq.png'), M, 4.2, 12.13, 2.72, 'HD95、SDlogJ、folding 之公式');
+}
+
+if (HAS_METRIC) {
+  // ─────────────────────────────────────────────────────── 補充評估指標：結果（gather.py 的 surface、surface_paired）
+  const NAMEP = { mix_exp2: ['SVF', 'half-res.', '2', 'default'], mix_exp5: ['SVF', 'full-res.', '2', 'default'],
+    mix_exp6: ['SVF', 'full-res.', '1', 'default'], mix_exp7: ['SVF', 'full-res.', '0.5', 'default'],
+    mix_exp4: ['Displacement', 'full-res.', '2', 'default'], mix_exp3: ['Displacement', 'full-res.', '1', 'default'],
+    mix_wide: ['Displacement', 'full-res.', '1', '2×'], mix_wide_vel: ['SVF', 'full-res.', '1', '2×'] };
+  // 標題與重點的數字都從 gather.py 的 surface／surface_paired 讀；⚠️ 文字是照 2026-10-07 的結果寫的
+  // （HD95 各模型差距小、SDlogJ 隨 λ 變小而上升、displacement field 之 SDlogJ 主要來自 folding voxel）
+  const fmtF = (x) => (x === 0 ? '0' : x < 0.001 ? '< 0.001' : x.toFixed(3));
+  const best = (k, lo) => Object.keys(NAMEP).reduce((a, b) => ((lo ? SF[b][k] < SF[a][k] : SF[b][k] > SF[a][k]) ? b : a));
+  const bD = best('dice', false), bH = best('hd95', true);
+  const ids = Object.keys(NAMEP);
+  const hdLo = Math.min(...ids.map((e) => SF[e].hd95)), hdHi = Math.max(...ids.map((e) => SF[e].hd95));
+  // 2026-10-07 結果：同條件下 SVF 之 HD95 較 displacement field 低（邊界對位較好）；λ 1 → 0.5 之 HD95 反而變差；
+  //   displacement field 之 SDlogJ 主要來自 folding voxel。數字與 p 值從 gather.py 的 surface_paired 讀
+  const SPD = D.surface_paired;
+  const hdv = (k) => SPD[k].hd95_mean;
+  const thou = (x) => Math.round(x).toLocaleString('en-US');
+  const pvs = (q) => (q.p < 0.001 ? 'p < 0.001' : 'p = ' + q.p.toFixed(2));
+  const METRIC_TITLE = '補充指標：同條件下 SVF 之 HD95 較低，形變較平滑';
+  const sub = (t) => ({ text: '\n' + t, options: { color: C.MUTED, fontSize: 12 } });
+  const METRIC_BULLETS = [
+    [{ text: 'HD95：affine ' + SF.affine.hd95.toFixed(2) + ' mm → ' + hdLo.toFixed(2) + '～' + hdHi.toFixed(2)
+       + ' mm；同條件下 SVF 低於 displacement field；最低為 ' + bH, options: { bold: true } },
+     sub('default width ' + (-hdv('version_w1').mean).toFixed(3) + ' mm（' + pvs(hdv('version_w1')) + '）、2× width '
+       + hdv('version_wide').mean.toFixed(3) + ' mm（' + pvs(hdv('version_wide')) + '）；Dice 相近時，SVF 之邊界誤差較小')],
+    [{ text: 'SVF 之 λ 2 → 1 → 0.5：SDlogJ ' + ['mix_exp5', 'mix_exp6', 'mix_exp7'].map((e) => SF[e].sdlogj.toFixed(2)).join(' → ')
+       + '；HD95 於 λ = 1 最低', options: { bold: true } },
+     sub('λ 1 → 0.5 之 HD95 ' + sgn(hdv('lam_vel_05').mean, 3) + ' mm（' + pvs(hdv('lam_vel_05')) + '）；displacement field 之 SDlogJ（'
+       + SF.mix_exp4.sdlogj.toFixed(2) + '～' + SF.mix_exp3.sdlogj.toFixed(2) + '）主要來自 folding voxel（log 10⁻⁹ = −20.7）')],
+    [{ text: 'Folding voxels：displacement field λ = 1 平均 ' + thou(SF.mix_exp3.fold_n) + '（2× width ' + thou(SF.mix_wide.fold_n)
+       + '），與論文 VoxelMorph (CC) 之 19,077 相當', options: { bold: true } },
+     sub('λ = 2 為 ' + thou(SF.mix_exp4.fold_n) + '；SVF 各模型 < 15。論文百分比之分母為 520 萬 voxel，與本研究不同，故以 voxel 數比較')],
+  ];
+  const s = base('補充　評估指標', METRIC_TITLE);
+  const cellv = (e, k, txt) => ({ text: txt, options: (e === bD && k === 'dice') || (e === bH && k === 'hd95')
+    ? { bold: true, color: C.TEAL } : {} });
+  const rows = [['Model', '參數化', '解析度', 'λ', 'Width', 'Dice ↑', 'HD95（mm）↓', 'SDlogJ ↓', 'Folding（%）↓', 'Folding voxels ↓'],
+    [{ text: 'Affine（形變配準前）', options: { color: C.MUTED } }, '—', '—', '—', '—', f3(SF.affine.dice),
+     SF.affine.hd95.toFixed(2), '0', '0', '0']];
+  Object.keys(NAMEP).forEach((e) => {
+    const [pz, rs, lam, wd] = NAMEP[e];
+    rows.push([e + (SF[e].amp ? ' *' : ''), pz, rs, lam, wd, cellv(e, 'dice', f3(SF[e].dice)),
+               cellv(e, 'hd95', SF[e].hd95.toFixed(2)), SF[e].sdlogj.toFixed(3), fmtF(SF[e].fold_fg),
+               SF[e].fold_n === 0 ? '0' : SF[e].fold_n < 10 ? SF[e].fold_n.toFixed(1) : thou(SF[e].fold_n)]);
+  });
+  table(s, rows, { x: M, y: 1.42, w: 12.13, colW: [2.05, 1.25, 0.95, 0.5, 0.8, 0.85, 1.5, 1.1, 1.5, 1.63], fontSize: 11.5, rowH: 0.28 });
+  bullets(s, METRIC_BULLETS, { x: M, y: 4.88, w: 12.13, h: 1.8, fontSize: 13, paraSpaceAfter: 4 });
+  const anyAmp = ids.some((e) => SF[e].amp);
+  txt(s, 'test 51 位之平均；HD95 為 30 個結構之平均。Folding（%）之分母為 atlas 非背景 voxel（187 萬）；Folding voxels 為每位平均。'
+    + (anyAmp ? '* 以半精度推論（與單精度之差異可忽略）' : '全部以單精度（float32）推論'),
+    { x: M, y: 6.7, w: 12.13, h: 0.3, fontSize: 11, color: C.MUTED });
 }
 
 if (HAS_ARCH) {

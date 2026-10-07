@@ -48,7 +48,7 @@ def rd(p):
     with open(p, encoding='utf-8') as f:
         rows = list(csv.DictReader(f))
     return ({r['file'][:-4]: float(r['dice_mean']) for r in rows},
-            {r['file'][:-4]: float(r.get('jneg_pct') or 0) for r in rows})
+            {r['file'][:-4]: float(r.get('jneg_pct') or 0) for r in rows})   # 分母：整個影像（舊定義）；「分母：atlas 非背景」在 surface CSV 的 jneg_fg_pct，下面會蓋過去
 
 
 def test_csv(exp):
@@ -89,6 +89,80 @@ for e, (ver, wt, width, res) in CFG.items():
         per[e] = d
     models[e] = m
 D['models'] = models
+
+# ── 補充評估指標（2026-10-07）：HD95、SDlogJ、folding（分母：atlas 非背景）（ASD/test_dice.py --surface → surface_<epoch>.csv）──
+# 🔴 folding 百分比的分母（2026-10-07）：VoxelMorph 論文文字是「非背景 voxel」，但 Table I 標題寫明分母是固定的 5.2 M voxel，
+#    我們 atlas 非背景只有 1.87 M → 百分比不能跟論文的 0.366% 比。使用者決定：跟論文比較用 folding voxel 數
+#    （論文 VoxelMorph (CC) 19,077；我們 = models[e]['points']），簡報上的百分比改用「分母：atlas 非背景」（jneg_fg_pct），
+#    只用來比我們自己的模型。原本的值（分母：整個影像）留在 jneg_all。
+
+
+def rd_surface(p):
+    with open(p, encoding='utf-8') as f:
+        rr = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    if set(rr) != set(K):
+        raise SystemExit('[X] %s 的受試者跟 test 對不上' % p)
+    if 'jneg_fg_pct' not in next(iter(rr.values())):
+        raise SystemExit('[X] %s 是舊版（沒有 jneg_fg_pct），用 test_dice.py --surface 重算' % p)
+    return rr
+
+
+surf, surf_per = {}, {}
+SB = J('models', 'mix_exp2', 'surface_baseline.csv')
+if os.path.exists(SB):
+    rr = rd_surface(SB)
+    surf_per['affine'] = rr
+    surf['affine'] = {'hd95': float(np.mean([float(rr[k]['hd95_mean']) for k in K])), 'sdlogj': 0.0, 'fold_fg': 0.0,
+                      'fold_all': 0.0, 'dice': D['baseline'], 'amp': False, 'fold_n': 0.0}
+for e, m in models.items():
+    if m['status'] != 'done':
+        continue
+    for suf in ('', '_amp'):
+        p = J('models', e, 'surface_%s%s.csv' % (m['epoch'], suf))
+        if os.path.exists(p):
+            break
+    else:
+        continue
+    rr = rd_surface(p)
+    surf_per[e] = rr
+    col = lambda c: np.array([float(rr[k][c]) for k in K])
+    surf[e] = {'hd95': float(col('hd95_mean').mean()), 'sdlogj': float(col('sdlogj').mean()),
+               'fold_fg': float(col('jneg_fg_pct').mean()), 'fold_all': m['jneg'], 'dice': m['mean'], 'amp': bool(suf),
+               'fold_n': m['points']}      # 每位平均 folding voxel 數（跟論文比較用；同第 7、8 頁，取正式 dice CSV）
+    m['jneg_all'] = m['jneg']
+    m['jneg'] = surf[e]['fold_fg']                       # 簡報上的 folding 百分比 = 分母：atlas 非背景（只比我們自己的模型）
+    m['fold_def'] = 'fg'
+D['surface'] = surf
+done_models = [e for e, m in models.items() if m['status'] == 'done']
+if surf and any(models[e].get('fold_def') != 'fg' for e in done_models):
+    raise SystemExit('[X] 有些模型沒有 surface CSV，folding 會混用兩種定義：%s'
+                     % [e for e in done_models if models[e].get('fold_def') != 'fg'])
+if surf:
+    ratio = [surf[e]['fold_fg'] / surf[e]['fold_all'] for e in surf if e != 'affine' and surf[e]['fold_all'] > 0.01]
+    D['fold_ratio'] = float(np.mean(ratio))              # 分母 atlas 非背景 ÷ 分母整個影像（位移場那幾顆，約 4.3）
+
+
+def paired_surf(a, b, c):
+    """HD95、SDlogJ 的逐人配對（a − b），Wilcoxon。"""
+    if a not in surf_per or b not in surf_per:
+        return None
+    from scipy.stats import wilcoxon
+    v = np.array([float(surf_per[a][k][c]) - float(surf_per[b][k][c]) for k in K])
+    return {'mean': float(v.mean()), 'win': int((v > 0).sum()), 'n': len(v), 'p': float(wilcoxon(v).pvalue)}
+
+
+D['surface_paired'] = {name: {c: paired_surf(a, b, c) for c in ('hd95_mean', 'sdlogj')}
+                       for name, (a, b) in {'lam_vel_1': ('mix_exp6', 'mix_exp5'), 'lam_vel_05': ('mix_exp7', 'mix_exp6'),
+                                            'lam_disp': ('mix_exp3', 'mix_exp4'), 'res': ('mix_exp5', 'mix_exp2'),
+                                            'version': ('mix_exp4', 'mix_exp5'), 'version_w1': ('mix_exp3', 'mix_exp6'),
+                                            'width_vel': ('mix_wide_vel', 'mix_exp6'), 'width_disp': ('mix_wide', 'mix_exp3'),
+                                            'version_wide': ('mix_wide_vel', 'mix_wide')}.items()}
+# 半精度的影響：mix_exp6 兩種都算的話，拿來對（2× width 兩顆只能用半精度）
+A6, A6h = J('models', 'mix_exp6', 'surface_0190.csv'), J('models', 'mix_exp6', 'surface_0190_amp.csv')
+if os.path.exists(A6) and os.path.exists(A6h):
+    a, b = rd_surface(A6), rd_surface(A6h)
+    D['surface_amp_check'] = {c: float(max(abs(float(a[k][c]) - float(b[k][c])) for k in K))
+                              for c in ('dice_mean', 'hd95_mean', 'sdlogj', 'jneg_fg_pct')}
 
 
 def paired(a, b):

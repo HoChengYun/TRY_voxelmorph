@@ -5,7 +5,7 @@
 所以後面的實驗都沒有這張圖。這支把它固定下來。
 
 輸入（都在 --model-dir 底下，由 test_dice.py 產生）
-    dice_curve.csv        必要。欄位 epoch, dice_mean, jneg_pct
+    dice_curve.csv        必要。欄位 epoch, dice_mean, jneg_pct（下圖畫 jneg_pct × 影像大小 = folding voxel 數）
     dice_curve_val.csv    有的話一起畫（val 挑 epoch 的實驗才有）
     dice_baseline.csv     有的話拿來畫「只有 affine」的起點
     dice_baseline_val.csv 同上，val 的起點
@@ -41,9 +41,11 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-# 論文 Table I（Balakrishnan et al., IEEE TMI 2019）的折疊率
-PAPER_VXM = 0.366
-PAPER_SYN = 0.185
+# 論文 Table I（Balakrishnan et al., IEEE TMI 2019）的 folding voxel 數（每位平均）。
+# 2026-10-07 起跟論文比較用 voxel 數：論文的百分比分母是固定 5.2 M voxel（Table I 標題），跟我們的分母不同，不能直接比
+PAPER_VXM = 19077          # VoxelMorph (CC)
+PAPER_SYN = 9662           # ANTs SyN (CC)
+VOL = 192 * 224 * 192
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--model-dir', required=True, help='例如 models\\mix_exp1')
@@ -61,10 +63,10 @@ name = os.path.basename(MD)
 def read_curve(path):
     if not os.path.exists(path):
         return None
-    rows = []
     with open(path, encoding='utf-8') as f:
-        for r in csv.DictReader(f):
-            rows.append((int(r['epoch']), float(r['dice_mean']), float(r['jneg_pct'])))
+        recs = list(csv.DictReader(f))
+    # jneg_pct（分母：整個影像）× 影像大小 = 每位平均 folding voxel 數（精確）
+    rows = [(int(r['epoch']), float(r['dice_mean']), float(r['jneg_pct']) / 100 * VOL) for r in recs]
     rows.sort()
     return rows
 
@@ -137,11 +139,11 @@ for tag, rows, color, marker, ls in series:
              label='%s — %s%s' % (name, tag, '  (all zero)' if max(jn) == 0 else ''))
 
 ax2.axhline(PAPER_VXM, ls='--', color='#d62728', lw=1.4,
-            label='paper VoxelMorph(CC) %.3f%%' % PAPER_VXM)
+            label='paper VoxelMorph(CC) {:,} voxels'.format(PAPER_VXM))
 ax2.axhline(PAPER_SYN, ls=':', color='#9467bd', lw=1.4,
-            label='paper ANTs SyN %.3f%%' % PAPER_SYN)
+            label='paper ANTs SyN {:,} voxels'.format(PAPER_SYN))
 ax2.set_xlabel('epoch')
-ax2.set_ylabel('% |J| <= 0  (folding)')
+ax2.set_ylabel('folding voxels per subject (|J| <= 0)')
 ax2.set_title('Folding budget completely unused' if allzero else 'Folding rate vs epoch',
               fontweight='bold')
 ax2.grid(alpha=0.3)
@@ -155,5 +157,5 @@ fig.savefig(out, dpi=130)
 print('  -> %s' % out)
 for tag, rows, _, _, _ in series:
     best = max(rows, key=lambda r: r[1])
-    print('  %-5s 最佳 epoch %d = %.4f；折疊率 %.4f%%（最大 %.4f%%）'
+    print('  %-5s 最佳 epoch %d = %.4f；folding %.0f voxels（最大 %.0f）'
           % (tag, best[0], best[1], best[2], max(r[2] for r in rows)))

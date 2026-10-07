@@ -1008,6 +1008,8 @@ python ASD\test_dice.py --test-dir data\tigerbx_preprocessed_v1\test `
 
 ## 18. 跟論文比（Balakrishnan et al., IEEE TMI 2019）
 
+> ⚠️ 2026-10-07：論文 Table I 的折疊**百分比**分母是固定 5.2 M voxel，跟我們不同；本節和 §20、§23 用百分比跟 0.366% 比的地方都不精確，**跟論文比較改用 folding voxel 數**（論文 VoxelMorph (CC) 19,077；我們位移場 λ 1 約 15,000～19,000，相當），見 §26.4。
+
 ### 18.1 論文 Table I 全表，接上我們
 
 | 方法 | Dice（標準差）| GPU 秒 | CPU 秒 | 折疊 voxel 數 | 折疊率 % |
@@ -2692,3 +2694,96 @@ VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一�
 
 **判讀**：（疊在一起 − mix_exp6）跟（mix_cascade − mix_exp6）＋（mix_pyramid − mix_exp6）比。
 差不多＝兩種設計各補各的；明顯比較小＝兩個在補同一件事（第 0 步就看到「多跑一次」和「加寬」幫到的是同一批人，r = 0.65）。
+
+---
+
+## 26. 補充評估指標：HD95、SDlogJ，以及 folding 跟論文怎麼比（2026-10-07）
+
+使用者：「HD95 與 SDlogJ 還沒到很了解，你可以教我」→「把 HD95 和 SDlogJ 加進去，然後可以更新這次 meeting 簡報」。
+同一天也查清楚 **VoxelMorph 論文用過哪些指標**，以及我們的 folding 比例能不能跟論文的 0.366% 比（不能，見 26.4）。
+
+### 26.1 VoxelMorph 論文（TMI 2019）用過的指標
+
+| 指標 | 論文用法 |
+|---|---|
+| Dice（式 8）| 30 個 FreeSurfer 結構，先平均結構再平均受試者；Fig. 5 各結構 boxplot（左右平均）；Buckner40 人工標記（Table II）|
+| \|J\| ≤ 0 | folding voxel 數與百分比（Table I、Table IV）。**百分比的分母是固定的 5.2 M voxel**（見 26.4）|
+| 執行時間 | CPU（Xeon E5-2680）、GPU（TitanX）秒數（Table I）|
+| 統計檢定 | 方法之間 paired t-test |
+| 視覺化 | 配準後影像、形變場（Fig. 4、10）|
+
+論文**沒有** HD95、SDlogJ；NCC／MSE 只用在訓練 loss，不是評估指標。HD95、SDlogJ 是 Learn2Reg（OASIS 任務：DSC、DSC30、HD95、SDlogJ）
+和 LUMIR 2024（DSC、HD95、TRE、NDV）常用的。
+
+### 26.2 定義與實作（`ASD/test_dice.py --surface`）
+
+- **HD95**：每個結構，配準後標籤與 atlas 標籤的邊界 voxel（6 鄰居有一個不在標籤內），各點到對方邊界的最短距離；
+  兩個方向各取第 95 百分位、取較大者（同 MONAI `compute_hausdorff_distance(percentile=95)`、DeepMind surface-distance 的 robust Hausdorff）。
+  1 voxel = 1 mm，30 個結構平均。只在兩個標籤聯集的外框（外擴 2 voxel）內做距離轉換，結果不變、快很多。
+  合成測試：同一顆球 0、平移 5 voxel 4.58（最大 5 只在兩極）、少於 5% 邊界點的細突刺不影響 HD95
+- **SDlogJ**：log|J| 在 atlas 非背景 voxel（`atlas_vol > 0`，1,867,705 個）內的標準差；|J| ≤ 0 先截到 1e-9（同 Learn2Reg）。
+  ⚠️ 位移場版 folding 的地方 log = −20.7，即使只占 0.85% 也會把 SDlogJ 拉到 2 左右——那是 folding 造成的，不是整體形變比較劇烈
+- **jneg_fg_pct**：|J| ≤ 0 ÷ atlas 非背景 voxel（新欄位）；`jneg_pct`（分母：整個影像）保留
+- 輸出 `models/<exp>/surface_<epoch>.csv`（受試者 × Dice、jneg_pct、jneg_fg_pct、HD95、SDlogJ、30 個結構的 HD95）。
+  **已有的 `dice_<epoch>.csv` 不會被覆蓋**，只拿重算的 Dice 跟它比（mix 系列最大差 1e-4，2× width 用 CPU 算 1e-5）
+- 時間：每顆約 3.5 分鐘（HD95 在 CPU，每位約 4 秒）。2× width 兩顆在 8 GB 筆電 GPU 會溢位，`--amp` 每位 40 秒；
+  **CPU 單精度（`--gpu -1`）每位約 20 秒，用這個**。半精度的影響可忽略（mix_exp6：SDlogJ 0.4922 vs 0.4923）
+- 當天踩到：第一次跑 mix_exp6 時 SDlogJ 的範圍還是 `seg > 0`（0.466），改成 `atlas_vol > 0` 之後是 0.492；
+  一度誤以為是半精度造成，後來同範圍比對才確認不是
+
+### 26.3 結果（test 51 位，各模型選定的 epoch）
+
+| 模型 | 參數化 | λ | 寬度 | Dice | HD95（mm）| SDlogJ | folding（%，分母 atlas 非背景）| folding voxels／位 |
+|---|---|---|---|---|---|---|---|---|
+| Affine | — | — | — | 0.688 | 3.32 | 0 | 0 | 0 |
+| mix_exp2 | SVF 半解析度 | 2 | 預設 | 0.797 | 2.44 | 0.351 | 0 | 0 |
+| mix_exp5 | SVF | 2 | 預設 | 0.803 | 2.43 | 0.421 | 0 | 0 |
+| mix_exp6 | SVF | 1 | 預設 | 0.805 | 2.39 | 0.492 | 0.00001 | 0.1 |
+| mix_exp7 | SVF | 0.5 | 預設 | 0.805 | 2.42 | 0.576 | 0.0005 | 9.7 |
+| mix_exp4 | 位移場 | 2 | 預設 | 0.801 | 2.46 | 1.095 | 0.227 | 4,358 |
+| mix_exp3 | 位移場 | 1 | 預設 | 0.806 | 2.45 | 1.983 | 0.849 | 16,420 |
+| mix_wide | 位移場 | 1 | 2× | 0.811 | 2.40 | 1.944 | 0.814 | 15,422 |
+| mix_wide_vel | SVF | 1 | 2× | 0.811 | **2.36** | 0.495 | < 0.0001 | 0.1 |
+| tiger_exp2¹ | SVF 半解析度 | 2 | 預設 | 0.861 | 1.69 | 0.317 | 0 | 0 |
+| tiger_exp3¹ | 位移場 | 1 | 預設 | 0.871 | 1.73 | 2.111 | 0.980 | 18,694 |
+
+¹ tigerbx 用筆電上 09-19 更新後的資料算（§20.9 的 29 顆，test 有 PILOT018、VNT048 兩位；重算的 Dice 這兩位差 0.015～0.02，其他一致）。
+
+**配對比較（51 位，Wilcoxon）**：
+- **同條件下 SVF 的 HD95 比位移場低**：預設寬度 −0.059 mm（45/51 位位移場較差，p < 0.001）、2× width −0.047 mm（p < 0.001）。
+  → 位移場的 Dice 略高，但邊界誤差比較大、形變比較劇烈
+- SVF λ 2 → 1：HD95 −0.044 mm（p < 0.001）；1 → 0.5：**+0.030 mm（p = 0.02，變差）**；SDlogJ 0.42 → 0.49 → 0.58。
+  → λ = 1 在 HD95 也是最好的
+- 加寬：HD95 降低（SVF −0.034、位移場 −0.046 mm，都 p < 0.001），SDlogJ 幾乎不變
+
+### 26.4 🔴 folding 跟論文比：用 voxel 數，不用百分比
+
+論文 Table I 標題：「the number and percentage of voxels with a non-positive Jacobian determinant … **for our volumes with 5.2 million
+voxels within the brain**」→ 百分比 = folding voxel 數 ÷ 5.2 M（例：19,077 ÷ 5.2 M = 0.366%）。
+5.2 M 個 1 mm³ 是 5.2 公升，遠大於真實腦體積（1.2～1.5 公升），他們的「腦內」包含大量腦外區域（可能因為 atlas 是平均影像、非零範圍很大）。
+
+我們的分母：atlas 非背景 1,867,705、整個影像 8,257,536，都跟 5.2 M 不同 → **百分比不能跟 0.366% 直接比**。
+論文同一張表也列了 folding voxel 數，voxel 都是 1 mm³、都是整顆腦 → **用 voxel 數比**（使用者 2026-10-07 決定）：
+
+| | folding voxels／位 |
+|---|---|
+| 論文 VoxelMorph (CC) | 19,077（SD 5,928）|
+| 論文 VoxelMorph (MSE) | 9,606 |
+| 論文 ANTs SyN (CC) | 9,662 |
+| 論文 NiftyReg (CC) | 41,251 |
+| mix_exp3（位移場 λ 1）| 16,420 |
+| mix_wide（位移場 λ 1、2×）| 15,422 |
+| tiger_exp3（位移場 λ 1）| 18,694 |
+| mix_exp4（位移場 λ 2）| 4,358 |
+| SVF 各模型 | < 10 |
+
+→ **位移場 λ = 1 的 folding 跟論文 VoxelMorph (CC) 相當**；速度場幾乎沒有。
+
+⚠️ **當天的兩次錯誤**（留著當教訓）：
+1. 以前一直拿 `jneg_pct`（分母：整個影像）的 0.199% 跟 0.366% 比，說「比論文低」——分母不同，不能比
+2. 發現後一度改成「分母：atlas 非背景」（照論文文字 non-background），得到 0.849%，說「約為論文的 2.3 倍」——
+   也不對，因為論文實際分母是 5.2 M（看 Table I 的數量 ÷ 百分比就知道）。**判斷分母要看論文的數字，不能只看文字**
+
+**簡報**（`slides_src/2026-10-14_redpen`）：第 7、8、23 頁的 folding 圖改畫 voxel 數，論文虛線 19,077；第 30 頁表格有百分比（分母 atlas 非背景，
+只比我們自己）和 voxel 數兩欄。訓練曲線（validation，每 5 個 epoch）的 voxel 數 = `dice_curve_val.csv` 的 `jneg_pct` × 影像大小，精確。
+`ASD/plot_dice_curve.py` 也改成畫 voxel 數、論文 VoxelMorph (CC) 19,077 與 ANTs SyN 9,662 兩條線。

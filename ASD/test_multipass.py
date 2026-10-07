@@ -94,7 +94,9 @@ brain = torch.from_numpy(atlas_seg > 0).to(device)          # 位移場定義在
 
 
 def jacobian_negative(flow):
-    """負 Jacobian determinant 的比例與點數（算法同 test_dice.py / batch_test_ixi.py）。"""
+    """負 Jacobian determinant 的比例與點數（算法同 test_dice.py / batch_test_ixi.py）。
+    ⚠️ 比例的分母是整個影像（舊定義）；論文定義（分母：非背景 voxel）見 test_dice.py 的 jneg_fg_pct。
+       簡報（⑥ Step 0）只用點數 jneg_n，不用這個比例。"""
     d = [[np.gradient(flow[c], axis=a) for a in range(3)] for c in range(3)]
     j11, j12, j13 = 1 + d[0][0], d[0][1], d[0][2]
     j21, j22, j23 = d[1][0], 1 + d[1][1], d[1][2]

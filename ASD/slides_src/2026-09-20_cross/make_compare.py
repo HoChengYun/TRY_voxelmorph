@@ -29,6 +29,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 import matplotlib.image as mpimg
 
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
@@ -70,12 +71,23 @@ PANEL = lambda k: [0.012 + k * 0.247, 0.12, 0.235, 0.80]      # 四格橫排
 FIGSIZE = (16, 5.2)
 
 
+# folding（2026-10-07 使用者決定：跟論文比較一律用 voxel 數）：論文 Table I 的百分比分母是固定的 5.2 M voxel，
+#   我們 atlas 非背景只有 1.87 M，百分比不能直接比；論文同一張表也列了 folding voxel 數（VoxelMorph (CC) 19,077），
+#   voxel 都是 1 mm³，數量可以直接比。10/14 簡報的兩組（lambda、wide）畫每位平均 folding voxel 數
+#   ＝ jneg_pct × 整個影像大小（精確值，不用換算）。09-20 那份（ablation）照舊畫百分比
+VOL = 192 * 224 * 192
+PAPER_N = 19077                                           # 論文 Table I，VoxelMorph (CC) 之 folding voxel 數
+
+
 def curve(exp):
     p = os.path.join(ROOT, 'models', exp, 'dice_curve_val.csv')
     with open(p, encoding='utf-8') as f:
-        r = sorted([(int(x['epoch']), float(x['dice_mean']), float(x['jneg_pct']))
-                    for x in csv.DictReader(f)])
-    return np.array(r)
+        rows = list(csv.DictReader(f))
+    if SET == 'ablation':
+        fold = lambda x: float(x['jneg_pct'])
+    else:
+        fold = lambda x: float(x['jneg_pct']) / 100 * VOL
+    return np.array(sorted([(int(x['epoch']), float(x['dice_mean']), fold(x)) for x in rows]))
 
 
 # ── 1. 四顆的訓練曲線 ────────────────────────────────────────────────
@@ -93,12 +105,20 @@ axes[0].set_title('Validation Dice（★：選定之 epoch）', fontsize=12.5, f
 axes[0].legend(loc='lower right', fontsize=11)
 axes[0].set_ylim(0.67, 0.815)
 
-axes[1].axhline(0.366, ls='--', color='#C0392B', lw=1.2)
-axes[1].text(248, 0.375, 'VoxelMorph（TMI 2019, Table I）0.366%', ha='right', color='#C0392B', fontsize=9.5)
-axes[1].set_ylabel('Folding ratio（%）', fontsize=11)
+if SET == 'ablation':                      # 09-20 那份照舊
+    axes[1].axhline(0.366, ls='--', color='#C0392B', lw=1.2)
+    axes[1].text(248, 0.375, 'VoxelMorph（TMI 2019, Table I）0.366%', ha='right', color='#C0392B', fontsize=9.5)
+    axes[1].set_ylabel('Folding ratio（%）', fontsize=11)
+else:
+    # 10/14 簡報的兩組：每位平均 folding voxel 數，論文 VoxelMorph (CC) 的 19,077 畫成虛線
+    top = max(PAPER_N, max(float(curve(e)[:, 2].max()) for e, *_ in EXPS)) * 1.12
+    pl = axes[1].axhline(PAPER_N, ls='--', color='#C0392B', lw=1.2)
+    axes[1].legend([pl], ['VoxelMorph (CC)（TMI 2019, Table I）19,077'], loc='upper right', fontsize=9.5, frameon=False)   # 字放圖例，不壓到曲線
+    axes[1].set_ylabel('Folding voxels（每位平均）', fontsize=10)
+    axes[1].yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: '{:,.0f}'.format(v)))
 axes[1].set_xlabel('Epoch', fontsize=11)
-axes[1].set_title('Folding ratio（%|J| ≤ 0）', fontsize=12.5, fontweight='bold')
-axes[1].set_ylim(-0.02, 0.45)
+axes[1].set_title('Folding ratio（%|J| ≤ 0）' if SET == 'ablation' else 'Folding voxels（|J| ≤ 0）', fontsize=12.5, fontweight='bold')
+axes[1].set_ylim(-0.02, 0.45 if SET == 'ablation' else top)
 
 for ax in axes:
     ax.grid(alpha=.3)

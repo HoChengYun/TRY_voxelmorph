@@ -3,6 +3,8 @@
 
 做法：模型對每位 test 受試者算形變場 → Jacobian 行列式 → <= 0 的體素就是擠爆的點
 （算法跟 test_dice.py 的 jacobian_negative_ratio 一樣，擠爆比例會跟 dice_<epoch>.csv 的 jneg_pct 對得上）。
+⚠️ 這裡的 jneg_pct 分母是整個影像（舊定義）。2026-10-07 起報告用 VoxelMorph 論文的定義（分母：atlas 非背景 voxel），
+   在 test_dice.py 的 jneg_fg_pct；本程式的輸出在簡報上只用 voxel 數與分布，不用這個百分比。
 形變場定義在 atlas 的格子上（moved(p) = 受試者(p + u(p))），所以擠爆的點可以直接查 atlas 的 FreeSurfer 標籤。
 
 輸出（models/folding_check/）：
@@ -442,15 +444,15 @@ def views(min_n=3):
     fig, axes = plt.subplots(len(CUTS), len(models), figsize=(3.4 * len(models) + 1.2, 10.8), facecolor=PAPER)
     for c, e in enumerate(models):
         rr = [r for r in sub if r['exp'] == e]
-        j = float(np.mean([float(r['jneg_pct']) for r in rr]))
         ns = [int(r['n_folded']) for r in rr]
-        jt = '0%' if j == 0 else ('< 0.001%' if j < 0.001 else '%.3f%%' % j)
         if np.mean(ns) >= 1:
             nt = '%s voxels／位' % format(int(round(np.mean(ns))), ',')
         else:                                    # 速度場權重 1：51 位裡只有 3 位有，「每人約 0 點」會被看成完全沒有
             nt = '%d 位；最多 %d voxels' % (sum(x > 0 for x in ns), max(ns))
         # 模型名稱拆兩行（「Displacement・λ = 1・2× width」一行會壓到隔壁欄）
-        axes[0, c].set_title('%s\nfolding %s\n%s' % (VIEW_LAB.get(e, e).replace('・', '\n', 1), jt, nt),
+        # 2026-10-07：只寫 folding voxel 數，不寫百分比——jneg_pct 的分母是整個影像，跟論文定義（非背景）不同，
+        #   百分比統一放在簡報的表格（論文定義，test_dice.py --surface）；voxel 數兩種定義都一樣
+        axes[0, c].set_title('%s\nfolding voxels\n%s' % (VIEW_LAB.get(e, e).replace('・', '\n', 1), nt),
                              fontsize=19, fontweight='bold', color=INK)
         for r, (nm, ax_id, f) in enumerate(CUTS):
             show(axes[r, c], H[e], ax_id, at(ax_id, f), vmax)
