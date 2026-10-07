@@ -113,7 +113,7 @@ const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
 // 2026-10-07 使用者：「正式一點、公式 block 都很重要、不要太口語」→ 學術用語；cascade、coarse-to-fine 各一頁架構圖＋編號公式。
 // 長條圖是 make_charts.py 的，架構圖與公式是 make_arch.py 的
 const ARCH_FIGS = ['1014_arch_lit.png', '1014_arch_step0.png', '1014_arch_step0_eq.png', '1014_arch_cascade.png',
-  '1014_arch_cascade_eq.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png'];
+  '1014_arch_cascade_eq.png', '1014_arch_unet_vs_pyramid.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png'];
 const HAS_ARCH = ARCH_FIGS.every((f) => fs.existsSync(CH(f))) && D.multipass && D.multipass.mix_exp6 && D.multipass_vs_wide;
 // 補充評估指標（2026-10-07 使用者：「把 HD95 和 SDlogJ 加進去，然後可以更新這次 meeting 簡報」）：定義一頁＋結果一頁
 // 數值：ASD/test_dice.py --surface → models/<exp>/surface_<epoch>.csv → gather.py 的 surface；圖與公式：make_metrics.py
@@ -129,7 +129,7 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
   ...(HAS_METRIC ? ['met_def', 'met_res'] : []),
-  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', 'arch_pyramid', 'arch_plan'] : []),
+  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', 'arch_unet', 'arch_pyramid', 'arch_plan'] : []),
   'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
@@ -602,9 +602,8 @@ if (HAS_METRIC) {
     mix_wide: ['Displacement', 'full-res.', '1', '2×'], mix_wide_vel: ['SVF', 'full-res.', '1', '2×'] };
   // 標題與重點的數字都從 gather.py 的 surface／surface_paired 讀；⚠️ 文字是照 2026-10-07 的結果寫的
   // （HD95 各模型差距小、SDlogJ 隨 λ 變小而上升、displacement field 之 SDlogJ 主要來自 folding voxel）
-  const fmtF = (x) => (x === 0 ? '0' : x < 0.001 ? '< 0.001' : x.toFixed(3));
   const best = (k, lo) => Object.keys(NAMEP).reduce((a, b) => ((lo ? SF[b][k] < SF[a][k] : SF[b][k] > SF[a][k]) ? b : a));
-  const bD = best('dice', false), bH = best('hd95', true);
+  const bH = best('hd95', true);
   const ids = Object.keys(NAMEP);
   const hdLo = Math.min(...ids.map((e) => SF[e].hd95)), hdHi = Math.max(...ids.map((e) => SF[e].hd95));
   // 2026-10-07 結果：同條件下 SVF 之 HD95 較 displacement field 低（邊界對位較好）；λ 1 → 0.5 之 HD95 反而變差；
@@ -629,23 +628,13 @@ if (HAS_METRIC) {
      sub('λ = 2 為 ' + thou(SF.mix_exp4.fold_n) + '；SVF 各模型 < 15。論文百分比之分母為 520 萬 voxel，與本研究不同，故以 voxel 數比較')],
   ];
   const s = base('補充　評估指標', METRIC_TITLE);
-  const cellv = (e, k, txt) => ({ text: txt, options: (e === bD && k === 'dice') || (e === bH && k === 'hd95')
-    ? { bold: true, color: C.TEAL } : {} });
-  const rows = [['Model', '參數化', '解析度', 'λ', 'Width', 'Dice ↑', 'HD95（mm）↓', 'SDlogJ ↓', 'Folding（%）↓', 'Folding voxels ↓'],
-    [{ text: 'Affine（形變配準前）', options: { color: C.MUTED } }, '—', '—', '—', '—', f3(SF.affine.dice),
-     SF.affine.hd95.toFixed(2), '0', '0', '0']];
-  Object.keys(NAMEP).forEach((e) => {
-    const [pz, rs, lam, wd] = NAMEP[e];
-    rows.push([e + (SF[e].amp ? ' *' : ''), pz, rs, lam, wd, cellv(e, 'dice', f3(SF[e].dice)),
-               cellv(e, 'hd95', SF[e].hd95.toFixed(2)), SF[e].sdlogj.toFixed(3), fmtF(SF[e].fold_fg),
-               SF[e].fold_n === 0 ? '0' : SF[e].fold_n < 10 ? SF[e].fold_n.toFixed(1) : thou(SF[e].fold_n)]);
-  });
-  table(s, rows, { x: M, y: 1.42, w: 12.13, colW: [2.05, 1.25, 0.95, 0.5, 0.8, 0.85, 1.5, 1.1, 1.5, 1.63], fontSize: 11.5, rowH: 0.28 });
-  bullets(s, METRIC_BULLETS, { x: M, y: 4.88, w: 12.13, h: 1.8, fontSize: 13, paraSpaceAfter: 4 });
+  // 2026-10-07 使用者同意：原本的表格改成四格圖（make_charts.py 的 1014_metrics.png；folding 用每位平均 voxel 數）
+  fitImage(s, CH('1014_metrics.png'), M, 1.32, 12.13, 3.75, 'Dice、HD95、SDlogJ、folding voxel 數之比較');
+  bullets(s, METRIC_BULLETS, { x: M, y: 5.12, w: 12.13, h: 1.6, fontSize: 12.5, paraSpaceAfter: 3 });
   const anyAmp = ids.some((e) => SF[e].amp);
-  txt(s, 'test 51 位之平均；HD95 為 30 個結構之平均。Folding（%）之分母為 atlas 非背景 voxel（187 萬）；Folding voxels 為每位平均。'
-    + (anyAmp ? '* 以半精度推論（與單精度之差異可忽略）' : '全部以單精度（float32）推論'),
-    { x: M, y: 6.7, w: 12.13, h: 0.3, fontSize: 11, color: C.MUTED });
+  txt(s, 'test 51 位之平均；HD95 為 30 個結構之平均；Folding voxels 為每位平均；除 mix_exp2 外皆為 full-res.；'
+    + (anyAmp ? '部分模型以半精度推論（與單精度之差異可忽略）' : '全部以單精度（float32）推論'),
+    { x: M, y: 6.8, w: 12.13, h: 0.3, fontSize: 11, color: C.MUTED });
 }
 
 if (HAS_ARCH) {
@@ -690,6 +679,15 @@ if (HAS_ARCH) {
   const s = base('⑥ 架構修改（紅字以外）', 'Step 1：Cascaded registration（Zhao et al., ICCV 2019）');
   fitImage(s, CH('1014_arch_cascade.png'), M, 1.45, 12.13, 2.75, 'Cascade 架構圖');
   fitImage(s, CH('1014_arch_cascade_eq.png'), M, 4.35, 12.13, 2.4, 'Cascade 公式 (2)(3)');
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 2 與 VoxelMorph U-Net 之比較（make_arch.py）
+  // 2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」→ 直式 U 對照圖放在 Step 2 那頁前面
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改');
+  fitImage(s, CH('1014_arch_unet_vs_pyramid.png'), M, 1.35, 12.13, 5.0, 'VoxelMorph U-Net 與 coarse-to-fine 之結構比較');
+  txt(s, '第 ' + PG.arch_pyramid + ' 頁之架構圖即 (b) 旋轉 90°：上排（m）→ 左臂、下排（f）→ 右臂、中排（decoder）→ 中央；'
+    + '結構依 ASD/arch.py 之 VxmPyramid', { x: M, y: 6.5, w: 12.13, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 if (HAS_ARCH) {

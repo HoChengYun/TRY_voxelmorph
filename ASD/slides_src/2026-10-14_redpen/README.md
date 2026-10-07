@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（36 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改五頁要先有 `1014_arch_*.png` 七張圖（`make_charts.py` 兩張、`make_arch.py` 五張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（37 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多。**2026-10-07 起全份（投影片文字與圖上的字）改用正式學術用語**，術語對照見下方 📌。
@@ -43,13 +43,14 @@
 | 27 | ⑤ 視覺化（大圖）：T054 整片腦三個方向，加寬位移場 vs 加寬速度場，藍框＝下一頁放大的那一塊（使用者：「可以來大圖的嗎」）| `folding_check/folding_full_pair_T054.png` |
 | 28 | ⑤ 視覺化：藍框那一塊放大，加寬位移場 vs 加寬速度場（`ASD\check_folding.py --zoom-pair` 兩張一起畫，要 GPU）| `folding_check/folding_zoom_pair_T054.png` |
 | 29 | 補充評估指標之定義（2026-10-07 使用者：「把 HD95 和 SDlogJ 加進去，然後可以更新這次 meeting 簡報」）：上方示意圖（合成之 2D 例子）、下方式 (1)～(3)：HD95、SDlogJ、folding（分母：atlas 非背景；與論文比較用 voxel 數）（`make_metrics.py`）| `1014_metric_demo.png`、`1014_metric_eq.png` |
-| 30 | 補充評估指標之結果：Affine＋8 個模型 × Dice、HD95、SDlogJ、folding（%、voxel 數）表格＋重點（`gather.py` 的 `surface`、`surface_paired`；數值來自 `ASD/test_dice.py --surface`）| （表格）|
+| 30 | 補充評估指標之結果：8 個模型 × Dice、HD95、SDlogJ、folding voxel 數（每位平均，虛線為論文 VoxelMorph (CC) 19,077）四格圖＋重點；affine 標在各格右上（2026-10-07 原本的表格改成圖；`gather.py` 的 `surface`、`surface_paired`；數值來自 `ASD/test_dice.py --surface`）| `1014_metrics.png`（`make_charts.py`）|
 | 31 | ⑥ 架構修改方向：加入配準專用設計，而非更換 backbone（老師紅字之外，2026-10-06 使用者：「把改架構的進度也加進 10/14 簡報」）。左 Jian et al., WBIR 2024 Table 2（LPBA）、右 LUMIR 2024 test leaderboard；圖下一行資料來源 | `1014_arch_lit.png` |
 | 32 | ⑥ Step 0：Test-time recursion（不重新訓練）。三顆模型 1、2、3 passes 並排＋右側重點（gather.py 的 `multipass`、`multipass_vs_wide`）＋式 (1) | `1014_arch_step0.png`、`1014_arch_step0_eq.png` |
 | 33 | ⑥ Step 1：Cascaded registration（Zhao et al., ICCV 2019）。架構圖＋式 (2)(3) | `1014_arch_cascade.png`、`1014_arch_cascade_eq.png` |
-| 34 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
-| 35 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（沒結果的格子寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練順序 | （表格）|
-| 36 | 下一步（訓練時也用標籤 mix_exp8／9、架構修改的順序、MRS）| |
+| 34 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
+| 35 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
+| 36 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（沒結果的格子寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練順序 | （表格）|
+| 37 | 下一步（訓練時也用標籤 mix_exp8／9、架構修改的順序、MRS）| |
 
 📌 **⑥ 架構修改（第 31～35 頁）的寫法（2026-10-07 定案）**：使用者：「這個 block 有些太口語了」「由粗到細老師肯定不知道」
 「正式一點，公式 block 都很重要，不要太口語」。因此 ⑥ 全部改成**正式學術用語＋架構圖＋編號公式 (1)～(5)**，每頁條列 2～4 行：
@@ -165,7 +166,7 @@ mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在�
   第 5 頁是區域分組（多個標籤），英文是描述性的（`make_charts.py` 的 `SHOW`）
 - 第 22 頁原本的附記（約 33 GB／24 GB、每步秒數）已拿掉；`gather.py` 仍算 `train_time`（從 `log/mix_wide*.txt`），簡報不再使用
 - 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不可跨參數化比較」、第 27、28 頁的說明文字是照現在的數字寫的
-- 第 36 頁「半監督訓練…γ = 0.5、5」：照 `ASD/指令_mix_exp8_9.md`；「Eq. 10」照 `ASD/train_semisup.py` 檔頭（論文式 (9)、(10)）
+- 第 37 頁「半監督訓練…γ = 0.5、5」：照 `ASD/指令_mix_exp8_9.md`；「Eq. 10」照 `ASD/train_semisup.py` 檔頭（論文式 (9)、(10)）
 - ⑥ 架構修改（第 31～35 頁）：文獻數字照論文抄、寫在 `make_charts.py`（Jian et al., WBIR 2024 Table 2 的 LPBA 欄
   67.0／67.5／67.3／70.4／71.3，2026-10-06 對過原文 HTML；LUMIR 2024 測試集 Dice，出處見 `文獻/對位模型文獻筆記.md`），
   第 31 頁的資料來源與四行重點寫在 `build.js`；第 32 頁右側重點的數字從 CSV 算，文字（「3 passes 無進一步改善」等）照現在的數字寫；

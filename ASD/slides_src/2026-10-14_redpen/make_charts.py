@@ -14,6 +14,7 @@
   1014_wide_struct.png      ⑤ 加寬：每個結構（加寬的效果、加寬後換版本）
   1014_wide_difficulty.png  ⑤ 加寬：越難對的人幫越多（位移場、速度場並排）
   1014_wide_loss.png        ⑤ 加寬：四顆的訓練 loss（影像項、平滑項）
+  1014_metrics.png          補充評估指標之結果：Dice、HD95、SDlogJ、folding voxel 數四格（第 30 頁，原本是表格）
 """
 import os
 import sys
@@ -561,3 +562,58 @@ if all(e in MPD for e, _ in GROUPS):
     ax.grid(axis='x', alpha=0)
     fig.subplots_adjust(left=0.1, right=0.985, top=0.97, bottom=0.25)
     save(fig, '1014_arch_step0.png')
+
+# ── 補充評估指標之結果（第 30 頁）：原本的表格改成四格圖（2026-10-07 使用者同意）────────────────
+#   folding 用每位平均 voxel 數（使用者 2026-10-07：「還是放 voxel 數量」），虛線 = 論文 VoxelMorph (CC) 之 19,077
+SFC = D.get('surface', {})
+MET = ['mix_exp2', 'mix_exp5', 'mix_exp6', 'mix_exp7', 'mix_exp4', 'mix_exp3', 'mix_wide_vel', 'mix_wide']
+if 'affine' in SFC and all(e in SFC for e in MET):
+    CFG = {'mix_exp2': ('SVF', 'half-res. · λ 2'), 'mix_exp5': ('SVF', 'λ 2'), 'mix_exp6': ('SVF', 'λ 1'),
+           'mix_exp7': ('SVF', 'λ 0.5'), 'mix_exp4': ('Displacement', 'λ 2'), 'mix_exp3': ('Displacement', 'λ 1'),
+           'mix_wide_vel': ('SVF', 'λ 1 · 2× width'), 'mix_wide': ('Displacement', 'λ 1 · 2× width')}
+    GRP = np.array([0, 0, 0, 0, 1, 1, 2, 2])              # default width SVF／default width displacement／2× width
+    yv = -(np.arange(len(MET)) + 0.6 * GRP)
+    cols = [RUST if CFG[e][0] == 'Displacement' else TEAL for e in MET]
+    AF = SFC['affine']
+    fmax = max(PAPER_N, max(SFC[e]['fold_n'] for e in MET)) * 1.2
+    PAN = [('(a) Dice ↑', 'dice', 'dot', (0.792, 0.8175), lambda v: '%.3f' % v, 'affine：%.3f' % AF['dice']),
+           ('(b) HD95（mm）↓', 'hd95', 'dot', (2.33, 2.49), lambda v: '%.2f' % v, 'affine：%.2f' % AF['hd95']),
+           ('(c) SDlogJ ↓', 'sdlogj', 'bar', (0, 2.45), lambda v: '%.2f' % v, 'affine：0'),
+           ('(d) Folding voxels ↓', 'fold_n', 'bar', (0, fmax), ntxt, '每位平均')]
+    fig, axes = plt.subplots(1, 4, figsize=(12.13, 4.0), facecolor=PAPER, sharey=True)
+    fig.subplots_adjust(left=0.165, right=0.99, top=0.87, bottom=0.085, wspace=0.12)
+    seps = [(yv[i] + yv[i + 1]) / 2 for i in range(len(MET) - 1) if GRP[i] != GRP[i + 1]]
+    for ax, (title, k, kind, xl, fmt, note) in zip(axes, PAN):
+        span = xl[1] - xl[0]
+        for yy, c, e in zip(yv, cols, MET):
+            v = SFC[e][k]
+            if kind == 'dot':                               # Dice、HD95 的軸沒有從 0 開始 → 用點，不用長條
+                ax.plot([xl[0], v], [yy, yy], color=c, lw=1, alpha=0.25)
+                ax.plot(v, yy, 'o', color=c, ms=7)
+            else:
+                ax.barh(yy, v, height=0.62, color=c)
+            inside = kind == 'bar' and v > 0.6 * span       # 長條很長時數字放在長條裡面
+            ax.text(v + (-0.015 if inside else (0.04 if kind == 'dot' else 0.02)) * span, yy, fmt(v), va='center', ha='right' if inside else 'left',
+                    fontsize=10, color='white' if inside else INK)
+        if k == 'fold_n':
+            ax.axvline(PAPER_N, color=RED, ls='--', lw=1.2)
+            ax.text(PAPER_N - 0.02 * span, yv[0] + 0.3, 'VoxelMorph (CC)\n（TMI 2019, Table I）\n19,077', ha='right', va='top',
+                    fontsize=9, color=RED, linespacing=1.25)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(10000))
+            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: '{:,.0f}'.format(v)))
+        for sy in seps:
+            ax.axhline(sy, color=RULE, lw=1)
+        ax.set_xlim(*xl)
+        ax.set_title(title, loc='left', fontsize=11.5, fontweight='bold', color=INK)
+        ax.text(1, 1.015, note, transform=ax.transAxes, ha='right', va='bottom', fontsize=9.5, color=MUTED)
+        ax.tick_params(axis='x', labelsize=9.5)
+        ax.tick_params(axis='y', length=0)
+        clean(ax)
+        ax.grid(axis='y', alpha=0)
+    tr = axes[0].get_yaxis_transform()                      # x 用軸的比例、y 用資料座標
+    for yy, c, e in zip(yv, cols, MET):
+        axes[0].text(-0.035, yy + 0.21, e, transform=tr, ha='right', va='center', fontsize=10.5, fontweight='bold', color=INK)
+        axes[0].text(-0.035, yy - 0.27, '%s · %s' % CFG[e], transform=tr, ha='right', va='center', fontsize=9, color=c)
+    axes[0].set_yticks([])
+    axes[0].set_ylim(yv[-1] - 0.6, yv[0] + 0.6)
+    save(fig, '1014_metrics.png')

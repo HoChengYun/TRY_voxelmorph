@@ -7,6 +7,7 @@
   1014_arch_cascade.png      Step 1：cascade 架構圖
   1014_arch_cascade_eq.png   Step 1：公式 (2)、(3)
   1014_arch_pyramid.png      Step 2：coarse-to-fine 架構圖
+  1014_arch_unet_vs_pyramid.png  Step 2 與 VoxelMorph U-Net 之比較（直式 U 對照，標出三處不同；放在 Step 2 那頁前面）
   1014_arch_pyramid_eq.png   Step 2：公式 (4)、(5)
 
 記號照 VoxelMorph（Balakrishnan et al., TMI 2019）：(m∘φ)(x) = m(φ(x))，φ = Id + u。
@@ -139,6 +140,103 @@ ax.text(1, 0.4, 'E：shared encoder（stride-2 conv，兩路權重共享）　W�
         + r'$\mathcal{U}$' + '：×2 upsampling（' + r'$\Phi$' + '、' + r'$h$' + '）　'
         + r'$D_l$' + '：式 (4)', ha='left', va='bottom', fontsize=10.5, color=MUTED)
 save(fig, '1014_arch_pyramid.png')
+
+
+# ── Step 2 與 VoxelMorph U-Net 之比較（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」→ 放進簡報）──
+#   左：VoxelMorph 之 U-Net（直式 U，同 Ronneberger 之畫法）；右：上面 1014_arch_pyramid.png 旋轉 90°
+#   （上排 m → 左臂、下排 f → 右臂、中排 decoder → 中央），標出三處不同。結構照 ASD/arch.py 的 VxmPyramid
+_UY = [5.0, 3.85, 2.7, 1.55, 0.4]                     # l = 0（原解析度）… 4（1/16），由上往下
+_UBW, _UBH = 1.1, 0.64
+_ENC, _DEC, _OUT, _RED, _GRN, _GRY = '#F1EFE8', '#E6F2F1', '#FDF3EA', '#B03A2E', '#2E8B57', '#A8A8A8'
+
+
+def _ubox(ax, x, y, t, fc, w=_UBW, fs=13, sub=None):
+    ax.add_patch(FancyBboxPatch((x - w / 2, y - _UBH / 2), w, _UBH, boxstyle='round,pad=0.02,rounding_size=0.08',
+                                fc=fc, ec=INK, lw=1.2))
+    ax.text(x, y + (0.1 if sub else 0), t, ha='center', va='center', fontsize=fs, color=INK)
+    if sub:
+        ax.text(x, y - 0.18, sub, ha='center', va='center', fontsize=9, color=TEAL)
+
+
+def _uarr(ax, p, q, c, lw=1.5):
+    ax.annotate('', xy=q, xytext=p, arrowprops=dict(arrowstyle='-|>', color=c, lw=lw, shrinkA=0, shrinkB=0,
+                                                    mutation_scale=12))
+
+
+def _unum(ax, x, y, k):
+    ax.add_patch(Circle((x, y), 0.19, fc=_RED, ec='none', zorder=5))
+    ax.text(x, y, str(k), ha='center', va='center', fontsize=10, color='white', fontweight='bold', zorder=6)
+
+
+with plt.rc_context({'font.family': ['Microsoft JhengHei', 'DejaVu Sans']}):   # ×、→ 等缺字用 DejaVu Sans 補
+    fig, axes = plt.subplots(1, 2, figsize=(W, 5.0), facecolor=PAPER)
+    for ax in axes:
+        ax.set_xlim(-1.0, 10.3)
+        ax.set_ylim(-1.55, 6.75)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        for l, y in enumerate(_UY):
+            ax.text(-0.95, y, '1/%d' % 2 ** l, ha='left', va='center', fontsize=10, color=MUTED)
+
+    # (a) VoxelMorph 之 U-Net：單一 encoder（m、f 於輸入端串接），僅於最高解析度輸出一次
+    ax = axes[0]
+    EX = [1.0 + 0.6 * l for l in range(5)]
+    DX = [8.6 - 0.6 * l for l in range(5)]
+    _ubox(ax, EX[0], _UY[0], r'$[m,\ f]$', _ENC, w=1.3, fs=13.5)
+    ax.text(EX[0], _UY[0] + 0.5, '串接為 2 通道', ha='center', fontsize=9.5, color=MUTED)
+    for l in range(1, 5):
+        _ubox(ax, EX[l], _UY[l], r'$E_%d$' % l, _ENC)
+        _uarr(ax, (EX[l - 1], _UY[l - 1] - _UBH / 2), (EX[l], _UY[l] + _UBH / 2), _RED)
+    for l in range(5):
+        _ubox(ax, DX[l], _UY[l], r'$D_%d$' % l, _DEC)
+        if l < 4:
+            _uarr(ax, (EX[l] + (0.65 if l == 0 else _UBW / 2), _UY[l]), (DX[l] - _UBW / 2, _UY[l]), _GRY, lw=2)
+            _uarr(ax, (DX[l + 1], _UY[l + 1] + _UBH / 2), (DX[l], _UY[l] - _UBH / 2), _GRN)
+    _uarr(ax, (EX[4] + _UBW / 2, _UY[4]), (DX[4] - _UBW / 2, _UY[4]), INK)
+    _ubox(ax, DX[0], 6.25, r'$v\ \to\ \phi=\exp(v)$', _OUT, w=2.8, fs=12.5)
+    _uarr(ax, (DX[0], _UY[0] + _UBH / 2), (DX[0], 6.25 - _UBH / 2), INK)
+    ax.text(DX[0] - 1.55, 6.25, '僅輸出一次', ha='right', va='center', fontsize=10, color=INK)
+    ax.set_title('(a) VoxelMorph U-Net（現行模型之 ' + r'$g_{\theta}$' + '）', fontsize=12.5, fontweight='bold',
+                 color=INK, pad=2)
+    ax.text(-0.95, -0.6, '紅：stride-2 conv　綠：×2 upsampling　灰：skip connection', fontsize=10, color=MUTED)
+    ax.text(-0.95, -1.1, '單一 encoder（m、f 於輸入端串接），於最高解析度輸出一次', fontsize=10, color=MUTED)
+
+    # (b) Step 2：dual-stream encoder、m 之 skip 先 warp、每層 decoder 皆輸出形變
+    ax = axes[1]
+    MX = [0.9 + 0.55 * l for l in range(5)]
+    FX = [8.7 - 0.55 * l for l in range(5)]
+    CX, WX = 4.8, 3.65
+    for l in range(5):
+        _ubox(ax, MX[l], _UY[l], r'$m$' if l == 0 else r'$F_m^{%d}$' % l, _ENC)
+        _ubox(ax, FX[l], _UY[l], r'$f$' if l == 0 else r'$F_f^{%d}$' % l, _ENC)
+        _ubox(ax, CX, _UY[l], r'$D_%d$' % l, _DEC, sub=r'$\to\ \Phi_%d$' % l)
+        if l:
+            _uarr(ax, (MX[l - 1], _UY[l - 1] - _UBH / 2), (MX[l], _UY[l] + _UBH / 2), _RED)
+            _uarr(ax, (FX[l - 1], _UY[l - 1] - _UBH / 2), (FX[l], _UY[l] + _UBH / 2), _RED)
+        _uarr(ax, (FX[l] - _UBW / 2, _UY[l]), (CX + _UBW / 2, _UY[l]), _GRY, lw=2)
+        if l < 4:                                         # m 之特徵先以下一層之形變 warp（最粗層 Φ5 = Id，直接進）
+            ax.plot([MX[l] + _UBW / 2, WX - 0.2], [_UY[l], _UY[l]], color=_GRY, lw=2)
+            ax.add_patch(Circle((WX, _UY[l]), 0.2, fc='white', ec=INK, lw=1.2, zorder=4))
+            ax.text(WX, _UY[l], 'W', ha='center', va='center', fontsize=9.5, zorder=5)
+            _uarr(ax, (WX + 0.2, _UY[l]), (CX - _UBW / 2, _UY[l]), _GRY, lw=2)
+            _uarr(ax, (CX, _UY[l + 1] + _UBH / 2), (CX, _UY[l] - _UBH / 2), _GRN)
+            _uarr(ax, (CX - _UBW / 2 + 0.05, _UY[l + 1] + _UBH / 2), (WX + 0.05, _UY[l] - 0.2), TEAL, lw=1.4)
+        else:
+            _uarr(ax, (MX[l] + _UBW / 2, _UY[l]), (CX - _UBW / 2, _UY[l]), _GRY, lw=2)
+    _ubox(ax, CX, 6.25, r'$\Phi_0$', _OUT, fs=13.5)
+    _uarr(ax, (CX, _UY[0] + _UBH / 2), (CX, 6.25 - _UBH / 2), INK)
+    _unum(ax, MX[0] - 0.2, _UY[0] + 0.62, 1)
+    _unum(ax, FX[0] + 0.2, _UY[0] + 0.62, 1)
+    _unum(ax, WX, _UY[0] + 0.45, 2)
+    _unum(ax, CX + 0.85, _UY[1] + 0.5, 3)
+    ax.text(MX[0], _UY[0] + 1.05, 'm 之 encoder', ha='center', fontsize=10, color=INK)
+    ax.text(FX[0], _UY[0] + 1.05, 'f 之 encoder', ha='center', fontsize=10, color=INK)
+    ax.set_title('(b) Step 2：Coarse-to-fine', fontsize=12.5, fontweight='bold', color=INK, pad=2)
+    ax.text(-0.95, -0.5, '① Dual-stream encoder：m、f 分別抽取特徵（權重共享）', fontsize=10, color=INK)
+    ax.text(-0.95, -0.95, '② W：以下一層之形變（青色，×2 upsampling）warp m 之特徵', fontsize=10, color=INK)
+    ax.text(-0.95, -1.4, '③ 每層 decoder 皆輸出形變，逐層累積至 ' + r'$\Phi_0$', fontsize=10, color=INK)
+    fig.subplots_adjust(left=0.005, right=0.995, top=0.95, bottom=0.005, wspace=0.03)
+    save(fig, '1014_arch_unet_vs_pyramid.png')
 
 
 # ── 公式區塊（同 make_method.py：公式置中、編號靠右，下面是「其中」）──────────────────

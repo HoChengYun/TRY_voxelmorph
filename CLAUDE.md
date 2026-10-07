@@ -2,7 +2,7 @@
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
 > 最後更新：**2026-10-07**（🔴 折疊率跟論文比較改用 folding voxel 數（論文百分比的分母是固定 5.2 M voxel，跟我們不同）；新增 HD95、SDlogJ（`test_dice.py --surface`，手冊 §26）；
-> 10/14 簡報 36 頁：全份正式學術用語、補充評估指標兩頁、⑥ 架構修改改成架構圖＋編號公式（`make_arch.py`）。
+> 10/14 簡報 37 頁：全份正式學術用語、補充評估指標兩頁（結果頁為四格圖）、⑥ 架構修改改成架構圖＋編號公式（`make_arch.py`），Step 2 前加一頁跟 U-Net 的對照圖。
 > 10-06：改架構第 0 步＋第 1、2 步程式（待辦 5）；10/14 簡報先前 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
 > 頭頂範圍 25 mm 試過 10～60 mm 結論不變；新增文獻筆記 `文獻/`（LUMIR 排行、SITReg、VFA）。
 > 10-05：mix_wide_vel 加寬改速度場 0.8111，跟加寬位移場打平、幾乎不擠爆；老師紅字五件都做完。
@@ -207,7 +207,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 36 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 37 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
