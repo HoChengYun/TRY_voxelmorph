@@ -5,13 +5,25 @@
 產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（34 頁；⑥ 架構修改五頁要先有 `1014_arch_*.png` 七張圖（`make_charts.py` 兩張、`make_arch.py` 五張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
-給老師看的版本，所以文字盡量少、圖盡量多。①～⑤ 沿用 10-05 以前定案的說法；⑥ 起改用正式學術用語（見下方 ⑥ 的說明）。
+給老師看的版本，所以文字盡量少、圖盡量多。**2026-10-07 起全份（投影片文字與圖上的字）改用正式學術用語**，術語對照見下方 📌。
+
+📌 **正式用語（2026-10-07，使用者：「正式一點，公式 block 都很重要，不要太口語，你的中文也不要太口語」；
+⑥ 先改，同天使用者同意 ①～⑤ 與下一步一起改）**：
+- 擠爆 → folding（|J| ≤ 0）、folding voxel；速度場 → SVF；位移場 → displacement field（圖上簡寫 Displacement）；
+  平滑權重 → λ；加寬 2 倍 → 2× width（預設寬度 → default width）；全尺寸／半解析度 → full-res.／half-res.
+- 起點 → affine（「Dice 起點 → 配準後」改寫成「Dice（affine → 配準後）」，兩個數字照舊一起寫）；Dice 進步多少 → ΔDice
+- 頭頂 → 顱頂；後腦杓 → 枕部；殘留旁邊的結構 → 殘留鄰近結構；沒切乾淨 → 去顱骨不完全；吸管 → column；格子 → voxel；
+  水 → 腦脊髓液（CSF）；老師的算法 → 會議建議方法；訓練輪數 → epoch；驗證集 → validation set；跑中 → 訓練中
+- 「沒差」改成寫 p 值：`gather.py` 的 `paired` 多算配對 Wilcoxon（λ 1 → 0.5：p = 0.18；2× width 下 SVF vs displacement：p = 0.17）
+- 圖上的 ≤、≥、− 這三個字 Microsoft JhengHei 沒有：各支畫圖程式把 `font.family` 設成 `['Microsoft JhengHei', 'DejaVu Sans']`
+  讓缺字自動改用 DejaVu Sans。⚠️ 字串裡有 `$...$`（mathtext）時這招無效、缺字會變成 ¤，所以 `make_method.py` 的 ≥、< 都寫在 `$\geq\tau$` 裡
+- 投影片標題打不出下標（`z_top` 會變成底線），第 12～15 頁標題不放符號，符號在公式區塊裡定義
 
 | 頁 | 內容 | 圖 |
 |---|---|---|
 | 1–2 | 封面、一頁看完（五件事的結果表）| |
 | 3–6 | ① 擠爆的位置（第 4 頁「不同設定」要先有 `folding_params.png`）| `folding_check/folding_views.png`、`folding_check/folding_params.png`、`1014_folding_regions.png`、`folding_check/folding_zoom_T054.png` |
-| 7–10 | ② 速度場的平滑權重（9、10 頁只在 mix_exp6、7 都有結果時才出現）| `deck_charts/ablation.png`（09-20 那份的）、`1014_lambda.png`、`1014_lambda_struct.png`、`grid_lambda.png` |
+| 7–10 | ② 速度場的平滑權重（9、10 頁只在 mix_exp6、7 都有結果時才出現）| `1014_ablation.png`（09-20 那份 `ablation.png` 的正式用語版，`make_charts.py` 畫；09-20 的產生器不動）、`1014_lambda.png`、`1014_lambda_struct.png`、`grid_lambda.png` |
 | 11 | ③ 老師的做法：只平均殘留旁邊的結構 | （表格）|
 | 12–15 | ③ 頭頂殘留厚度怎麼量（1/4～4/4）：每一步一頁，上面是圖、下面是編號公式 (1)～(5)＋「其中」符號說明（`make_method.py`）| `1014_method_{1..4}.png`、`1014_method_eq{1..4}.png` |
 | 16–18、20、21 | ③ 第 16 頁散佈圖＋2×2 Dice 表；第 17 頁 test 頭頂殘留最多／最少各 3 位；第 18 頁三個位置的散佈圖＋Dice 表（附 FreeSurfer 結構名稱與標籤編號）；第 20 頁顱底的 3 對 3；第 21 頁是不是 FreeSurfer 畫太小 | `1014_dilution.png`、`1014_six.png`、`1014_regions.png`、`1014_six_base.png`、`1014_top_example.png` |
@@ -41,7 +53,8 @@
 
 📌 **③④ 段的規則（2026-10-05 跟使用者定案，細節手冊 §24.2）**：
 - Dice 數值一律寫「起點 → 配準後」，兩個一樣大，不能只放大配準後（頭頂殘留多的人起點略高、後腦杓殘留多的 3 位起點反而低，
-  只看配準後兩個方向都會被騙）。「模型貢獻」一律叫「Dice 進步多少」
+  只看配準後兩個方向都會被騙）。「模型貢獻」一律叫「Dice 進步多少」。
+  （10-07 改正式用語後寫成「Dice（affine → 配準後）」與 ΔDice，規則不變）
 - 殘留量用原始單位：頭頂、後腦杓是厚度（mm），顱底是最大一坨的體積（mm³）。相關係數、分組（170 人的 1/4、3/4 分位數）
   都直接用原始數字算（`gather.py` 的 `residue_mm`），跟以前「每批各自排名次」的版本幾乎一樣
 - `1014_dilution.png`、`1014_regions.png`：橫軸殘留量、縱軸 Dice 進步多少，同一張圖裡每格縱軸刻度一樣（只是起點不同）
@@ -53,6 +66,7 @@
 - 圖和公式區塊照投影片上的實際大小畫（寬 12.13 吋），字不會被縮小
 - 符號沿用使用者看懂的寫法：$z_{top}$、$\tau$、$t$、$V$、residue；$\#$＝數有幾個、$|V|$＝V 裡有幾根（解釋的過程見手冊 §24.2）
 - 例子：sub-0043（test 頭頂殘留最多），第 87 片，吸管 A（x=74，乾淨，$t=0$）、B（x=101，$t=6$，中間隔一格暗的）。
+  10-07 起投影片上「吸管」寫成 column、「格子」寫成 voxel
   兩根每一格都離門檻至少 0.04，不會卡在邊緣看糊塗
 - 第 2 頁多一行「門檻改成皮質的 0.3～0.6 倍結論都一樣」、第 4 頁多一行「25 mm 是設計時定的範圍」：
   `make_method.py` 會重算兩種敏感度（170 人，`models/skullstrip_check/top_tau_sensitivity.csv`、`top_band_sensitivity.csv`），
@@ -82,6 +96,7 @@ cd ASD\slides_src\2026-10-14_redpen
 cd ..\..\..
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 mix_wide_vel:0240 --gpu 0   # 速度場三顆的擠爆位置（位移場三顆 09-30 算過）
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png（6 欄：左 3 顆速度場、右 3 顆位移場）
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --gpu 0   # -> folding_zoom_T054.png（第 6 頁；mix_exp3 推論一次，筆電 GPU 可）
 cd ASD\slides_src\2026-09-20_cross
 ..\..\..\vxm_env\Scripts\python.exe make_compare.py --set lambda   # -> curve_lambda / jacobian_lambda / grid_lambda.png（要先有各顆的 vis_T054）
 ..\..\..\vxm_env\Scripts\python.exe make_compare.py --set wide     # -> curve_wide / jacobian_wide / grid_wide.png（簡報只用 curve_wide）
@@ -105,7 +120,7 @@ copy deck.pptx ..\..\..\meeting報告\ASD_老師紅字回覆_20261014.pptx
 ## 還沒跑完的實驗
 
 mix_exp6、mix_exp7（10-04）、mix_wide_vel（10-05）都帶回來了，現在沒有 pending 的。
-`gather.py` 找不到某顆的 test CSV（`models/<exp>/dice_<4 位數>.csv`）就標成 pending，簡報第 2 頁、平滑權重那頁、加寬＋速度場那頁顯示「跑中」、圖上標「跑中」框。
+`gather.py` 找不到某顆的 test CSV（`models/<exp>/dice_<4 位數>.csv`）就標成 pending，簡報第 2 頁、平滑權重那頁、加寬＋速度場那頁顯示「訓練中」、圖上標「訓練中」框。
 **結果帶回來放進 `models/<exp>/` 之後，照上面重建一次就會補上**，不用改程式。
 一個資料夾有好幾份 test CSV 的話，用 `dice_curve_val.csv` 裡驗證集最好的那個 epoch。
 mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在「下一步」寫一行；結果要放進來得另外加頁。
@@ -117,15 +132,16 @@ mix_exp8／9（訓練時也用標籤）不在這份簡報的設定裡，只在�
 - 每顆的設定（版本、實際平滑權重、寬度、積分解析度）：`gather.py` 的 `CFG`，照操作單
 - 論文 Table I 的擠爆比例 0.366%（`make_charts.py`）
 - 對照圖的兩位受試者 MRS0381-2、T054（跟 `check_top_residue.py --example` 同一組）
-- 第 16 頁 2×2 表最後一列「起點就高」「進步差不多」「起點差不多」、第 19 頁「兩組交錯在一起，分不出誰殘留多」、
-  第 20 頁「這 6 位裡殘留多的進步還略多」「殘留大多在腦的前下方」這幾個字是照現在的數字寫的（數字本身從 CSV 算）
-- 第 12～15 頁（`make_method.py`）：例子 sub-0043、第 87 片、吸管 x=74／101；「腦膜和腦之間本來就隔一層水」「兩側頭皮是斜的」
+- 第 2 頁結果欄的結論句（「呈小型團簇，沿腦溝分布於皮質與白質」「有殘留，與 ΔDice 無顯著相關」等）、各頁標題的結論句，是照現在的結果寫的
+- 第 16 頁 2×2 表最後一列「affine 已高」「ΔDice 相近」「affine 相近」、第 19 頁「兩組之 ΔDice 互有高低，無法區分」、
+  第 20 頁「此 6 位中，殘留多者之 ΔDice 略高」「殘留多位於腦之前下方」這幾個字是照現在的數字寫的（數字本身從 CSV 算）
+- 第 12～15 頁（`make_method.py`）：例子 sub-0043、第 87 片、column x=74／101；「腦膜與腦組織之間原有一層腦脊髓液」「該處頭皮傾斜」
   這些解釋是寫死的文字；圖上和公式說明裡的數字（0.62、0.31、0.23～0.32、8,980、31,524、3.51、r 範圍）都從資料算
-- 第 22 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 幾秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
+- 第 22 頁「約 33 GB／24 GB」：手冊 §23.7 的外插；「每步 10 餘秒 → 約 3 秒」：使用者 10-02 在 AI 上看到的（mix_exp6、7 同時跑）。
   10 幾秒那段**沒留在 log 裡**（帶回來的 log 是加了設定後從頭跑的，每步 3.0～3.3 秒）。
   加寬兩顆的每步秒數、小時數是 `gather.py` 從 `log/mix_wide.txt`、`log/mix_wide_vel.txt` 算的（log 沒帶回來時才退回寫死的「約 19 小時」）
-- 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不能跨版本比」、第 27、28 頁的說明文字是照現在的數字寫的
-- 第 34 頁「訓練時也用 FreeSurfer 標籤…標籤權重 0.5、5」：照 `ASD/指令_mix_exp8_9.md`
+- 第 24 頁「蒼白球…方向相反」、第 26 頁「平滑項不可跨參數化比較」、第 27、28 頁的說明文字是照現在的數字寫的
+- 第 34 頁「半監督訓練…γ = 0.5、5」：照 `ASD/指令_mix_exp8_9.md`；「Eq. 10」照 `ASD/train_semisup.py` 檔頭（論文式 (9)、(10)）
 - ⑥ 架構修改（第 29～33 頁）：文獻數字照論文抄、寫在 `make_charts.py`（Jian et al., WBIR 2024 Table 2 的 LPBA 欄
   67.0／67.5／67.3／70.4／71.3，2026-10-06 對過原文 HTML；LUMIR 2024 測試集 Dice，出處見 `文獻/對位模型文獻筆記.md`），
   第 29 頁的資料來源與四行重點寫在 `build.js`；第 30 頁右側重點的數字從 CSV 算，文字（「3 passes 無進一步改善」等）照現在的數字寫；

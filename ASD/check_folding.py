@@ -190,6 +190,7 @@ def plot():
     import matplotlib.pyplot as plt
     from orient import canonical_axes, to_ras
     plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
     plt.rcParams['axes.unicode_minus'] = False
     INK, MUTED, PAPER = '#141A1D', '#5F6A6B', '#FAFAF8'
     COL = {'mix_exp4': '#D9895A', 'mix_exp3': '#A34F1B', 'mix_wide': '#6B3FA0'}
@@ -304,6 +305,7 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     import matplotlib.pyplot as plt
     from orient import canonical_axes, to_ras, flow_to_ras
     plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
     plt.rcParams['axes.unicode_minus'] = False
 
     exp, ep = spec.split(':')
@@ -332,7 +334,7 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     lab = NAME.get(int(seg_r[tuple(center)]), str(int(seg_r[tuple(center)])))
 
     take = lambda a, ax_id, i: [a[i], a[:, i], a[:, :, i]][ax_id]
-    planes = [('軸狀', 2, (0, 1)), ('冠狀', 1, (0, 2)), ('矢狀', 0, (1, 2))]
+    planes = [('軸狀面', 2, (0, 1)), ('冠狀面', 1, (0, 2)), ('矢狀面', 0, (1, 2))]
     fig, axes = plt.subplots(1, 3, figsize=(15.5, 5.8), facecolor='#FAFAF8')
     for ax, (name, ax_id, (p, q)) in zip(axes, planes):
         i = center[ax_id]
@@ -355,11 +357,12 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_title('%s（這個切面有 %d 個擠爆點）' % (name, int(fm[a0:a1 + 1, b0:b1 + 1].sum())),
+        ax.set_title('%s（本切面 %d 個 folding voxels）' % (name, int(fm[a0:a1 + 1, b0:b1 + 1].sum())),
                      fontsize=13, fontweight='bold')
-    fig.suptitle('%s 最大的一團擠爆點（%d 個點，在%s）放大來看：黃線＝格子，紅點＝擠爆的點'
+    # 2026-10-07 起圖上的字用正式用語（簡報要給老師看）
+    fig.suptitle('%s 最大之 folding 團簇（%d voxels，%s）局部放大：黃線＝形變網格，紅點＝folding voxel'
                  % (subject, int(sizes[big]), lab), fontsize=14, fontweight='bold')
-    fig.text(0.5, 0.02, '%s（%s）。每格 = %d mm。擠爆＝格子翻過去，紅點附近的黃線會交叉或擠在一起。'
+    fig.text(0.5, 0.02, '%s（epoch %s）。網格間距 %d mm。Folding：網格局部翻轉，紅點附近之網格線交叉或重疊。'
              % (exp, ep, step), ha='center', fontsize=11.5, color='#5F6A6B')
     out = os.path.join(args.out, 'folding_zoom_%s.png' % subject)
     fig.savefig(out, dpi=115, facecolor='#FAFAF8', bbox_inches='tight')
@@ -367,9 +370,9 @@ def zoom(subject='T054', spec='mix_exp3:0240', half=16, step=2):
     print('->', out, '｜最大一團 %d 點，中心 %s，%s' % (int(sizes[big]), center.tolist(), lab))
 
 
-VIEW_LAB = {'mix_exp4': '位移場・權重 2', 'mix_exp3': '位移場・權重 1', 'mix_wide': '位移場・權重 1・加寬',
-            'mix_exp5': '速度場・權重 2', 'mix_exp6': '速度場・權重 1', 'mix_exp7': '速度場・權重 0.5',
-            'mix_wide_vel': '速度場・權重 1・加寬'}
+VIEW_LAB = {'mix_exp4': 'Displacement・λ = 2', 'mix_exp3': 'Displacement・λ = 1', 'mix_wide': 'Displacement・λ = 1・2× width',
+            'mix_exp5': 'SVF・λ = 2', 'mix_exp6': 'SVF・λ = 1', 'mix_exp7': 'SVF・λ = 0.5',
+            'mix_wide_vel': 'SVF・λ = 1・2× width'}
 
 
 def views(min_n=3):
@@ -382,6 +385,7 @@ def views(min_n=3):
     import matplotlib.pyplot as plt
     from orient import canonical_axes, to_ras
     plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
     plt.rcParams['axes.unicode_minus'] = False
     INK, MUTED, PAPER = '#141A1D', '#5F6A6B', '#FAFAF8'
 
@@ -410,15 +414,15 @@ def views(min_n=3):
     def cbar(fig, axes, vmax):
         sm = plt.cm.ScalarMappable(cmap='autumn_r', norm=plt.Normalize(min_n, vmax))
         cb = fig.colorbar(sm, ax=axes, fraction=0.015, pad=0.01)
-        cb.set_label('同一點有幾位擠爆（%d 位以上才標）' % min_n, fontsize=17)
+        cb.set_label('出現 folding 之受試者數（≥ %d 位才顯示）' % min_n, fontsize=17)
         cb.ax.tick_params(labelsize=15)
 
     # ── 一顆，三個方向各 4 刀 ──
     h1 = heat(args.view_one)
     vmax = min(15, max(int(h1.max()), min_n + 1))
-    VIEWS = [('軸狀', 2, [(0.30, '偏下'), (0.50, '側腦室那層'), (0.68, '再往上'), (0.85, '接近頭頂')]),
-             ('冠狀', 1, [(0.25, '後腦'), (0.45, '偏後'), (0.62, '偏前'), (0.80, '前額')]),
-             ('矢狀', 0, [(0.18, '左外側'), (0.38, '左內側'), (0.62, '右內側'), (0.82, '右外側')])]
+    VIEWS = [('軸狀面', 2, [(0.30, '下部'), (0.50, '側腦室層'), (0.68, '上部'), (0.85, '顱頂')]),
+             ('冠狀面', 1, [(0.25, '枕部'), (0.45, '後部'), (0.62, '前部'), (0.80, '額部')]),
+             ('矢狀面', 0, [(0.18, '左外側'), (0.38, '左內側'), (0.62, '右內側'), (0.82, '右外側')])]
     fig, axes = plt.subplots(3, 4, figsize=(16, 12.5), facecolor=PAPER)
     for r, (dname, ax_id, cuts) in enumerate(VIEWS):
         for c, (f, nm) in enumerate(cuts):
@@ -434,7 +438,7 @@ def views(min_n=3):
     models = list(args.view_models)
     H = {e: heat(e) for e in models}
     vmax = min(15, max(max(int(h.max()) for h in H.values()), min_n + 1))
-    CUTS = [('軸狀・再往上', 2, 0.68), ('冠狀・偏後', 1, 0.45), ('矢狀・左外側', 0, 0.18)]
+    CUTS = [('軸狀面・上部', 2, 0.68), ('冠狀面・後部', 1, 0.45), ('矢狀面・左外側', 0, 0.18)]
     fig, axes = plt.subplots(len(CUTS), len(models), figsize=(3.4 * len(models) + 1.2, 10.8), facecolor=PAPER)
     for c, e in enumerate(models):
         rr = [r for r in sub if r['exp'] == e]
@@ -442,10 +446,12 @@ def views(min_n=3):
         ns = [int(r['n_folded']) for r in rr]
         jt = '0%' if j == 0 else ('< 0.001%' if j < 0.001 else '%.3f%%' % j)
         if np.mean(ns) >= 1:
-            nt = '每人約 %s 點' % format(int(round(np.mean(ns))), ',')
+            nt = '%s voxels／位' % format(int(round(np.mean(ns))), ',')
         else:                                    # 速度場權重 1：51 位裡只有 3 位有，「每人約 0 點」會被看成完全沒有
-            nt = '%d 位有，最多 %d 點' % (sum(x > 0 for x in ns), max(ns))
-        axes[0, c].set_title('%s\n擠爆 %s\n%s' % (VIEW_LAB.get(e, e), jt, nt), fontsize=19, fontweight='bold', color=INK)
+            nt = '%d 位；最多 %d voxels' % (sum(x > 0 for x in ns), max(ns))
+        # 模型名稱拆兩行（「Displacement・λ = 1・2× width」一行會壓到隔壁欄）
+        axes[0, c].set_title('%s\nfolding %s\n%s' % (VIEW_LAB.get(e, e).replace('・', '\n', 1), jt, nt),
+                             fontsize=19, fontweight='bold', color=INK)
         for r, (nm, ax_id, f) in enumerate(CUTS):
             show(axes[r, c], H[e], ax_id, at(ax_id, f), vmax)
             if c == 0:
@@ -474,6 +480,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
     import matplotlib.pyplot as plt
     from orient import canonical_axes, to_ras, flow_to_ras
     plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+    plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
     plt.rcParams['axes.unicode_minus'] = False
 
     device = torch.device('cuda' if args.gpu != '-1' and torch.cuda.is_available() else 'cpu')
@@ -505,7 +512,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
     lab = NAME.get(int(seg_r[tuple(center)]), str(int(seg_r[tuple(center)])))
 
     take = lambda a, ax_id, i: [a[i], a[:, i], a[:, :, i]][ax_id]
-    planes = [('軸狀', 2, (0, 1)), ('冠狀', 1, (0, 2)), ('矢狀', 0, (1, 2))]
+    planes = [('軸狀面', 2, (0, 1)), ('冠狀面', 1, (0, 2)), ('矢狀面', 0, (1, 2))]
     fig, axes = plt.subplots(len(res), 3, figsize=(11, 3.9 * len(res)), facecolor='#FAFAF8')   # 簡報上約 8 吋寬，字要夠大
     for r, (exp, fold, u) in enumerate(res):
         for c, (name, ax_id, (p, q)) in enumerate(planes):
@@ -530,7 +537,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
             ax.set_aspect('equal')
             ax.set_xticks([])
             ax.set_yticks([])
-            ax.set_title('%s：%d 個擠爆點' % (name, int(fm[a0:a1 + 1, b0:b1 + 1].sum())),
+            ax.set_title('%s：%d 個 folding voxels' % (name, int(fm[a0:a1 + 1, b0:b1 + 1].sum())),
                          fontsize=15, fontweight='bold')
         axes[r, 0].text(-0.06, 0.5, VIEW_LAB.get(exp, exp), transform=axes[r, 0].transAxes, rotation=90,
                         ha='right', va='center', fontsize=17, fontweight='bold', color='#141A1D')
@@ -573,7 +580,7 @@ def zoom_pair(subject='T054', specs=('mix_wide:0225', 'mix_wide_vel:0240'), half
             ax.set_aspect('equal')
             ax.set_xticks([])
             ax.set_yticks([])
-            ax.set_title('%s：這一片有 %s 個擠爆點' % (name, format(int(fm.sum()), ',')), fontsize=15, fontweight='bold')
+            ax.set_title('%s：%s 個 folding voxels' % (name, format(int(fm.sum()), ',')), fontsize=15, fontweight='bold')
         axes[r, 0].text(-0.06, 0.5, VIEW_LAB.get(exp, exp), transform=axes[r, 0].transAxes, rotation=90,
                         ha='right', va='center', fontsize=17, fontweight='bold', color='#141A1D')
     fig.tight_layout(rect=[0.02, 0, 1, 1])

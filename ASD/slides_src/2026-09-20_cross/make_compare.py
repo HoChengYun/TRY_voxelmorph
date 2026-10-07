@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
 plt.rcParams['axes.unicode_minus'] = False
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -49,17 +50,18 @@ SETS = {
         ('mix_exp4', '0230', '位移場・全尺寸・權重 2', RUST_L),
         ('mix_exp3', '0240', '位移場・全尺寸・權重 1', RUST),
     ]),
+    # lambda、wide 兩組是 10/14 簡報用的：2026-10-07 起標籤改正式用語（使用者要求）；ablation 是 09-20 那份的，照舊
     'lambda': ('lambda', [
-        ('mix_exp5', '0150', '速度場・權重 2', '#5BB8B6'),
-        ('mix_exp6', '0190', '速度場・權重 1', TEAL),
-        ('mix_exp7', '0250', '速度場・權重 0.5', '#0A4F4E'),
-        ('mix_exp3', '0240', '位移場・權重 1', RUST),
+        ('mix_exp5', '0150', 'SVF・λ = 2', '#5BB8B6'),
+        ('mix_exp6', '0190', 'SVF・λ = 1', TEAL),
+        ('mix_exp7', '0250', 'SVF・λ = 0.5', '#0A4F4E'),
+        ('mix_exp3', '0240', 'Displacement・λ = 1', RUST),
     ]),
     'wide': ('wide', [
-        ('mix_exp3', '0240', '位移場・預設寬度', RUST_L),
-        ('mix_wide', '0225', '位移場・加寬 2 倍', RUST),
-        ('mix_exp6', '0190', '速度場・預設寬度', TEAL_M),
-        ('mix_wide_vel', '0240', '速度場・加寬 2 倍', TEAL),
+        ('mix_exp3', '0240', 'Displacement・default width', RUST_L),
+        ('mix_wide', '0225', 'Displacement・2× width', RUST),
+        ('mix_exp6', '0190', 'SVF・default width', TEAL_M),
+        ('mix_wide_vel', '0240', 'SVF・2× width', TEAL),
     ]),
 }
 SET = sys.argv[sys.argv.index('--set') + 1] if '--set' in sys.argv else 'ablation'
@@ -86,16 +88,16 @@ for exp, ep, lab, col in EXPS:
     b = r[np.argmax(r[:, 1])]
     axes[0].plot(b[0], b[1], '*', color=col, ms=18, markeredgecolor=INK, zorder=5)
 
-axes[0].set_ylabel('Dice（驗證集 51 位）', fontsize=11)
-axes[0].set_title('對得多準：星號是選中的那一輪', fontsize=12.5, fontweight='bold')
+axes[0].set_ylabel('Dice（validation, n = 51）', fontsize=11)
+axes[0].set_title('Validation Dice（★：選定之 epoch）', fontsize=12.5, fontweight='bold')
 axes[0].legend(loc='lower right', fontsize=11)
 axes[0].set_ylim(0.67, 0.815)
 
 axes[1].axhline(0.366, ls='--', color='#C0392B', lw=1.2)
-axes[1].text(248, 0.375, '論文的同版本 0.366%', ha='right', color='#C0392B', fontsize=9.5)
-axes[1].set_ylabel('擠爆的比例', fontsize=11)
-axes[1].set_xlabel('訓練輪數', fontsize=11)
-axes[1].set_title('有沒有擠爆', fontsize=12.5, fontweight='bold')
+axes[1].text(248, 0.375, 'VoxelMorph（TMI 2019, Table I）0.366%', ha='right', color='#C0392B', fontsize=9.5)
+axes[1].set_ylabel('Folding ratio（%）', fontsize=11)
+axes[1].set_xlabel('Epoch', fontsize=11)
+axes[1].set_title('Folding ratio（%|J| ≤ 0）', fontsize=12.5, fontweight='bold')
 axes[1].set_ylim(-0.02, 0.45)
 
 for ax in axes:

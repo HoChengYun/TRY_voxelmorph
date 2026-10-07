@@ -25,7 +25,7 @@ const pval = (p) => (p < 0.001 ? 'p < 0.001' : 'p = ' + p.toFixed(2));
 
 const pres = new pptxgen();
 pres.layout = 'LAYOUT_WIDE';
-pres.title = 'VoxelMorph：09-30 老師紅字的回覆';
+pres.title = 'VoxelMorph：09-30 會議意見之回覆';
 pres.author = 'HoChengYun';
 
 const W = 13.333, M = 0.6;
@@ -87,10 +87,13 @@ const FC = (n) => path.join(MROOT, 'folding_check', n);
 const m = D.models, P = D.paired, FD = D.folding, R = D.residue, DL = D.dilution, TC = D.top_check, TT = D.train_time || {};
 const MM = D.residue_mm;            // ③④ 原始數值版（mm／mm³、Dice 進步不扣平均、用 mm 分組），2026-10-05 起第 12、14、15 頁用這個
 const done = (e) => m[e].status === 'done';
-const score = (e) => (done(e) ? f3(m[e].mean) : '跑中');
+const score = (e) => (done(e) ? f3(m[e].mean) : '訓練中');
 // 速度場權重 1、0.5 只有零星幾個點（平均 0.000002%、0.0001%），印 0.000% 會被看成完全沒有
 const jfmt = (x) => (x === 0 ? '0%' : x < 0.001 ? '< 0.001%' : pct(x));
-const fold = (e) => (done(e) ? jfmt(m[e].jneg) : '跑中');
+const fold = (e) => (done(e) ? jfmt(m[e].jneg) : '訓練中');
+// 2026-10-07 使用者：「正式一點、不要太口語」→ ①～⑤ 也改成學術用語（術語對照見 README）。各段的小標統一寫在這裡
+const EB = { fold: '① Folding 之位置（p18）', lam: '② SVF 之 λ（p18）', res: '③ 殘留鄰近結構之 Dice（p23）',
+  both: '③④ 三個部位之比較（p22、p23）', back: '④ 枕部殘留（p22）', wide: '⑤ 2× width SVF（p25）' };
 const HAS_LAM = done('mix_exp6') && done('mix_exp7');
 const HAS_PARAMS = fs.existsSync(FC('folding_params.png'));    // check_folding.py --views（速度場兩顆也算過之後）
 const HAS_WCURVE = done('mix_wide_vel') && fs.existsSync(CH('curve_wide.png'));   // 2026-09-20_cross\make_compare.py --set wide
@@ -129,33 +132,33 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   page += 1;
   s.background = { color: '1A2125' };
   txt(s, '2026-10-14   MEETING', { x: M, y: 2.2, w: 11, h: 0.3, fontFace: F.MONO, fontSize: 12, color: '8A9294', charSpacing: 4 });
-  txt(s, '上次老師交代的五件事', { x: M, y: 2.7, w: 11.5, h: 1.0, fontSize: 40, bold: true, color: C.WHITE });
-  txt(s, '擠爆的位置、速度場調平滑權重、只算殘留旁邊的 Dice、後腦杓、加寬改速度場',
+  txt(s, '09-30 會議意見之回覆', { x: M, y: 2.7, w: 11.5, h: 1.0, fontSize: 40, bold: true, color: C.WHITE });
+  txt(s, 'Folding 之位置、SVF 之 λ、殘留鄰近結構之 Dice、枕部殘留、2× width SVF',
     { x: M, y: 3.75, w: 11.5, h: 0.5, fontSize: 18, color: 'D9DEDF' });
   if (HAS_ARCH) {
     txt(s, '另：VoxelMorph 架構修改之進度', { x: M, y: 4.25, w: 11.5, h: 0.4, fontSize: 16, color: 'D9DEDF' });
   }
-  txt(s, 'VoxelMorph 腦部影像配準', { x: M, y: 4.8, w: 11, h: 0.4, fontSize: 16, color: '8A9294' });
+  txt(s, 'VoxelMorph 腦部 MRI 配準（scan-to-atlas，MNI152）', { x: M, y: 4.8, w: 11, h: 0.4, fontSize: 16, color: '8A9294' });
 }
 
 // ───────────────────────────────────────────────────────── 02 一頁看完
 {
-  const s = base('SUMMARY', '一頁看完：五件事做到哪');
+  const s = base('SUMMARY', '摘要：五項會議意見之處理結果');
   const lam = HAS_LAM
-    ? '2 → 1：' + sgn(P.lam_vel_1.mean, 4) + '；1 → 0.5：' + sgn(P.lam_vel_05.mean, 4) + '（沒再變好）；都幾乎不擠爆'
-    : '權重 2：' + score('mix_exp5') + '、不擠爆；權重 1、0.5 跑中';
+    ? 'λ 2 → 1：' + sgn(P.lam_vel_1.mean, 4) + '；1 → 0.5：' + sgn(P.lam_vel_05.mean, 4) + '（' + pval(P.lam_vel_05.p) + '）\nfolding 均近於 0'
+    : 'λ = 2：' + score('mix_exp5') + '，無 folding；λ = 1、0.5 訓練中';
   const wide = done('mix_wide_vel')
-    ? 'Dice ' + score('mix_wide_vel') + '，跟加寬位移場打平；幾乎不擠爆'
-    : 'AI 上跑中';
+    ? 'Dice ' + score('mix_wide_vel') + '，與 2× width displacement field 相當\nfolding 近於 0'
+    : '訓練中';
   table(s, [
-    ['老師寫的', '做了什麼', '結果'],
-    ['① 確認擠爆的位置（p18）', '51 位 test，找出每個擠爆點在哪', '一小團一小團，沿著腦溝，在皮質和白質裡'],
-    ['② 速度場 λ 去調一下（p18）', '平滑權重 2、1、0.5 各跑一顆', lam],
-    ['③ Dice 只算沒切乾淨附近（p23）', '只平均殘留旁邊的結構', hl('頭頂殘留越多，皮質對得越差（' + DL.n + ' 人）', C.RUST)],
-    ['④ 後腦杓也去看（p22）', '多掃後腦杓的殘留', '有殘留，但不影響配準'],
-    ['⑤ 加寬改看看速度場（p25）', '加寬 2 倍＋速度場', wide],
+    ['會議意見（09-30）', '方法', '結果'],
+    ['① 確認 folding 之位置（p18）', 'test 51 位之 folding voxel 定位', '呈小型團簇，沿腦溝分布於皮質與白質'],
+    ['② 調整 SVF 之 λ（p18）', 'λ = 2、1、0.5 各訓練一個模型', lam],
+    ['③ Dice 僅計算殘留鄰近區域（p23）', '僅平均殘留鄰近結構之 Dice', hl('顱頂殘留越厚，皮質 ΔDice 越小（n = ' + DL.n + '）', C.RUST)],
+    ['④ 枕部殘留（p22）', '量測枕部殘留厚度', '有殘留，與 ΔDice 無顯著相關'],
+    ['⑤ 2× width 改用 SVF（p25）', '2× width U-Net + SVF', wide],
   ], { x: M, y: 1.65, w: 12.13, colW: [3.7, 3.75, 4.68], fontSize: 13.5, rowH: 0.62 });
-  txt(s, '③ 另外確認了：頭頂那層「殘留」不是 FreeSurfer 把腦畫太小，是真的沒切乾淨（第 ' + PG.res_check + ' 頁）。',
+  txt(s, '③ 另確認：顱頂殘留並非 FreeSurfer 分割低估所致，而係去顱骨不完全（第 ' + PG.res_check + ' 頁）',
     { x: M, y: 6.0, w: 12.13, h: 0.45, fontSize: 14.5, color: C.MUTED });
   if (HAS_ARCH) {
     const G = D.multipass.mix_exp6.gain2;
@@ -170,14 +173,15 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 // ───────────────────────────────────────────────────────── 03 ① 擠爆在哪
 const F3 = FD.mix_exp3;
 {
-  const s = base('① 擠爆的位置（p18）', '擠爆的點：散在皮質和白質裡，每個人擠的位置不一樣');
-  fitImage(s, FC('folding_views.png'), M, 1.42, 7.75, 5.5, '軸狀、冠狀、矢狀各切 4 刀');
+  const s = base(EB.fold, 'Folding 之分布：散布於皮質與白質，個體間位置不一致');
+  fitImage(s, FC('folding_views.png'), M, 1.42, 7.75, 5.5, '軸狀面、冠狀面、矢狀面各 4 個切面');
   const X0 = 8.6, WW = 4.13;
-  txt(s, '擠爆＝形變把空間捏到翻過去。圖是平滑權重 1 的位移場（mix_exp3），51 位疊在模板上，只標 3 位以上在同一點擠爆的地方，越紅越多人。',
+  txt(s, 'Folding：Jacobian 行列式 |J| ≤ 0 之 voxel（形變局部翻轉）。圖為 displacement field、λ = 1（mix_exp3），'
+        + 'test 51 位疊合於 atlas；僅顯示 ≥ 3 位重疊之 voxel，顏色越紅表示人數越多。',
     { x: X0, y: 1.5, w: WW, h: 1.05, fontSize: 12.5, color: C.MUTED });
-  [[F3.any1.toFixed(0) + '%', '腦裡的點，至少 1 位擠爆過', C.TEAL],
-   [F3.any5.toFixed(1) + '%', '5 位以上都在同一點擠爆\n→ 每個人位置不同', C.RUST],
-   [(F3.points_med / FD.mix_exp4.points_med).toFixed(1) + ' 倍', '平滑權重 1 比 2 多的擠爆點', C.TEAL]].forEach((it, i) => {
+  [[F3.any1.toFixed(0) + '%', '腦內 voxel 中，至少 1 位出現 folding', C.TEAL],
+   [F3.any5.toFixed(1) + '%', '≥ 5 位於同一 voxel 出現 folding\n→ 個體間位置不一致', C.RUST],
+   [(F3.points_med / FD.mix_exp4.points_med).toFixed(1) + ' 倍', 'folding voxel 數：λ = 1 相對 λ = 2（中位數）', C.TEAL]].forEach((it, i) => {
     const y = 2.65 + i * 1.42;
     card(s, X0, y, WW, 1.3);
     stat(s, it[0], it[1], X0, y + 0.06, WW, it[2]);
@@ -186,20 +190,20 @@ const F3 = FD.mix_exp3;
 
 if (HAS_PARAMS) {
   // ─────────────────────────────────────────────────────── ① 不同設定的擠爆位置
-  const s = base('① 擠爆的位置（p18）', '換不同設定：位移場權重越小擠爆越多，速度場幾乎沒有');
-  fitImage(s, FC('folding_params.png'), M, 1.42, 12.13, 5.0, '不同設定 × 三個方向的擠爆位置');
-  txt(s, '每一欄是一顆模型、每一列是一個方向，一樣只標 3 位以上在同一點擠爆的地方。'
-        + '速度場那幾欄是空的：點本來就很少，而且每個人散在不同地方。',
+  const s = base(EB.fold, 'Folding 與設定：displacement field 隨 λ 降低而增加，SVF 近於零');
+  fitImage(s, FC('folding_params.png'), M, 1.42, 12.13, 5.0, '不同設定 × 三個切面方向之 folding 位置');
+  txt(s, '每欄為一個模型、每列為一個切面方向；同樣僅顯示 ≥ 3 位重疊之 voxel。'
+        + 'SVF 三欄無標示：folding voxel 極少，且個體間位置不重疊。',
     { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 04 ① 哪些區域、多深
 {
-  const s = base('① 擠爆的位置（p18）', '八成落在大腦皮質和白質，深部結構幾乎沒有');
-  fitImage(s, CH('1014_folding_regions.png'), M, 1.45, 12.13, 3.6, '擠爆點落在哪些區域');
+  const s = base(EB.fold, 'Folding 之解剖分布：主要位於大腦皮質與白質，深部結構極少');
+  fitImage(s, CH('1014_folding_regions.png'), M, 1.45, 12.13, 3.6, 'Folding voxel 之區域分布');
   const w = (12.13 - 0.4 * 2) / 3;
-  [[F3.ctx_wm.toFixed(0) + '%', '擠爆點落在大腦皮質＋白質', C.RUST],
-   [F3.depth_med.toFixed(0) + ' mm', '離腦表面往內（中位數）\n也就是腦溝凹進去的那一段', C.TEAL],
+  [[F3.ctx_wm.toFixed(0) + '%', 'folding voxel 位於大腦皮質與白質', C.RUST],
+   [F3.depth_med.toFixed(0) + ' mm', '距腦表面深度（中位數）\n位於腦溝深度範圍內', C.TEAL],
    [F3.share['深部灰質・海馬・杏仁核'].toFixed(1) + '%', '深部灰質、海馬、杏仁核', C.TEAL]].forEach((it, i) => {
     const x = M + i * (w + 0.4);
     card(s, x, 5.2, w, 1.6);
@@ -209,48 +213,48 @@ if (HAS_PARAMS) {
 
 // ───────────────────────────────────────────────────────── 05 ① 放大一團
 {
-  const s = base('① 擠爆的位置（p18）', '放大一團來看：沿著一條腦溝，格子被捏到翻過去');
-  fitImage(s, FC('folding_zoom_T054.png'), M, 1.45, 12.13, 4.55, 'T054 最大的一團擠爆點');
+  const s = base(EB.fold, 'Folding 局部放大：沿腦溝呈線狀分布，形變網格局部翻轉');
+  fitImage(s, FC('folding_zoom_T054.png'), M, 1.45, 12.13, 4.55, 'T054 最大之 folding 團簇');
   bullets(s, [
-    [{ text: '黃線＝原本方正的格子被形變拉成的樣子，紅點＝擠爆的點', options: { color: C.MUTED } }],
-    [{ text: '紅點排成一條線、沿著腦溝；格線在那裡交叉', options: { bold: true } },
-     { text: '　→ 模型為了把腦溝對到模板，把那裡的空間捏到翻過去' }],
+    [{ text: '黃線：規則網格經形變後之樣貌；紅點：folding voxel', options: { color: C.MUTED } }],
+    [{ text: '紅點沿腦溝呈線狀分布，網格線於該處交叉', options: { bold: true } },
+     { text: '　→ 為對齊 atlas 之腦溝，局部形變過大而翻轉' }],
   ], { x: M, y: 6.1, w: 12.13, h: 0.9, fontSize: 14, paraSpaceAfter: 6 });
 }
 
 // ───────────────────────────────────────────────────────── 06 ② 上次的結論
 {
-  const s = base('② 速度場的 λ（p18）', '上次的結論：同樣條件下，速度場比位移場好，而且不擠爆');
-  fitImage(s, CH('ablation.png'), M, 1.45, 12.13, 4.4, '四顆模型一次只改一件事');
+  // 圖是 09-20 那份 ablation.png 的正式用語版（make_charts.py 的 1014_ablation.png；09-20 的產生器不動）
+  const s = base(EB.lam, '前次結論：同條件下 SVF 之 Dice 較高，且無 folding');
+  fitImage(s, CH('1014_ablation.png'), M, 1.45, 12.13, 4.4, '一次僅改變一項因素之消融比較');
   bullets(s, [
-    [{ text: '同樣全尺寸、平滑權重 2：速度場 ' + score('mix_exp5') + ' ＞ 位移場 ' + score('mix_exp4'), options: { bold: true, color: C.TEAL } },
-     { text: '　擠爆 ' + fold('mix_exp5') + ' vs ' + fold('mix_exp4') }],
-    [{ text: '位移場最好的 ' + score('mix_exp3') + ' 是平滑權重 1。', options: { bold: true } },
-     { text: '老師的問題：速度場也把權重降下來，會怎樣？' }],
+    [{ text: '全解析度、λ = 2：SVF ' + score('mix_exp5') + ' ＞ displacement field ' + score('mix_exp4'), options: { bold: true, color: C.TEAL } },
+     { text: '　folding ' + fold('mix_exp5') + ' vs ' + fold('mix_exp4') }],
+    [{ text: 'Displacement field 之最佳結果 ' + score('mix_exp3') + ' 為 λ = 1。', options: { bold: true } },
+     { text: '會議提問：SVF 降低 λ 之效果為何？' }],
   ], { x: M, y: 6.0, w: 12.13, h: 1.0, fontSize: 14.5, paraSpaceAfter: 6 });
 }
 
 // ───────────────────────────────────────────────────────── 07 ② λ 掃描
 {
-  const s = base('② 速度場的 λ（p18）', HAS_LAM ? '速度場：平滑權重 2 → 1 有幫助，再降到 0.5 就沒再變好'
-                                                : '速度場的平滑權重：2 → 1 → 0.5');
-  fitImage(s, CH('1014_lambda.png'), M, 1.45, 12.13, 4.4, '平滑權重與 Dice、擠爆');
+  const s = base(EB.lam, HAS_LAM ? 'SVF 之 λ：2 → 1 Dice 上升，降至 0.5 無進一步改善' : 'SVF 之 λ：2 → 1 → 0.5');
+  fitImage(s, CH('1014_lambda.png'), M, 1.45, 12.13, 4.4, 'λ 與 Dice、folding ratio');
   let items;
   if (HAS_LAM) {
     const L1 = P.lam_vel_1, L05 = P.lam_vel_05, VW = P.version_w1;
     items = [
-      [{ text: '權重 2 → 1：' + sgn(L1.mean, 4) + '（51 位裡 ' + L1.win + ' 位變好）；1 → 0.5：' + sgn(L05.mean, 4) + '（沒差）',
-         options: { bold: true } }],
-      [{ text: '速度場最好的是權重 1（' + score('mix_exp6') + '），比位移場權重 1（' + score('mix_exp3') + '）少 ' + f4(VW.mean),
+      [{ text: 'λ 2 → 1：' + sgn(L1.mean, 4) + '（' + L1.win + '/' + L1.n + ' 位上升，' + pval(L1.p) + '）；1 → 0.5：'
+           + sgn(L05.mean, 4) + '（' + pval(L05.p) + '）', options: { bold: true } }],
+      [{ text: 'SVF 最佳為 λ = 1（' + score('mix_exp6') + '），較 displacement field λ = 1（' + score('mix_exp3') + '）低 ' + f4(VW.mean),
          options: { bold: true } },
-       { text: '　但擠爆從 ' + fold('mix_exp3') + ' 變成 ' + fold('mix_exp6'), options: { bold: true, color: C.TEAL } }],
+       { text: '　folding 則由 ' + fold('mix_exp3') + ' 降至 ' + fold('mix_exp6'), options: { bold: true, color: C.TEAL } }],
     ];
   } else {
-    items = [[{ text: '權重 2（mix_exp5）：' + score('mix_exp5') + '，擠爆 ' + fold('mix_exp5'), options: { bold: true } }]];
+    items = [[{ text: 'λ = 2（mix_exp5）：' + score('mix_exp5') + '，folding ' + fold('mix_exp5'), options: { bold: true } }]];
     ['mix_exp6', 'mix_exp7'].forEach((e) => {
       items.push(done(e)
-        ? [{ text: '權重 ' + m[e].weight + '（' + e + '）：' + score(e) + '，擠爆 ' + fold(e), options: { bold: true } }]
-        : [{ text: '權重 ' + m[e].weight + '（' + e + '）：AI 上跑中', options: { bold: true, color: C.RUST } }]);
+        ? [{ text: 'λ = ' + m[e].weight + '（' + e + '）：' + score(e) + '，folding ' + fold(e), options: { bold: true } }]
+        : [{ text: 'λ = ' + m[e].weight + '（' + e + '）：訓練中', options: { bold: true, color: C.RUST } }]);
     });
   }
   bullets(s, items, { x: M, y: 6.0, w: 12.13, h: 0.95, fontSize: 14.5, paraSpaceAfter: 6 });
@@ -259,50 +263,50 @@ if (HAS_PARAMS) {
 if (HAS_LAM) {
   // ─────────────────────────────────────────────────────── ② 權重 0.5 為什麼沒再變好
   const S = D.struct, df = (n) => S.mix_exp7[n] - S.mix_exp5[n];
-  const s = base('② 速度場的 λ（p18）', '權重 0.5 為什麼沒再變好：大結構變好、小結構變差');
-  fitImage(s, CH('1014_lambda_struct.png'), M, 1.45, 7.7, 5.45, '各結構跟權重 2 比變多少');
+  const s = base(EB.lam, 'λ = 0.5 未再提升之原因：大型結構上升、小型結構下降');
+  fitImage(s, CH('1014_lambda_struct.png'), M, 1.45, 7.7, 5.45, '各結構相對 λ = 2 之 Dice 變化');
   const X0 = 8.55, WW = 4.18;
   bullets(s, [
-    [{ text: '大結構一路變好', options: { bold: true, color: C.TEAL } },
+    [{ text: '大型結構持續上升', options: { bold: true, color: C.TEAL } },
      { text: '\n大腦皮質 ' + sgn(df('大腦皮質'), 3) + '、白質 ' + sgn(df('大腦白質'), 3), options: { color: C.MUTED, fontSize: 13.5 } }],
-    [{ text: '小結構變差', options: { bold: true, color: C.RUST } },
+    [{ text: '小型結構下降', options: { bold: true, color: C.RUST } },
      { text: '\n脈絡叢 ' + sgn(df('脈絡叢'), 3) + '、腦脊髓液 ' + sgn(df('腦脊髓液'), 3), options: { color: C.MUTED, fontSize: 13.5 } }],
-    [{ text: 'Dice 是 30 個結構「一樣重」的平均', options: { bold: true } },
-     { text: '\n大小結構互相抵掉，平均就打平', options: { color: C.MUTED, fontSize: 13.5 } }],
-    [{ text: '權重 0.5 的皮質 ' + f3(S.mix_exp7['大腦皮質']), options: { bold: true } },
-     { text: '\n比位移場權重 1 的 ' + f3(S.mix_exp3['大腦皮質']) + ' 還高', options: { color: C.MUTED, fontSize: 13.5 } }],
+    [{ text: 'Dice 為 30 個結構之等權平均', options: { bold: true } },
+     { text: '\n大、小型結構之變化相互抵銷，平均持平', options: { color: C.MUTED, fontSize: 13.5 } }],
+    [{ text: 'λ = 0.5 之皮質 Dice ' + f3(S.mix_exp7['大腦皮質']), options: { bold: true } },
+     { text: '\n高於 displacement field λ = 1 之 ' + f3(S.mix_exp3['大腦皮質']), options: { color: C.MUTED, fontSize: 13.5 } }],
   ], { x: X0, y: 1.65, w: WW, h: 5.2, fontSize: 15, paraSpaceAfter: 14 });
 }
 
 if (HAS_LAM) {
   // ─────────────────────────────────────────────────────── ② 形變網格：四顆對照
-  const s = base('② 速度場的 λ（p18）', '平滑權重越小，形變捏得越細');
-  fitImage(s, CH('grid_lambda.png'), M, 1.5, 12.13, 4.0, '四顆的形變網格');
-  txt(s, '同一位受試者（T054）、同一個切面。黃線＝原本方正的格子被形變拉成的樣子，越往右越扭。',
+  const s = base(EB.lam, 'λ 越小，形變場之局部變化越細緻');
+  fitImage(s, CH('grid_lambda.png'), M, 1.5, 12.13, 4.0, '四個模型之形變網格');
+  txt(s, '同一受試者（T054）、同一軸狀切面；黃線為規則網格經形變後之樣貌。',
     { x: M, y: 5.65, w: 12.13, h: 0.4, fontSize: 14.5, align: 'center' });
-  txt(s, '速度場三顆都幾乎不擠爆；最右邊的位移場一樣扭得很細，但擠爆 ' + fold('mix_exp3') + '。',
+  txt(s, 'SVF 三個模型幾近無 folding；最右之 displacement field 同樣呈細緻形變，但 folding ' + fold('mix_exp3') + '。',
     { x: M, y: 6.1, w: 12.13, h: 0.4, fontSize: 13.5, align: 'center', color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 08 ③ 老師的做法
 {
-  const s = base('③ 只算殘留旁邊的 Dice（p23）', '老師的做法：不要 30 個結構全部平均，只平均殘留旁邊的');
-  txt(s, '殘留的每一點，找離它最近的是哪個結構；佔殘留點 5% 以上、而且在 30 個評估結構裡的，才拿來平均。',
+  const s = base(EB.res, '評估方式：僅平均殘留鄰近結構之 Dice，不平均全部 30 個結構');
+  txt(s, '對每個殘留 voxel 找出距離最近之結構；占殘留 voxel ≥ 5% 且屬於 30 個評估結構者，納入平均。',
     { x: M, y: 1.55, w: 12.13, h: 0.45, fontSize: 15 });
   table(s, [
-    ['殘留在哪', '殘留旁邊的結構（佔殘留點）', '只平均這些的 Dice'],
-    ['頭頂', R.top.near_shares_pooled, R.top.labels_pooled],
+    ['殘留部位', '鄰近結構（占殘留 voxel 之比例）', '納入 Dice 平均之結構'],
+    ['顱頂', R.top.near_shares_pooled, R.top.labels_pooled],
     ['顱底', R.base.near_shares_pooled, R.base.labels_pooled],
-    ['後腦杓', R.back.near_shares_pooled, R.back.labels_pooled],
+    ['枕部', R.back.near_shares_pooled, R.back.labels_pooled],
   ], { x: M, y: 2.25, w: 12.13, colW: [1.25, 5.55, 5.33], fontSize: 13 });
   card(s, M, 4.55, 12.13, 0.8, 'FFF3E8');
   txt(s, [
-    { text: '為什麼：', options: { bold: true } },
-    { text: '殘留貼在腦的外面，旁邊幾乎都是大腦皮質。視丘、海馬迴這些離殘留很遠的結構也一起平均的話，影響會被稀釋掉。' },
+    { text: '理由：', options: { bold: true } },
+    { text: '殘留位於腦組織外側，鄰近結構幾乎皆為大腦皮質；若將視丘、海馬迴等遠離殘留之結構一併平均，其影響將被稀釋。' },
   ], { x: M + 0.3, y: 4.74, w: 11.5, h: 0.45, fontSize: 15, fontFace: F.SANS, lang: 'zh-TW', color: C.INK, margin: 0 });
   const oc = R.base.near_shares_pooled.match(/視交叉 ([0-9.]+%)/);
   if (oc) {
-    txt(s, '視交叉（顱底 ' + oc[1] + '）不在 30 個評估結構裡，所以沒算進去。',
+    txt(s, '視交叉（顱底 ' + oc[1] + '）不屬於 30 個評估結構，故未納入。',
       { x: M, y: 5.75, w: 12.13, h: 0.4, fontSize: 12.5, color: C.MUTED });
   }
 }
@@ -313,48 +317,50 @@ if (HAS_METHOD) {
   // 每一步一頁：上面是圖、下面是編號公式＋「其中」符號說明（公式用 LaTeX 字型畫成圖，都是 make_method.py 產生的）。
   // 圖和公式區塊就是投影片上的大小（寬 12.13 吋），第 4 頁公式多一行（25 mm 的說明），所以圖矮一點
   // 第 2、4 頁的公式說明各多一行（換門檻、換 25 mm 結論都一樣），圖相對矮一點
-  const STEP = [['找腦的頂邊', 3.6, 1.85], ['「亮」的門檻', 3.55, 2.02], ['每根吸管數幾格', 3.6, 1.85], ['頭頂那一塊取平均', 2.95, 2.66]];
+  // 標題不放符號（投影片標題打不出下標，z_top 會變成底線）；符號在公式區塊裡定義
+  const STEP = [['腦組織上緣', 3.6, 1.85], ['強度門檻', 3.55, 2.02], ['各 column 之殘留厚度', 3.6, 1.85],
+    ['顱頂區域之平均', 2.95, 2.66]];
   STEP.forEach(([name, hf, he], i) => {
-    const s = base('③ 只算殘留旁邊的 Dice（p23）', '頭頂殘留厚度怎麼量（' + (i + 1) + '/4）：' + name);
-    fitImage(s, CH('1014_method_' + (i + 1) + '.png'), M, 1.38, 12.13, hf, '第 ' + (i + 1) + ' 步的圖');
-    fitImage(s, CH('1014_method_eq' + (i + 1) + '.png'), M, 1.38 + hf + 0.04, 12.13, he, '第 ' + (i + 1) + ' 步的公式');
+    const s = base(EB.res, '顱頂殘留厚度之量測（' + (i + 1) + '/4）：' + name);
+    fitImage(s, CH('1014_method_' + (i + 1) + '.png'), M, 1.38, 12.13, hf, '第 ' + (i + 1) + ' 步之圖');
+    fitImage(s, CH('1014_method_eq' + (i + 1) + '.png'), M, 1.38 + hf + 0.04, 12.13, he, '第 ' + (i + 1) + ' 步之公式');
   });
 }
 
 // ───────────────────────────────────────────────────────── 09 ③ 結果
 {
-  const s = base('③ 只算殘留旁邊的 Dice（p23）', '頭頂殘留越多，皮質對得越差；30 個結構一起平均就看不出來');
-  fitImage(s, CH('1014_dilution.png'), M, 1.4, 12.13, 3.55, '頭頂殘留厚度 vs Dice 進步多少：30 個結構一起平均 vs 只平均殘留旁邊的結構');
+  const s = base(EB.res, '顱頂殘留越厚，皮質 ΔDice 越小；30 結構平均時無此關係');
+  fitImage(s, CH('1014_dilution.png'), M, 1.4, 12.13, 3.55, '顱頂殘留厚度 vs ΔDice：30 結構平均 vs 殘留鄰近結構');
   // 2026-10-05 使用者要標 Dice 數值：殘留最多／最少 1/4 的「起點 → 配準後」。起點一定要一起寫（只寫配準後會被起點騙）。
   // 分組直接用 mm 切（170 人的 1/4、3/4 分位數，gather.py 的 residue_mm）
   // ⚠️「起點就高」「進步差不多」「起點差不多」這幾個字是照現在的數字寫的
   const T = MM.top;
   const ba = (b, a) => f3(b) + ' → ' + f3(a) + '（' + sgn(a - b, 3) + '）';
   table(s, [
-    ['頭頂殘留厚度', '30 個結構一起平均：Dice 起點 → 配準後', '只算殘留旁邊（大腦皮質）：Dice 起點 → 配準後'],
-    [T.hi.toFixed(2) + ' mm 以上（' + T.dirty_n + ' 人）', ba(T.all_dirty_b, T.all_dirty_a), ba(T.dirty_b, T.dirty_a)],
-    [T.lo.toFixed(2) + ' mm 以下（' + T.clean_n + ' 人）', ba(T.all_clean_b, T.all_clean_a), ba(T.clean_b, T.clean_a)],
-    [{ text: '怎麼看', options: { bold: true } },
-     '起點就高 ' + f3(T.all_dirty_b - T.all_clean_b) + '，進步差不多 → 看不出來',
-     hl('起點差不多，配準後低 ' + f3(T.clean_a - T.dirty_a) + '、進步少 ' + f3((T.clean_a - T.clean_b) - (T.dirty_a - T.dirty_b)), C.RUST)],
+    ['顱頂殘留厚度', '30 結構平均：Dice（affine → 配準後）', '殘留鄰近結構（大腦皮質）：Dice（affine → 配準後）'],
+    ['≥ ' + T.hi.toFixed(2) + ' mm（' + T.dirty_n + ' 位）', ba(T.all_dirty_b, T.all_dirty_a), ba(T.dirty_b, T.dirty_a)],
+    ['≤ ' + T.lo.toFixed(2) + ' mm（' + T.clean_n + ' 位）', ba(T.all_clean_b, T.all_clean_a), ba(T.clean_b, T.clean_a)],
+    [{ text: '解讀', options: { bold: true } },
+     'affine 已高 ' + f3(T.all_dirty_b - T.all_clean_b) + '，ΔDice 相近 → 無差異',
+     hl('affine 相近；配準後低 ' + f3(T.clean_a - T.dirty_a) + '，ΔDice 少 ' + f3((T.clean_a - T.clean_b) - (T.dirty_a - T.dirty_b)), C.RUST)],
   ], { x: M, y: 5.12, w: 12.13, colW: [2.75, 4.65, 4.73], fontSize: 13 });
-  txt(s, '每個點是一個人，共 ' + T.n + ' 人（test 50、val 50、第五包 MRS 70，三批都沒進過訓練；三批分開算，方向都一樣）',
+  txt(s, '每點代表一位受試者，共 ' + T.n + ' 位（test 50、val 50、MRS 70，均未參與訓練；三組分別計算，方向一致）',
     { x: M, y: 6.72, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 if (HAS_SIX) {
   // ─────────────────────────────────────────────────────── ③ 同樣 6 位：兩種算法
-  const s = base('③ 只算殘留旁邊的 Dice（p23）', '同樣 6 位：30 個結構一起平均分不出來，只算皮質就分得出來');
+  const s = base(EB.res, '代表性個案（6 位）：30 結構平均無法區分，皮質 Dice 可以區分');
   // 公式 2026-10-06 一度放這頁右邊，使用者說分開 → 獨立一頁（res_formula），這頁恢復整頁寬的圖
-  fitImage(s, CH('1014_six.png'), M, 1.45, 12.13, 4.95, '頭頂殘留最多 3 位與最少 3 位的皮質 Dice');
-  txt(s, 'test 裡頭頂殘留最多、最少各 3 位（跟之前殘留對照圖同一批人），紅色＝殘留。大字是皮質 Dice 的「起點 → 配準後」，下面是進步多少。',
+  fitImage(s, CH('1014_six.png'), M, 1.45, 12.13, 4.95, '顱頂殘留最多 3 位與最少 3 位之皮質 Dice');
+  txt(s, 'test 中顱頂殘留最多與最少各 3 位（與先前殘留對照圖相同），紅色為殘留。大字為皮質 Dice（affine → 配準後），其下為 ΔDice。',
     { x: M, y: 6.5, w: 12.13, h: 0.45, fontSize: 13, color: C.MUTED, align: 'center' });
 }
 
 // ───────────────────────────────────────────────────────── 10 ③④ 三個位置
 {
-  const s = base('③④ 三個位置一起看（p22、p23）', '只有頭頂有影響，顱底和後腦杓沒有');
-  fitImage(s, CH('1014_regions.png'), M, 1.38, 12.13, 3.15, '三個位置：殘留量 vs 只算殘留旁邊結構的 Dice 進步');
+  const s = base(EB.both, '三個部位之比較：僅顱頂殘留與 ΔDice 相關，顱底與枕部無相關');
+  fitImage(s, CH('1014_regions.png'), M, 1.38, 12.13, 3.15, '三個部位：殘留量 vs 殘留鄰近結構之 ΔDice');
   // 2026-10-05 起：上面是三張散佈圖（r 寫在圖上），表格放 Dice（起點 → 配準後），分組直接用 mm／mm³ 切（gather.py 的 residue_mm）
   const labs = (k) => [...new Set(R[k].labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
   const ba2 = (b, a) => f3(b) + ' → ' + f3(a) + '（' + sgn(a - b, 3) + '）';
@@ -366,56 +372,56 @@ if (HAS_SIX) {
     { text: fs, options: { fontSize: 10.5, color: C.MUTED, breakLine: i < arr.length - 1 } }]) });
   const two = (a, b) => ({ text: [{ text: a, options: { breakLine: true } }, { text: b }] });
   const row = (k, n) => [n, fsCell(k),
-                         two(amt(k, MM[k].hi) + ' 以上', ba2(MM[k].dirty_b, MM[k].dirty_a)),
-                         two(amt(k, MM[k].lo) + ' 以下', ba2(MM[k].clean_b, MM[k].clean_a))];
+                         two('≥ ' + amt(k, MM[k].hi), ba2(MM[k].dirty_b, MM[k].dirty_a)),
+                         two('≤ ' + amt(k, MM[k].lo), ba2(MM[k].clean_b, MM[k].clean_a))];
   table(s, [
-    ['位置', '只算這些 FreeSurfer 結構（標籤編號，左右合併）', '殘留最多 1/4：Dice 起點 → 配準後', '殘留最少 1/4：Dice 起點 → 配準後'],
-    row('top', '頭頂'), row('base', '顱底'), row('back', '後腦杓'),
+    ['部位', '納入 Dice 之 FreeSurfer 結構（標籤編號，左右合併）', '殘留最多 1/4：affine → 配準後', '殘留最少 1/4：affine → 配準後'],
+    row('top', '顱頂'), row('base', '顱底'), row('back', '枕部'),
   ], { x: M, y: 4.68, w: 12.13, colW: [0.95, 5.3, 2.94, 2.94], fontSize: 12 });
 }
 
 // ───────────────────────────────────────────────────────── 11 ④ 後腦杓
 {
-  const s = base('④ 後腦杓（p22）', '後腦杓也有殘留，但跟配準好不好沒有關係');
+  const s = base(EB.back, '枕部殘留：與 ΔDice 無顯著相關');
   // 2026-10-05 使用者：第 13、15 頁在講同一件事，圖要統一 → 改成跟第 13 頁一樣的 3 對 3（原本是 1 對、五個切面、不標 Dice）
-  fitImage(s, CH('1014_six_back.png'), M, 1.42, 12.13, 4.55, '後腦杓殘留最多 3 位與最少 3 位的皮質 Dice');
+  fitImage(s, CH('1014_six_back.png'), M, 1.42, 12.13, 4.55, '枕部殘留最多 3 位與最少 3 位之皮質 Dice');
   const B = D.back, K = MM.back;
   const bl = [...new Set(R.back.labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
-  txt(s, 'test 裡後腦杓殘留最多、最少各 3 位，紅色＝殘留；只算殘留旁邊的' + bl + '。看「進步」：兩組交錯在一起，分不出誰殘留多',
+  txt(s, 'test 中枕部殘留最多與最少各 3 位，紅色為殘留；僅計算鄰近之' + bl + '。兩組之 ΔDice 互有高低，無法區分',
     { x: M, y: 6.02, w: 12.13, h: 0.35, fontSize: 12.5, color: C.MUTED, align: 'center' });
-  txt(s, K.n + ' 人：後腦杓殘留厚度跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
+  txt(s, 'n = ' + K.n + '：枕部殘留厚度與 ΔDice 之相關 r = ' + sgn(K.r) + '（' + pval(K.p) + '），無顯著相關',
     { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
-  txt(s, (HAS_METHOD ? '算法同頭頂（第 ' + PG.res_m1 + '～' + PG.res_m4 + ' 頁），吸管改成前後方向。' : '')
-    + '左右腦中間、大小腦之間本來就有腦膜（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
+  txt(s, (HAS_METHOD ? '量測方式同顱頂（第 ' + PG.res_m1 + '～' + PG.res_m4 + ' 頁），column 改為前後方向。' : '')
+    + '大腦縱裂與小腦天幕處原有硬腦膜（test ' + B.n + ' 位中位數 ' + B.median.toFixed(2) + ' mm）',
     { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 if (HAS_BASE6) {
   // ─────────────────────────────────────────────────────── ③ 顱底：跟第 13 頁（頭頂）、後腦杓那頁同一個樣子
   // 2026-10-05 使用者：「這個顱底也來一張」。⚠️「這 6 位裡殘留多的進步還略多」是照現在的數字寫的
-  const s = base('③ 只算殘留旁邊的 Dice（p23）', '顱底也有殘留，但跟配準好不好沒有關係');
-  fitImage(s, CH('1014_six_base.png'), M, 1.42, 12.13, 4.55, '顱底殘留最多 3 位與最少 3 位的旁邊結構 Dice');
+  const s = base(EB.res, '顱底殘留：與 ΔDice 無顯著相關');
+  fitImage(s, CH('1014_six_base.png'), M, 1.42, 12.13, 4.55, '顱底殘留最多 3 位與最少 3 位之鄰近結構 Dice');
   const K = MM.base;
   const bl = [...new Set(R.base.labels_pooled.split('、').map((x) => x.replace(/^[左右]/, '')))].join('、');
-  txt(s, 'test 裡顱底殘留最多、最少各 3 位，紅色＝離腦 10 mm 以外還留著的東西；只算殘留旁邊的' + bl + '。這 6 位裡殘留多的進步還略多',
+  txt(s, 'test 中顱底殘留最多與最少各 3 位，紅色為距腦組織 10 mm 以外之殘留；僅計算鄰近之' + bl + '。此 6 位中，殘留多者之 ΔDice 略高',
     { x: M, y: 6.02, w: 12.13, h: 0.35, fontSize: 12, color: C.MUTED, align: 'center' });
-  txt(s, K.n + ' 人：顱底殘留體積跟 Dice 進步多少 r = ' + sgn(K.r) + '（' + pval(K.p) + '）→ 沒有關係',
+  txt(s, 'n = ' + K.n + '：顱底殘留體積與 ΔDice 之相關 r = ' + sgn(K.r) + '（' + pval(K.p) + '），無顯著相關',
     { x: M, y: 6.4, w: 12.13, h: 0.35, fontSize: 14.5, bold: true, color: C.TEAL, align: 'center' });
-  txt(s, '殘留大多在腦的前下方；切面選穿過最大一坨殘留中心的那一片，所以每個人切的位置不一樣',
+  txt(s, '殘留多位於腦之前下方；切面取通過最大殘留團塊中心之矢狀面，故各受試者之切面位置不同',
     { x: M, y: 6.75, w: 11.0, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 12 ③ 是不是 FreeSurfer 畫錯
 {
-  const s = base('③ 只算殘留旁邊的 Dice（p23）', '會不會是 FreeSurfer 把腦畫太小？不是，是真的沒切乾淨');
-  txt(s, '程式把「FreeSurfer 畫的腦外面還亮的東西」當成殘留。如果其實是 FreeSurfer 畫太小、漏掉一塊皮質，'
-        + '那 Dice 低就不是殘留害的。看圖：綠色（皮質）一樣完整，紅色都在綠色外面。',
+  const s = base(EB.res, '排除 FreeSurfer 分割低估：殘留位於皮質標籤外側，屬去顱骨不完全');
+  txt(s, '殘留之定義為「FreeSurfer 腦標籤外、強度 ≥ τ 之 voxel」。若實為 FreeSurfer 低估皮質（漏標），'
+        + 'Dice 下降即非殘留所致。結果：皮質標籤（綠）完整，殘留（紅）皆位於其外側。',
     { x: M, y: 1.45, w: 12.13, h: 0.7, fontSize: 14, color: C.MUTED });
-  fitImage(s, CH('1014_top_example.png'), M, 2.2, 12.13, 3.05, '殘留多的人 vs 乾淨的人，頭頂放大');
+  fitImage(s, CH('1014_top_example.png'), M, 2.2, 12.13, 3.05, '殘留多與殘留少之受試者，顱頂放大');
   const w = (12.13 - 0.4 * 2) / 3;
-  [[TC.ctx_thick.dirty.toFixed(1) + ' vs ' + TC.ctx_thick.clean.toFixed(1), '白質到腦頂幾格：殘留多 vs 少\n→ 皮質一樣厚，沒有缺一塊', C.TEAL],
-   [(100 * TC.top_ctx_min).toFixed(1) + '%', '腦的最上面一格是皮質\n（' + TC.n + ' 人每個都至少這麼多）', C.TEAL],
-   [TC.cont_int.dirty.toFixed(1) + ' 倍', '那層東西的亮度只有皮質的 ' + TC.cont_int.dirty.toFixed(1) + ' 倍\n→ 比皮質暗，是腦膜這類東西', C.RUST]].forEach((it, i) => {
+  [[TC.ctx_thick.dirty.toFixed(1) + ' vs ' + TC.ctx_thick.clean.toFixed(1), '白質至腦組織上緣之 voxel 數：殘留多 vs 少\n→ 皮質厚度相同，無缺漏', C.TEAL],
+   [(100 * TC.top_ctx_min).toFixed(1) + '%', '腦組織最上層 voxel 屬於皮質之比例\n（' + TC.n + ' 位之最小值）', C.TEAL],
+   [TC.cont_int.dirty.toFixed(1) + ' 倍', '殘留之強度為皮質之 ' + TC.cont_int.dirty.toFixed(1) + ' 倍\n→ 低於皮質，符合腦膜等組織', C.RUST]].forEach((it, i) => {
     const x = M + i * (w + 0.4);
     card(s, x, 5.4, w, 1.5);
     stat(s, it[0], it[1], x, 5.5, w, it[2]);
@@ -425,13 +431,13 @@ if (HAS_BASE6) {
 // ───────────────────────────────────────────────────────── 13 ⑤ 加寬＋速度場
 {
   const WV = done('mix_wide_vel');
-  const s = base('⑤ 加寬改速度場（p25）', WV ? '加寬改成速度場：Dice 跟加寬位移場打平，而且幾乎不擠爆' : '加寬＋速度場：AI 上跑中');
-  const cell = (e) => (done(e) ? { text: e + '\nDice ' + score(e) + '　擠爆 ' + fold(e) }
-                               : { text: e + '\n跑中', options: { color: C.RUST, bold: true } });
+  const s = base(EB.wide, WV ? '2× width SVF：Dice 與 displacement field 相當，且幾近無 folding' : '2× width SVF：訓練中');
+  const cell = (e) => (done(e) ? { text: e + '\nDice ' + score(e) + '　folding ' + fold(e) }
+                               : { text: e + '\n訓練中', options: { color: C.RUST, bold: true } });
   table(s, [
-    ['全尺寸、平滑權重 1', '預設寬度', '加寬 2 倍'],
-    [{ text: '位移場', options: { bold: true } }, cell('mix_exp3'), cell('mix_wide')],
-    [{ text: '速度場', options: { bold: true } }, cell('mix_exp6'), cell('mix_wide_vel')],
+    ['全解析度、λ = 1', 'Default width', '2× width'],
+    [{ text: 'Displacement field', options: { bold: true } }, cell('mix_exp3'), cell('mix_wide')],
+    [{ text: 'SVF', options: { bold: true } }, cell('mix_exp6'), cell('mix_wide_vel')],
   ], { x: M, y: 1.65, w: 8.2, colW: [2.2, 3.0, 3.0], fontSize: 14, rowH: 0.85 });
   const X0 = 9.2, WW = 3.53;
   const win = (q) => q.win + '/' + q.n + ' 位';
@@ -440,58 +446,59 @@ if (HAS_BASE6) {
   // 擠爆點數跟第 4 頁的圖用同一個來源（check_folding.py）；沒算過的才退回 test CSV 換算（兩邊算法差 0.1% 左右）
   const FP = (e) => FD[e] || { points_mean: m[e].points, points_max: m[e].points_max, n_any: m[e].n_any };
   if (WV) {
+    // 右欄只有 3.5 吋寬：英文術語較長，標題用 14.5 pt、說明寫短（2026-10-07 改正式用語時重排）
     bullets(s, [
-      [{ text: '橫著比：只差寬度', options: { bold: true } },
-       sub('\n位移場 ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '變好）'
-           + '\n速度場 ' + sgn(P.width_vel.mean, 4) + '（' + win(P.width_vel) + '變好）')],
-      [{ text: '直著比：速度場 − 位移場', options: { bold: true } },
-       sub('\n預設寬度 ' + sgn(P.version_w1_vel.mean, 4) + '（' + win(P.version_w1_vel) + '較高）'
-           + '\n加寬 2 倍 ' + sgn(P.version_wide.mean, 4) + '（' + win(P.version_wide) + '）→ 打平')],
-      [{ text: '擠爆的點', options: { bold: true } },
-       sub('\n位移場加寬：每人約 ' + thou(FP('mix_wide').points_mean) + ' 點'
-           + '\n速度場加寬：' + FP('mix_wide_vel').n_any + ' 位有、最多 ' + thou(FP('mix_wide_vel').points_max) + ' 點')],
-    ], { x: X0, y: 1.6, w: WW, h: 3.5, fontSize: 15, paraSpaceAfter: 8 });
-    txt(s, '→ 分數跟最高的 mix_wide 一樣，又幾乎不擠爆：目前最好的一顆',
+      [{ text: '寬度比較（同一參數化）', options: { bold: true } },
+       sub('\nDisplacement ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '上升）'
+           + '\nSVF ' + sgn(P.width_vel.mean, 4) + '（' + win(P.width_vel) + '上升）')],
+      [{ text: '參數化比較（SVF − displacement）', options: { bold: true } },
+       sub('\nDefault width ' + sgn(P.version_w1_vel.mean, 4) + '（' + pval(P.version_w1_vel.p) + '）'
+           + '\n2× width ' + sgn(P.version_wide.mean, 4) + '（' + pval(P.version_wide.p) + '）→ 相當')],
+      [{ text: 'Folding voxels（2× width）', options: { bold: true } },
+       sub('\nDisplacement：平均 ' + thou(FP('mix_wide').points_mean) + '／位'
+           + '\nSVF：' + FP('mix_wide_vel').n_any + ' 位出現，最多 ' + thou(FP('mix_wide_vel').points_max) + ' voxels')],
+    ], { x: X0, y: 1.6, w: WW, h: 3.5, fontSize: 14.5, paraSpaceAfter: 8 });
+    txt(s, '→ Dice 與目前最高之 mix_wide 相當，且幾近無 folding：目前最佳模型',
       { x: M, y: 4.45, w: 8.2, h: 0.45, fontSize: 16, bold: true, color: C.TEAL });
     card(s, M, 5.2, 12.13, 1.7, 'FFF3E8');
     const t = TT.mix_wide_vel, t0 = TT.mix_wide;
     txt(s, [
-      { text: '順便：加寬版為什麼比預估慢', options: { bold: true } },
-      { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
-      { text: '\n訓練前多設一行限制最多佔多少（只管記憶體、不改計算）'
-          + (t && t0 ? '：這顆每步 ' + t.sec.toFixed(1) + ' 秒、' + Math.round(t.hours) + ' 小時跑完；mix_wide 沒加，每步 '
-                       + t0.sec.toFixed(1) + ' 秒、' + Math.round(t0.hours) + ' 小時' : '')
-          + '（mix_exp6、7 同時跑：每步 10 幾秒 → 約 3 秒）。',
+      { text: '附記：2× width 模型訓練時間超出預估之原因', options: { bold: true } },
+      { text: '\nPyTorch 快取配置器預留之 GPU 記憶體（約 33 GB）超過 TITAN RTX 之 24 GB，超出部分由系統記憶體支應，導致速度下降。' },
+      { text: '\n訓練前設定記憶體上限（僅限制配置，不影響計算）'
+          + (t && t0 ? '：本模型每步 ' + t.sec.toFixed(1) + ' 秒、共 ' + Math.round(t.hours) + ' 小時；mix_wide 未設定，每步 '
+                       + t0.sec.toFixed(1) + ' 秒、共 ' + Math.round(t0.hours) + ' 小時' : '')
+          + '（mix_exp6、7 同時訓練時：每步 10 餘秒 → 約 3 秒）。',
         options: { color: C.MUTED } },
     ], { x: M + 0.3, y: 5.35, w: 11.5, h: 1.45, fontSize: 14, paraSpaceAfter: 4 });
   } else {
     bullets(s, [
-      [{ text: '橫著比：只差寬度', options: { bold: true } },
-       sub('\n位移場加寬 ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '變好）')],
-      [{ text: '直著比：只差版本', options: { bold: true } },
-       sub('\n加寬之後，速度場還是比較好、又不擠爆嗎？')],
+      [{ text: '寬度比較（同一參數化）', options: { bold: true } },
+       sub('\nDisplacement field ' + sgn(P.width_disp.mean, 4) + '（' + win(P.width_disp) + '上升）')],
+      [{ text: '參數化比較', options: { bold: true } },
+       sub('\n2× width 下，SVF 是否仍優於 displacement field 且無 folding')],
     ], { x: X0, y: 1.7, w: WW, h: 2.6, fontSize: 15, paraSpaceAfter: 12 });
     card(s, M, 4.45, 12.13, 2.35, 'FFF3E8');
     txt(s, [
-      { text: '順便發現加寬版為什麼比預估慢：', options: { bold: true } },
-      { text: '\nPyTorch 會先多佔一些顯存備用，加寬那顆想佔約 33 GB，超過 AI 的 24 GB，多的部分拿一般記憶體頂，所以變慢。' },
-      { text: '\n訓練前多設一行限制最多佔多少，只管記憶體、不改計算。mix_exp6、7 同時跑時已在 AI 上試過：每步 10 幾秒 → 約 3 秒。',
+      { text: '附記：2× width 模型訓練時間超出預估之原因', options: { bold: true } },
+      { text: '\nPyTorch 快取配置器預留之 GPU 記憶體（約 33 GB）超過 TITAN RTX 之 24 GB，超出部分由系統記憶體支應，導致速度下降。' },
+      { text: '\n訓練前設定記憶體上限（僅限制配置，不影響計算）；mix_exp6、7 同時訓練時已驗證：每步 10 餘秒 → 約 3 秒。',
         options: { color: C.MUTED } },
-      { text: '\n加寬＋速度場這顆也加了，預計約 19 小時跑完（mix_wide 當時 26 小時）。', options: { color: C.MUTED } },
+      { text: '\n2× width SVF 亦採此設定，預估約 19 小時（mix_wide 為 26 小時）。', options: { color: C.MUTED } },
     ], { x: M + 0.3, y: 4.62, w: 11.5, h: 2.05, fontSize: 14.5, paraSpaceAfter: 4 });
   }
 }
 
 if (HAS_WCURVE) {
   // ─────────────────────────────────────────────────────── ⑤ 訓練過程：版本 × 寬度四顆
-  const s = base('⑤ 加寬改速度場（p25）', '訓練過程：加寬的兩顆分數一樣高，速度場從頭到尾都不擠爆');
-  fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 4.7, '四顆的驗證集 Dice 與擠爆比例');
-  txt(s, '上：驗證集 51 位的 Dice，星號是挑中的那一輪。下：擠爆的比例，虛線是論文同版本的 0.366%。',
+  const s = base(EB.wide, '訓練曲線：2× width 兩模型之 Dice 相當；SVF 全程無 folding');
+  fitImage(s, CH('curve_wide.png'), M, 1.45, 12.13, 4.7, '四個模型之 validation Dice 與 folding ratio');
+  txt(s, '上：validation set（51 位）之 Dice，星號為選定之 epoch。下：folding ratio，虛線為 VoxelMorph（TMI 2019, Table I）之 0.366%。',
     { x: M, y: 6.2, w: 12.13, h: 0.35, fontSize: 13, color: C.MUTED, align: 'center' });
   // 2026-10-06：不用再訓練更久（gather.py 的 plateau：第 100 輪之後的範圍、上下晃的大小、每 100 輪的趨勢）
   const PV = D.plateau.mix_wide_vel, PW = D.plateau.mix_wide;
-  txt(s, '不用再訓練更久：加寬兩顆從第 100 輪之後，驗證集都在 ' + f3(Math.min(PV.lo, PW.lo)) + '～' + f3(Math.max(PV.hi, PW.hi))
-    + ' 之間上下晃（標準差約 ' + f3(PV.sd) + '），每 100 輪的趨勢只有 ' + sgn(PV.slope100, 4) + '、' + sgn(PW.slope100, 4) + '，比晃的幅度還小',
+  txt(s, '無需延長訓練：第 100 epoch 後 Dice 介於 ' + f3(Math.min(PV.lo, PW.lo)) + '～' + f3(Math.max(PV.hi, PW.hi))
+    + '（SD ≈ ' + f3(PV.sd) + '）；每 100 epoch 之趨勢 ' + sgn(PV.slope100, 4) + '、' + sgn(PW.slope100, 4) + '，小於波動',
     { x: M, y: 6.6, w: 12.13, h: 0.35, fontSize: 13.5, bold: true, color: C.TEAL, align: 'center' });
 }
 
@@ -502,72 +509,72 @@ if (HAS_WM.wide_struct) {
   const dv = (n) => S.mix_wide_vel[n] - S.mix_exp6[n], dp = (n) => S.mix_wide[n] - S.mix_exp3[n];
   const worse = nm.filter((n) => dv(n) < 0).sort((a, b) => dv(a) - dv(b));
   const ver = nm.map((n) => Math.abs(S.mix_wide_vel[n] - S.mix_wide[n]));
-  const s = base('⑤ 加寬改速度場（p25）', '每個結構：加寬讓大部分結構變好；加寬之後換版本，每個結構都差不多');
-  fitImage(s, CH('1014_wide_struct.png'), M, 1.4, 12.13, 4.9, '加寬的效果、加寬後換版本，每個結構的 Dice 變化');
+  const s = base(EB.wide, '各結構之 Dice：加寬改善多數結構；2× width 下兩種參數化相近');
+  fitImage(s, CH('1014_wide_struct.png'), M, 1.4, 12.13, 4.9, '加寬之效果、2× width 下兩種參數化之差異（各結構 Dice）');
   bullets(s, [
-    [{ text: '左：速度場加寬，' + nm.length + ' 種結構裡 ' + (nm.length - worse.length) + ' 種變好；', options: { bold: true } },
-     { text: '變差的是' + worse.map((n) => n + ' ' + sgn(dv(n), 3)).join('、') + '（位移場加寬時蒼白球是 ' + sgn(dp('蒼白球'), 3)
+    [{ text: '左：SVF 加寬，' + nm.length + ' 個結構中 ' + (nm.length - worse.length) + ' 個上升；', options: { bold: true } },
+     { text: '下降：' + worse.map((n) => n + ' ' + sgn(dv(n), 3)).join('、') + '（displacement field 之蒼白球為 ' + sgn(dp('蒼白球'), 3)
             + '，方向相反）', options: { color: C.MUTED } }],
-    [{ text: '右：同樣加寬 2 倍，速度場和位移場每個結構都差在 ±' + f3(Math.max(...ver)) + ' 以內', options: { bold: true } },
-     { text: '　→「打平」不是平均剛好抵消，每個結構都差不多', options: { color: C.MUTED } }],
+    [{ text: '右：同為 2× width，SVF 與 displacement field 各結構之差異均在 ±' + f3(Math.max(...ver)) + ' 以內', options: { bold: true } },
+     { text: '　→ 整體相當並非平均抵銷所致，各結構皆相近', options: { color: C.MUTED } }],
   ], { x: M, y: 6.35, w: 12.13, h: 0.75, fontSize: 13, paraSpaceAfter: 3 });
 }
 
 if (HAS_WM.wide_diff) {
   // ─────────────────────────────────────────────────────── ⑤ 越難對的人幫越多（1014_wide_difficulty.png）
   const WV = D.wide_diff.vel, WP = D.wide_diff.disp;
-  const s = base('⑤ 加寬改速度場（p25）', '越難對的人，加寬幫越多：位移場、速度場都一樣');
-  fitImage(s, CH('1014_wide_difficulty.png'), M, 1.38, 12.13, 4.25, '起點 Dice 與加寬後多進步多少');
+  const s = base(EB.wide, 'Affine Dice 越低之受試者，加寬之改善越大（兩種參數化皆同）');
+  fitImage(s, CH('1014_wide_difficulty.png'), M, 1.38, 12.13, 4.25, 'Affine Dice 與加寬之 ΔDice');
   table(s, [
-    ['加寬後多進步多少（Dice）', '起點最差 10 位', '中間 31 位', '起點最好 10 位', '相關'],
-    ['位移場（mix_wide - mix_exp3）', sgn(WP.hard10, 4), sgn(WP.mid, 4), sgn(WP.easy10, 4), sgn(WP.r, 2)],
-    ['速度場（mix_wide_vel - mix_exp6）', sgn(WV.hard10, 4), sgn(WV.mid, 4), sgn(WV.easy10, 4), sgn(WV.r, 2)],
+    ['加寬之 ΔDice', 'Affine 最低 10 位', '中間 31 位', 'Affine 最高 10 位', 'r'],
+    ['Displacement field（mix_wide − mix_exp3）', sgn(WP.hard10, 4), sgn(WP.mid, 4), sgn(WP.easy10, 4), sgn(WP.r, 2)],
+    ['SVF（mix_wide_vel − mix_exp6）', sgn(WV.hard10, 4), sgn(WV.mid, 4), sgn(WV.easy10, 4), sgn(WV.r, 2)],
   ], { x: M, y: 5.72, w: 12.13, colW: [4.0, 2.1, 2.0, 2.1, 1.93], fontSize: 12.5 });
-  txt(s, '每個點是一個人（test 51 位）。分組用「起點 Dice」（只做線性對位，兩顆模型都沒碰過），用其中一顆模型的分數分組會有回歸平均的假象',
+  txt(s, '每點代表一位受試者（test 51 位）。依 affine Dice 分組；若以模型之 Dice 分組，會產生均值迴歸（regression to the mean）之假象',
     { x: M, y: 6.82, w: 11.0, h: 0.3, fontSize: 11, color: C.MUTED });
 }
 
 if (HAS_WM.wide_loss) {
   // ─────────────────────────────────────────────────────── ⑤ 訓練 loss（1014_wide_loss.png）
   const L = D.loss_final;
-  const s = base('⑤ 加寬改速度場（p25）', '訓練 loss：加寬的兩顆影像對得比較像，兩個版本的影像項幾乎疊在一起');
-  fitImage(s, CH('1014_wide_loss.png'), M, 1.4, 12.13, 4.4, '四顆的訓練 loss：影像項、平滑項');
+  const s = base(EB.wide, '訓練損失：加寬降低相似度項，兩種參數化之曲線幾近重疊');
+  fitImage(s, CH('1014_wide_loss.png'), M, 1.4, 12.13, 4.4, '四個模型之 training loss：相似度項、平滑項');
   table(s, [
-    ['最後一輪（平均 100 步）', '位移場・預設', '位移場・加寬', '速度場・預設', '速度場・加寬'],
-    ['影像項（越低越像）', L.mix_exp3.image.toFixed(3), L.mix_wide.image.toFixed(3), L.mix_exp6.image.toFixed(3), L.mix_wide_vel.image.toFixed(3)],
+    ['最後一個 epoch（100 iterations 平均）', 'Displacement・default', 'Displacement・2×', 'SVF・default', 'SVF・2×'],
+    ['相似度項（−NCC，越低越相似）', L.mix_exp3.image.toFixed(3), L.mix_wide.image.toFixed(3), L.mix_exp6.image.toFixed(3), L.mix_wide_vel.image.toFixed(3)],
     ['平滑項', L.mix_exp3.smooth.toFixed(4), L.mix_wide.smooth.toFixed(4), L.mix_exp6.smooth.toFixed(4), L.mix_wide_vel.smooth.toFixed(4)],
   ], { x: M, y: 5.85, w: 12.13, colW: [3.33, 2.2, 2.2, 2.2, 2.2], fontSize: 12.5 });
-  txt(s, '⚠️ 平滑項不能跨版本比：速度場罰的是「速度場」（積分之前）、位移場罰的是位移場本身。同一個版本裡，加寬前後幾乎一樣',
+  txt(s, '⚠️ 平滑項不可跨參數化比較：SVF 懲罰速度場（積分前）之梯度，displacement field 懲罰位移場本身之梯度。同一參數化下，加寬前後幾近相同',
     { x: M, y: 6.95, w: 12.13, h: 0.3, fontSize: 11.5, color: C.MUTED });
 }
 
 if (HAS_WM.wide_full) {
   // ─────────────────────────────────────────────────────── ⑤ 視覺化（大圖）：整片腦（check_folding.py --zoom-pair 一起畫的）
   // 2026-10-06 使用者看了放大圖：「可以來大圖的嗎」→ 整片腦、藍框＝下一頁放大的那一塊
-  const s = base('⑤ 加寬改速度場（p25）', '視覺化（大圖）：位移場的擠爆點沿著腦溝散在各處，速度場一個都沒有');
-  fitImage(s, FC('folding_full_pair_T054.png'), M, 1.38, 8.3, 5.7, 'T054 整片腦，加寬位移場 vs 加寬速度場');
+  const s = base(EB.wide, '形變網格（T054）：displacement field 有 folding，SVF 無');
+  fitImage(s, FC('folding_full_pair_T054.png'), M, 1.38, 8.3, 5.7, 'T054 全腦切面：2× width displacement field vs 2× width SVF');
   bullets(s, [
-    [{ text: 'T054（test 的一位），三個方向各切一片', options: { bold: true } },
-     { text: '\n穿過加寬位移場最大的一團擠爆點（左大腦白質）', options: { color: C.MUTED } }],
-    [{ text: '上：加寬位移場（mix_wide）', options: { bold: true, color: C.RUST } },
-     { text: '\n紅點＝擠爆的點，沿著腦溝散在皮質和白質，不只藍框那一團', options: { color: C.MUTED } }],
-    [{ text: '下：加寬速度場（mix_wide_vel）', options: { bold: true, color: C.TEAL } },
-     { text: '\n同樣三片一個都沒有，整顆腦 0 個', options: { color: C.MUTED } }],
-    [{ text: '藍框＝下一頁放大的那一塊；格子每 4 mm 一條（放大那頁每 2 mm）', options: { color: C.MUTED, fontSize: 12 } }],
+    [{ text: 'T054（test），三個方向各一切面', options: { bold: true } },
+     { text: '\n通過 2× width displacement field 最大之 folding 團簇（左側大腦白質）', options: { color: C.MUTED } }],
+    [{ text: '上：2× width displacement field（mix_wide）', options: { bold: true, color: C.RUST } },
+     { text: '\n紅點為 folding voxel，沿腦溝分布於皮質與白質，不限於藍框處', options: { color: C.MUTED } }],
+    [{ text: '下：2× width SVF（mix_wide_vel）', options: { bold: true, color: C.TEAL } },
+     { text: '\n相同切面皆無 folding，全腦 0 個', options: { color: C.MUTED } }],
+    [{ text: '藍框：下一頁之放大範圍；網格間距 4 mm（下一頁為 2 mm）', options: { color: C.MUTED, fontSize: 12 } }],
   ], { x: M + 8.5, y: 1.6, w: 3.63, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
 }
 
 if (HAS_WM.wide_vis) {
   // ─────────────────────────────────────────────────────── ⑤ 視覺化：同一個位置放大（check_folding.py --zoom-pair）
-  const s = base('⑤ 加寬改速度場（p25）', '視覺化：同一個位置，位移場的格子翻過去，速度場只是扭、沒有翻');
-  fitImage(s, FC('folding_zoom_pair_T054.png'), M, 1.38, 7.6, 5.65, 'T054 同一個位置，加寬位移場 vs 加寬速度場');
+  const s = base(EB.wide, '局部放大（T054）：displacement field 網格翻轉，SVF 無翻轉');
+  fitImage(s, FC('folding_zoom_pair_T054.png'), M, 1.38, 7.6, 5.65, 'T054 同一位置：2× width displacement field vs 2× width SVF');
   bullets(s, [
-    [{ text: 'T054，加寬位移場（mix_wide）最大的一團擠爆點，在左大腦白質', options: { bold: true } },
-     { text: '\n上：加寬位移場　下：加寬速度場（mix_wide_vel），同一個位置、同一片', options: { color: C.MUTED } }],
-    [{ text: '黃線＝格子被形變拉成的樣子，紅點＝擠爆的點', options: { color: C.MUTED } }],
-    [{ text: '位移場：格線交叉、翻過去（紅點）', options: { bold: true, color: C.RUST } }],
-    [{ text: '速度場：一樣扭得很厲害，但格子沒有翻，整顆腦 0 個擠爆點', options: { bold: true, color: C.TEAL } }],
-    [{ text: (HAS_WM.wide_full ? '上一頁大圖的藍框放大來看；' : '') + '格子每 2 mm 一條', options: { color: C.MUTED, fontSize: 12 } }],
+    [{ text: 'T054：左側大腦白質之最大 folding 團簇', options: { bold: true } },
+     { text: '\n上：2× width displacement field（mix_wide）\n下：2× width SVF（mix_wide_vel）\n同一位置、同一切面', options: { color: C.MUTED } }],
+    [{ text: '黃線：形變網格；紅點：folding voxel', options: { color: C.MUTED } }],
+    [{ text: 'Displacement field：網格交叉、翻轉', options: { bold: true, color: C.RUST } }],
+    [{ text: 'SVF：形變幅度相近，網格未翻轉（全腦 0 個 folding voxel）', options: { bold: true, color: C.TEAL } }],
+    [{ text: (HAS_WM.wide_full ? '上一頁藍框之放大；' : '') + '網格間距 2 mm', options: { color: C.MUTED, fontSize: 12 } }],
   ], { x: M + 7.8, y: 1.6, w: 4.33, h: 5.2, fontSize: 14, paraSpaceAfter: 12 });
 }
 
@@ -654,21 +661,21 @@ if (HAS_ARCH) {
 {
   const s = base('NEXT', '下一步');
   const PEND = ['mix_exp6', 'mix_exp7', 'mix_wide_vel'].filter((e) => !done(e));
-  const where = [...new Set(PEND.map((e) => (e === 'mix_wide_vel' ? '第 ' + PG.wide + ' 頁（加寬＋速度場）'
-                                                                  : '第 ' + PG.lam + ' 頁（平滑權重）')))];
+  const where = [...new Set(PEND.map((e) => (e === 'mix_wide_vel' ? '第 ' + PG.wide + ' 頁（2× width SVF）'
+                                                                  : '第 ' + PG.lam + ' 頁（λ）')))];
   const items = PEND.length
-    ? [[{ text: PEND.join('、') + ' 結果回來', options: { bold: true } },
-        { text: '\n　補進' + where.join('和'), options: { color: C.MUTED } }]]
+    ? [[{ text: PEND.join('、') + ' 訓練完成後', options: { bold: true } },
+        { text: '\n　更新' + where.join('與'), options: { color: C.MUTED } }]]
     : [];
   bullets(s, items.concat([
-    [{ text: '訓練時也用 FreeSurfer 標籤（論文的做法）', options: { bold: true } },
-     { text: '\n　標籤權重 0.5、5 兩顆，接著在 AI 上跑。測試時一樣只用影像，看 Dice 能不能再往上', options: { color: C.MUTED } }],
+    [{ text: '半監督訓練：訓練時加入 FreeSurfer 標籤（Balakrishnan et al., TMI 2019, Eq. 10）', options: { bold: true } },
+     { text: '\n　γ = 0.5、5 兩個模型（mix_exp8／9）接續訓練；測試時僅使用影像，評估 Dice 是否進一步提升', options: { color: C.MUTED } }],
     ...(HAS_ARCH ? [[{ text: '架構修改：coarse-to-fine → cascade → cascade + coarse-to-fine（第 ' + PG.arch_plan + ' 頁）', options: { bold: true } },
                      { text: '\n　接續上述兩個模型依序訓練；皆以 mix_exp6 為 baseline，每次僅改變一項因素', options: { color: C.MUTED } }]] : []),
-    [{ text: '新資料：第五包 MRS（' + D.mrs.n + ' 人）已經前處理好', options: { bold: true } },
-     { text: '\n　等其他包到齊，一起併進來重新切分，當成新的一版資料', options: { color: C.MUTED } }],
-    [{ text: '順帶看到：模型拿去對從沒看過的 MRS 研究，Dice ' + f3(D.mrs.after) + '（起點 ' + f3(D.mrs.before) + '）', options: { bold: true } },
-     { text: '\n　跟原本 test 的 ' + score('mix_exp3') + ' 一樣 → 換一個研究的資料也能用', options: { color: C.MUTED } }],
+    [{ text: '新資料：第五批 MRS（' + D.mrs.n + ' 位）已完成前處理', options: { bold: true } },
+     { text: '\n　待其餘資料到齊後一併納入，重新切分 train／val／test，作為新版資料集', options: { color: C.MUTED } }],
+    [{ text: '外部資料（附帶結果）：模型應用於未參與訓練之 MRS 研究，Dice ' + f3(D.mrs.after) + '（affine ' + f3(D.mrs.before) + '）', options: { bold: true } },
+     { text: '\n　與原 test set 之 ' + score('mix_exp3') + ' 相當，顯示模型可泛化至不同研究之資料', options: { color: C.MUTED } }],
   ]), { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16, paraSpaceAfter: 16 });
 }
 

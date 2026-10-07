@@ -92,10 +92,12 @@ D['models'] = models
 
 
 def paired(a, b):
+    """51 位逐人相減。p 是 Wilcoxon signed-rank（2026-10-07 加：投影片改正式用語，「沒差」改寫成有無顯著差異）。"""
     if a not in per or b not in per:
         return None
+    from scipy.stats import wilcoxon
     v = np.array([per[a][k] - per[b][k] for k in K])
-    return {'mean': float(v.mean()), 'win': int((v > 0).sum()), 'n': len(v)}
+    return {'mean': float(v.mean()), 'win': int((v > 0).sum()), 'n': len(v), 'p': float(wilcoxon(v).pvalue)}
 
 
 # 一次只差一件事的配對（51 位逐人相減）

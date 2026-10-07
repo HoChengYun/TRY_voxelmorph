@@ -14,7 +14,7 @@
 > 直接照抄 0.01 的話，標籤項小到幾乎沒有作用（跟 CLAUDE.md「λ 的尺度取決於 image-loss」同一件事）。
 >
 > 跑的機器：**AI**，**等 mix_wide_vel 跑完再開始**（同一張顯卡）。指令全部是 **cmd（命令提示字元）** 語法。
-> 最後更新：2026-10-04
+> 最後更新：2026-10-07（第 2 步加「一行串接兩顆」的指令）
 
 ---
 
@@ -73,13 +73,21 @@ python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name 
 set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85
 ```
 
-然後在同一個視窗跑 mix_exp8：
+然後在同一個視窗，**用一行把兩顆串起來**（建議，2026-10-07 加）：
+
+```bat
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp8 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 0.5 --gpu 0 && python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp9 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 5 --gpu 0
+```
+
+- `&&`：前面的 mix_exp8 **正常跑完**才會接著開始 mix_exp9，中間不會空等（兩顆接著跑約 28 小時）
+- mix_exp8 中途出錯的話，mix_exp9 **不會**開始（`run_train.py` 會回傳非零結束碼），先停下來跟我說
+- 兩顆共用這個視窗的 `set` 設定，不用打兩次；**這個視窗不能關**，關掉兩顆都會停
+
+不想串接的話，也可以分開打：mix_exp8 這行跑完，再打 mix_exp9 那行（**只有 `--exp-name` 和 `--seg-weight` 不一樣**）。
 
 ```bat
 python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp8 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 0.5 --gpu 0
 ```
-
-mix_exp8 跑完再跑 mix_exp9（**只有 `--exp-name` 和 `--seg-weight` 不一樣**）：
 
 ```bat
 python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp9 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 5 --gpu 0
@@ -109,6 +117,19 @@ epoch: 0001  step: 1/100     time: 3.10 sec  loss: -0.429  (-0.084, 0.000000, -0
 ⚠️ 每步**超過 8 秒**就不對勁，先停下來跟我說，**不要自己改參數**。
 
 **中斷了怎麼辦**：新視窗先 `cd`、啟動虛擬環境、**再打一次 `set` 那行**，然後在原本那行最後加 `--resume`，會從最後一個 `.pt` 接著跑。
+用串接那行的話，看停在哪一顆（`models\mix_exp9\` 裡還沒有 `.pt` 就是停在 mix_exp8）：
+
+停在 mix_exp8（mix_exp8 那半段加 `--resume`，跑完一樣會接著開始 mix_exp9）：
+
+```bat
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp8 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 0.5 --gpu 0 --resume && python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp9 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 5 --gpu 0
+```
+
+停在 mix_exp9（mix_exp8 已經跑完，只接著跑 mix_exp9）：
+
+```bat
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_exp9 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --seg-weight 5 --gpu 0 --resume
+```
 
 ---
 

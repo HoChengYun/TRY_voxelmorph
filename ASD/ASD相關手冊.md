@@ -1555,7 +1555,8 @@ mix_exp7 **250**（0.8019）＝**最後一輪**，最後 5 個點 0.8001 → 0.8
 - 訓練時的標籤項（soft Dice）不一定會一直變好：標籤線性內插後會變模糊，形變越大越模糊。評估用最近鄰搬，不受影響；挑 epoch 看 val Dice
 - 顯存（小尺寸量、外插）：**實際 12.2 GB**、預留約 18.6 GB（mix_exp6 是 8.7 GB；多的是 atlas、受試者、搬完的三份 30 通道 one-hot）。
   每步只慢約 6%。**兩顆不能同時跑**（24.4 GB）
-- 操作單 `ASD\指令_mix_exp8_9.md`（Drive `傳輸站\reg\script\mix_exp8_9\` 同一份）。AI 要 `git pull` 拿到新程式
+- 操作單 `ASD\指令_mix_exp8_9.md`（10-07 加「一行串接兩顆」：`mix_exp8 那行 && mix_exp9 那行`，mix_exp8 正常結束才開始 mix_exp9；
+  Drive `傳輸站\reg\script\mix_exp8_9\` 那份停在 10-04 版，以 repo 為準）。AI 要 `git pull` 拿到新程式
 - ⚠️ 報告時要講清楚：算 Dice 的 30 個結構訓練時看過（看的是別的受試者的標籤），跟完全不用標籤的模型比，是多用了一種資訊
 
 **訓練 loss**（`ASD/plot_loss_curve.py`，每個 epoch 取 100 步平均）

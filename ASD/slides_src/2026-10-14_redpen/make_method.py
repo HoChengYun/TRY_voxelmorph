@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(ROOT, 'ASD'))
 from check_skullstrip import find, measure_top, VERTEX_BAND
 
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、≥、− JhengHei 沒有，缺的字用 DejaVu Sans 補
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['mathtext.fontset'] = 'cm'          # 公式用 LaTeX 的字型，跟 paper 一樣
 OUT = os.path.join(ROOT, 'models', 'deck_charts')
@@ -173,9 +174,9 @@ show_slice(ax[3], blue)
 ax[3].plot(xs[ok], ztop[ok, PY], color=YEL, lw=2)
 ax[3].text(47, ztop[47, PY] + 5, r'$z_{\mathrm{top}}$', color=YEL, fontsize=15, ha='center', va='bottom',
            bbox=dict(boxstyle='round,pad=0.15', fc='black', ec='none', alpha=0.6))
-titles(fig, [(0.1225, '圖一　原始影像\n（頭頂，從正面切開）'), (0.3675, '圖二　藍＝FreeSurfer\n標成「腦」的格子'),
-             (0.6125, '圖三　放大圖二的框：每一直排\n從上往下，第一個藍格子（黃框）'),
-             (0.8625, '圖四　黃框連起來＝黃線\n＝腦的頂邊 ' + r'$z_{\mathrm{top}}$')])
+titles(fig, [(0.1225, '圖一　原始影像\n（顱頂，冠狀切面）'), (0.3675, '圖二　藍色：FreeSurfer\n標記為腦之 voxel'),
+             (0.6125, '圖三　圖二方框之放大：每一 column\n由上而下第一個腦 voxel（黃框）'),
+             (0.8625, '圖四　黃框之連線\n＝腦組織上緣 ' + r'$z_{\mathrm{top}}$')])
 save(fig, '1014_method_1.png')
 
 # ── 圖 ②：「亮」的門檻 ─────────────────────────────────────────────────
@@ -189,29 +190,30 @@ a2.axvline(gm, color=INK, lw=1.8)
 a2.axvline(tau, color=RUST, lw=2.6)
 h = a2.get_ylim()[1]
 a2.text(gm + 0.02, h * 0.97, '中位數\n%.2f' % gm, ha='left', va='top', fontsize=11.5, color=INK)
-a2.text(tau - 0.02, h * 0.97, '一半\n' + r'$\tau$' + ' ＝ %.2f' % tau, ha='right', va='top', fontsize=12, fontweight='bold', color=RUST)
-a2.set_xlabel('亮度 ' + r'$I$' + '（0＝全黑，1＝最亮）', fontsize=11)
+a2.text(tau - 0.02, h * 0.97, '中位數 × ½\n' + r'$\tau$' + ' ＝ %.2f' % tau, ha='right', va='top', fontsize=12, fontweight='bold', color=RUST)
+a2.set_xlabel('強度 ' + r'$I$' + '（0：最暗，1：最亮）', fontsize=11)
 a2.set_yticks([])
 a2.tick_params(labelsize=10.5)
 for sp in ('top', 'right', 'left'):
     a2.spines[sp].set_visible(False)
 a3.imshow(np.linspace(0, 1, 256)[None, :], cmap='gray', extent=[0, 1, 0, 1], aspect='auto', vmin=0, vmax=1)
-for x, name in ((0.0, '背景'), (water, '水（腦室）'), (gm, '皮質'), (wm, '白質')):
+for x, name in ((0.0, '背景'), (water, 'CSF（腦室）'), (gm, '皮質'), (wm, '白質')):
     a3.plot([x, x], [1.0, 1.25], color=INK, lw=1.3, clip_on=False)
     a3.text(x, 1.3, '%s\n%.2f' % (name, x), ha='center', va='bottom', fontsize=11, color=INK, clip_on=False)
 a3.plot([tau, tau], [-0.3, 1.0], color=RUST, lw=3, clip_on=False)
 a3.text(tau, -0.35, r'$\tau$' + ' ＝ %.2f' % tau, ha='center', va='top', fontsize=13, fontweight='bold', color=RUST, clip_on=False)
-a3.text(tau / 2, 0.5, '比 ' + r'$\tau$' + ' 暗\n不算', ha='center', va='center', fontsize=10.5, color='white')
-a3.text(0.66, 0.5, '至少 ' + r'$\tau$' + ' 這麼亮＝有東西，算', ha='center', va='center', fontsize=11.5, fontweight='bold', color=INK)
+# ≥、≤ 一定要寫在 $...$ 裡：字串裡有 mathtext 時，外面的字不走字型備援，缺字會變成 ¤
+a3.text(tau / 2, 0.5, r'$<\tau$' + '\n不計', ha='center', va='center', fontsize=10.5, color='white')
+a3.text(0.66, 0.5, r'$\geq\tau$' + '：視為組織，計入', ha='center', va='center', fontsize=11.5, fontweight='bold', color=INK)
 a3.set_xlim(-0.02, 1.02)
 a3.set_ylim(0, 1)
 a3.set_xticks([])
 a3.set_yticks([])
 for sp in a3.spines.values():
     sp.set_visible(False)
-titles(fig, [(0.155, '圖一　綠＝FreeSurfer 標成\n大腦皮質的格子（cortex）'),
-             (0.49, '圖二　cortex 每一格的亮度\n取中位數，再取一半 ＝ ' + r'$\tau$'),
-             (0.825, '圖三　' + r'$\tau$' + ' 夾在「水」和「皮質」中間')])
+titles(fig, [(0.155, '圖一　綠色：FreeSurfer 標記為\n大腦皮質之 voxel（cortex）'),
+             (0.49, '圖二　cortex 之強度分布\n中位數之一半 ＝ ' + r'$\tau$'),
+             (0.825, '圖三　' + r'$\tau$' + ' 介於腦脊髓液與皮質之間')])
 save(fig, '1014_method_2.png')
 
 # ── 圖 ③：每根吸管數幾格 ────────────────────────────────────────────────
@@ -255,19 +257,20 @@ for k, (name, x) in enumerate(STRAWS):
     assert n == int(thick[x, PY])                         # 跟 measure_top 一樣
     a.plot([-0.2, 2.4], [BELOW, BELOW], color=YEL, lw=3)
     if gap is not None:
-        a.text(2.5, gap + 0.5, '← 暗的不算，\n　上面亮的照算', ha='left', va='center', fontsize=10, color=INK, clip_on=False)
+        a.text(2.5, gap + 0.5, '← ' + r'$<\tau$' + ' 不計；\n　其上方 ' + r'$\geq\tau$' + ' 者仍計入', ha='left', va='center',
+               fontsize=10, color=INK, clip_on=False)
     a.set_xlim(-0.4, 2.6)
     a.set_ylim(-0.2, BELOW + ABOVE + 0.2)
     a.set_aspect('equal')
     a.axis('off')
-    a.text(1.1, BELOW + ABOVE + 0.4, '吸管 ' + name, ha='center', va='bottom', fontsize=12.5, fontweight='bold', color=CYAN)
-    a.text(1.1, -0.5, '紅 %d 格 → ' % n + r'$t=%d$' % n, ha='center', va='top', fontsize=12.5, fontweight='bold',
+    a.text(1.1, BELOW + ABOVE + 0.4, 'Column ' + name, ha='center', va='bottom', fontsize=12.5, fontweight='bold', color=CYAN)
+    a.text(1.1, -0.5, '%d voxels → ' % n + r'$t=%d$' % n, ha='center', va='top', fontsize=12.5, fontweight='bold',
            color=RED_C if n else INK)
 straws_slice(fig.add_axes([0.685, 0.06, 0.30, 0.68]), red=True)
-titles(fig, [(0.155, '圖一　挑兩根吸管 A、B'),
-             (0.475, '圖二　放大：黃線以上，亮度至少 ' + r'$\tau$' + ' 的格子（紅）數一數'),
-             (0.835, '圖三　每一根吸管都這樣數\n紅的＝沒切乾淨的東西')])
-fig.text(0.475, 0.89, '藍＝腦　紅＝至少 ' + r'$\tau$' + '（算）　黑＝比 ' + r'$\tau$' + ' 暗（不算）　一格＝1 mm',
+titles(fig, [(0.155, '圖一　選取兩個 column：A、B'),
+             (0.475, '圖二　放大：' + r'$z_{\mathrm{top}}$' + ' 以上、強度 ' + r'$\geq\tau$' + ' 之 voxel（紅）計數'),
+             (0.835, '圖三　所有 column 皆依此計數\n紅色：去顱骨殘留')])
+fig.text(0.475, 0.89, '藍：腦　紅：' + r'$\geq\tau$' + '（計入）　黑：' + r'$<\tau$' + '（不計）　1 voxel ＝ 1 mm',
          ha='center', va='top', fontsize=10.5, color=MUTED)
 save(fig, '1014_method_3.png')
 
@@ -284,8 +287,8 @@ a1.axhline(zmax, color='white', ls='--', lw=1.2)
 a1.axhline(zcut, color=CYAN, ls='--', lw=1.8)
 a1.annotate('', xy=(46, zcut), xytext=(46, zmax), arrowprops=dict(arrowstyle='<->', color='white', lw=1.4))
 a1.text(48, (zmax + zcut) / 2, '25 mm', color='white', ha='left', va='center', fontsize=11.5, fontweight='bold')
-a1.text(148, zmax + 1, '最高點（頭頂）', color='white', ha='right', va='bottom', fontsize=10.5)
-a1.text(148, zcut + 1, '頭頂往下 25 mm', color=CYAN, ha='right', va='bottom', fontsize=11, fontweight='bold',
+a1.text(148, zmax + 1, '最高點（vertex）', color='white', ha='right', va='bottom', fontsize=10.5)
+a1.text(148, zcut + 1, '最高點下方 25 mm', color=CYAN, ha='right', va='bottom', fontsize=11, fontweight='bold',
         bbox=dict(boxstyle='round,pad=0.2', fc='black', ec='none', alpha=0.75))
 for name, x in STRAWS:
     a1.plot([x, x], [ztop[x, PY] + 1, ztop[x, PY] + 8.5], color=CYAN, lw=1.4)
@@ -313,17 +316,17 @@ for name, x in STRAWS:                                    # A、B 在哪一條�
     v = int(thick[x, PY])
     c = int(cnt[vals == v][0])
     a3.text(v, c + cnt.max() * 0.03, name, ha='center', va='bottom', fontsize=13, fontweight='bold', color='#1B8FC4')
-a3.set_xlabel(r'$t$' + '（這根吸管數到幾 mm）', fontsize=11)
-a3.set_ylabel('吸管根數', fontsize=11)
+a3.set_xlabel(r'$t$' + '（mm）', fontsize=11)
+a3.set_ylabel('column 數', fontsize=11)
 a3.set_xticks(range(0, 21, 2))
 a3.set_xlim(-0.8, 20.5)
 a3.tick_params(labelsize=10)
 for sp in ('top', 'right'):
     a3.spines[sp].set_visible(False)
 a3.grid(axis='y', alpha=0.3)
-titles(fig, [(0.17, '圖一　側面看：腦頂在頭頂往下 25 mm 以內的\n吸管才算（藍點），兩側比較低的不算（黃點）'),
-             (0.47, '圖二　從上往下看：藍色那塊 ＝ ' + r'$V$' + '\n共 %s 根吸管（點線＝圖一那一片）' % fmt(vertex.sum())),
-             (0.82, '圖三　' + r'$V$' + ' 裡 %s 根吸管各自的 ' % fmt(vertex.sum()) + r'$t$' + '\n全部加起來 ÷ 根數 ＝ 平均')])
+titles(fig, [(0.17, '圖一　冠狀面：上緣距最高點 25 mm 以內之 column\n納入（藍點），兩側較低者不納入（黃點）'),
+             (0.47, '圖二　俯視：藍色區域 ＝ ' + r'$V$' + '\n%s 個 column（點線：圖一之切面）' % fmt(vertex.sum())),
+             (0.82, '圖三　' + r'$V$' + ' 內 %s 個 column 之 ' % fmt(vertex.sum()) + r'$t$' + ' 分布\n其平均值 ＝ residue')])
 save(fig, '1014_method_4.png')
 
 
@@ -346,31 +349,32 @@ IN = '其中　'
 SP = '　　　'
 eq_block('1014_method_eq1.png',
          [(r'$z_{\mathrm{top}}(x,y)\;=\;\max\;\{\,z\;:\;\mathrm{seg}(x,y,z)>0\,\}$', 1)],
-         [IN + r'$(x,y)$' + ' ＝ 一根直立的吸管（從上往下看的位置）；' + r'$z$' + ' ＝ 高度（1 格 ＝ 1 mm）',
-          SP + r'$\mathrm{seg}(x,y,z)>0$' + ' ＝ 這一格被 FreeSurfer 標成腦（圖二的藍色）',
-          SP + r'$z_{\mathrm{top}}(x,y)$' + ' ＝ 這根吸管最上面的腦格子；所有吸管連起來就是黃線（圖四）'], 1.85)
+         [IN + r'$(x,y)$' + '：垂直方向之 voxel 列（column）之位置；' + r'$z$' + '：高度（1 voxel ＝ 1 mm）',
+          SP + r'$\mathrm{seg}(x,y,z)>0$' + '：FreeSurfer 標記為腦之 voxel（圖二藍色）',
+          SP + r'$z_{\mathrm{top}}(x,y)$' + '：該 column 最上方之腦 voxel；所有 column 之連線即圖四之黃線'], 1.85)
 eq_block('1014_method_eq2.png',
          [(r'$\tau\;=\;\frac{1}{2}\;\mathrm{median}\;I(\mathrm{cortex})$', 2)],
-         [IN + r'$I$' + ' ＝ 亮度（0 ＝ 全黑，1 ＝ 最亮）；cortex ＝ FreeSurfer 標成大腦皮質的格子（標籤 3、42，圖一的綠色）',
-          SP + r'$\tau$' + ' ＝ 門檻：黃線以上的格子，亮度至少 ' + r'$\tau$' + ' 才算「有東西」；比 ' + r'$\tau$' + ' 暗的（背景、水）不算',
-          SP + '每個人用自己的皮質算：sub-0043 是 ' + r'$\tau$' + ' ＝ %.2f；test %d 人的 ' % (tau, len(taus)) + r'$\tau$'
-          + ' 從 %.2f 到 %.2f' % (min(taus), max(taus)),
-          SP + '比 ' + r'$\tau$' + ' 暗一點的殘留會漏掉；門檻改成皮質的 %.1f～%.1f 倍，紅色範圍會變，但 %d 人的結論都一樣（'
+         [IN + r'$I$' + '：影像強度（0～1）；cortex：FreeSurfer 大腦皮質 voxel（標籤 3、42，圖一綠色）',
+          SP + r'$\tau$' + '：強度門檻；' + r'$z_{\mathrm{top}}$' + ' 以上強度 ' + r'$\geq\tau$' + ' 之 voxel 視為殘留組織，'
+          + r'$<\tau$' + ' 者（背景、腦脊髓液）不計',
+          SP + r'$\tau$' + ' 依個人之皮質強度計算：sub-0043 之 ' + r'$\tau$' + ' ＝ %.2f；test %d 位之 ' % (tau, len(taus)) + r'$\tau$'
+          + ' 介於 %.2f～%.2f' % (min(taus), max(taus)),
+          SP + '略低於 ' + r'$\tau$' + ' 之殘留可能未計入；門檻改為皮質中位數之 %.1f～%.1f 倍，殘留範圍改變，但 n ＝ %d 之結論不變（'
           % (FACTORS[0], FACTORS[-1], len(rows)) + r'$r$' + ' ＝ ' + r'$%.2f$' % trmax + '～' + r'$%.2f$' % trmin + '）'],
          2.02, gap=0.31)
 eq_block('1014_method_eq3.png',
          [(r'$t(x,y)\;=\;\#\;\{\,z>z_{\mathrm{top}}(x,y)\;:\;I(x,y,z)\geq\tau\,\}$', 3)],
-         [IN + r'$\#$' + ' ＝ 數有幾個：黃線以上（' + r'$z>z_{\mathrm{top}}$' + '）、而且亮度至少 ' + r'$\tau$' + ' 的格子（圖二的紅色）',
-          SP + r'$t(x,y)$' + ' ＝ 這根吸管的殘留厚度（格數 ＝ mm）。吸管 A：' + r'$t=%d$' % int(thick[74, PY])
-          + '；吸管 B：' + r'$t=%d$' % int(thick[101, PY]),
-          SP + '中間隔著暗的格子，上面亮的照樣算（腦膜和腦之間本來就隔一層水）'], 1.85)
+         [IN + r'$\#$' + '：計數，即 ' + r'$z>z_{\mathrm{top}}$' + ' 且強度 ' + r'$\geq\tau$' + ' 之 voxel 數（圖二紅色）',
+          SP + r'$t(x,y)$' + '：該 column 之殘留厚度（voxel 數 ＝ mm）。Column A：' + r'$t=%d$' % int(thick[74, PY])
+          + '；Column B：' + r'$t=%d$' % int(thick[101, PY]),
+          SP + '其間夾有 ' + r'$<\tau$' + ' 之 voxel 時，上方 ' + r'$\geq\tau$' + ' 者仍計入（腦膜與腦組織之間原有一層腦脊髓液）'], 1.85)
 eq_block('1014_method_eq4.png',
          [(r'$V\;=\;\{\,(x,y)\;:\;z_{\mathrm{top}}(x,y)\geq\max\,z_{\mathrm{top}}-%d\,\}$' % VERTEX_BAND, 4),
           (r'$\mathrm{residue}\;=\;\frac{1}{|V|}\sum_{(x,y)\in V}t(x,y)$', 5)],
-         [IN + r'$V$' + ' ＝ 頭頂那一塊的吸管：腦頂在整顆腦最高點往下 %d mm 以內（圖一藍點、圖二藍色）；' % VERTEX_BAND
-          + r'$|V|$' + ' ＝ 有幾根',
-          SP + '兩側不算：頭皮是斜的，直立的吸管會斜斜穿過去，數到的會比真正的厚度多',
-          SP + '%d mm 是設計時定的範圍；改成 %d～%d mm，%d 人的結論都一樣（殘留越厚、皮質 Dice 進步越少，'
+         [IN + r'$V$' + '：顱頂區域之 column 集合，即上緣位於全腦最高點下方 %d mm 以內者（圖一藍點、圖二藍色）；' % VERTEX_BAND
+          + r'$|V|$' + '：column 數',
+          SP + '排除兩側：該處頭皮傾斜，垂直 column 斜向穿過殘留，所測厚度大於實際厚度',
+          SP + '%d mm 為設計時設定之範圍；改為 %d～%d mm，n ＝ %d 之結論不變（殘留越厚、皮質 ΔDice 越小，'
           % (VERTEX_BAND, BANDS[0], BANDS[-1], len(rows)) + r'$r$' + ' ＝ ' + r'$%.2f$' % rmax + '～' + r'$%.2f$' % rmin + '）',
-          SP + 'residue ＝ 這個人的頭頂殘留厚度（散佈圖的橫軸）。sub-0043：%s mm ÷ %s 根 ＝ %.2f mm'
+          SP + 'residue：該受試者之顱頂殘留厚度（散佈圖橫軸）。sub-0043：%s mm ÷ %s ＝ %.2f mm'
           % (fmt(tV.sum()), fmt(vertex.sum()), mean)], 2.66, gap=0.31)
