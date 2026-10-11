@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（45 頁；2026-10-11 加 cascade 結果 1 頁、⑦ 半監督 7 頁，要先有 `make_semisup.py` 的 7 張圖與 `ASD/check_semisup.py` 的 CSV，沒有就少這 8 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（46 頁；2026-10-12 最後加「參考文獻」1 頁；2026-10-11 加 cascade 結果 1 頁、⑦ 半監督 7 頁，要先有 `make_semisup.py` 的 7 張圖與 `ASD/check_semisup.py` 的 CSV，沒有就少這 8 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多。**2026-10-07 起全份（投影片文字與圖上的字）改用正式學術用語**，術語對照見下方 📌。
@@ -49,7 +49,7 @@
 | 33 | ⑥ Step 1：Cascaded registration（Zhao et al., ICCV 2019）。架構圖＋式 (2)(3) | `1014_arch_cascade.png`、`1014_arch_cascade_eq.png` |
 | 34 | ⑥ Step 1 結果（2026-10-11 AI 帶回 mix_cascade）：mix_exp6、mix_wide_vel、mix_cascade × Dice、未參與訓練之結構 Dice、影像 NCC、HD95、folding voxel 數（gather.py 的 `cascade`）＋三點重點（相對 mix_exp6、mix_wide_vel、Step 0 的配對比較；代價）| `1014_cascade_res.png`（`make_semisup.py`）|
 | 35 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
-| 36 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
+| 36 | ⑥ Step 2：Coarse-to-fine（Dual-PRNet：Hu et al., MICCAI 2019；10-12 標題改成寫出參考論文）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
 | 37 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（有結果的格子寫 DSC，沒結果的寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練進度 | （表格）|
 | 38 | ⑦ 半監督訓練之結果（2026-10-11 AI 帶回 mix_exp8／9）：一行損失式＋affine、γ = 0、0.5、5 × 五項（訓練之 30 結構 Dice、未參與訓練之結構 Dice、影像 NCC、SDlogJ、folding）＋三點重點（gather.py 的 `semisup`）| `1014_semi_res.png` |
 | 39 | ⑦ 各結構相對 γ = 0 之 ΔDice：左 17 種訓練結構、右 3 種未參與訓練之結構 | `1014_semi_struct.png` |
@@ -59,6 +59,7 @@
 | 43 | ⑦ 形變網格＋log\|J\|（四個模型同一冠狀切面）| `1014_semi_grid.png` |
 | 44 | ⑦ 與 VoxelMorph 論文比較（Fig. 9c、Table IV；γ 的對應）表格＋四點 | （表格）|
 | 45 | 下一步（半監督的待討論事項、架構修改接續、MRS）| |
+| 46 | 參考文獻（2026-10-12 使用者：「可以在報告寫 cascade、coarse to fine 是參考哪個論文嗎」）：VoxelMorph、Dalca（SVF）、RCN、Dual-PRNet、Jian et al.、LUMIR，各篇註明用在哪幾頁（頁碼由 `PG` 自動算）| |
 
 📌 **⑥ 架構修改（第 31～35 頁）的寫法（2026-10-07 定案）**：使用者：「這個 block 有些太口語了」「由粗到細老師肯定不知道」
 「正式一點，公式 block 都很重要，不要太口語」。因此 ⑥ 全部改成**正式學術用語＋架構圖＋編號公式 (1)～(5)**，每頁條列 2～4 行：
@@ -104,7 +105,7 @@
 | `make_semisup.py` | 2026-10-11：第 34 頁 cascade 結果、第 38～43 頁 ⑦ 的 7 張圖。數字讀 `deck_data.json`；受試者圖自動挑「mix_exp9 之未參與訓練結構 ΔDice 最接近 51 位中位數」的那位（T079），推論結果快取在 `models/deck_charts/semi_<受試者>_cache.npz`（GPU；cascade 在 8 GB 筆電上接近顯存上限，但跑得動）|
 | `build.js` | pptxgenjs 產生器：版面、文字、表格、圖片 |
 | `render.ps1` | 用 PowerPoint 把每頁轉成 PNG，做版面檢查。PowerPoint 本來就開著的話不會把它關掉 |
-| `講稿.md` | 每頁的講稿（2026-10-07 使用者：「感覺可以來個講稿」），正式口語、附每頁約略秒數，全份約 33～36 分鐘（45 頁）；最後是「可能的提問與回答」。`build.js` 依標題行的 `<!-- key -->`（對應 `ORDER`）把各段寫進該頁的**備忘稿**（簡報者檢視可見；「# 」開頭的段落不寫進去），頁碼對不上或缺頁會印 `[!]` 提醒。**改了投影片的數字或頁序，講稿要跟著改** |
+| `講稿.md` | 每頁的講稿（2026-10-07 使用者：「感覺可以來個講稿」），正式口語、附每頁約略秒數，全份約 33～36 分鐘（46 頁）；最後是「可能的提問與回答」。`build.js` 依標題行的 `<!-- key -->`（對應 `ORDER`）把各段寫進該頁的**備忘稿**（簡報者檢視可見；「# 」開頭的段落不寫進去），頁碼對不上或缺頁會印 `[!]` 提醒。**改了投影片的數字或頁序，講稿要跟著改** |
 
 ## 重建
 

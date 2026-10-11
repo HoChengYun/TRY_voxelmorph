@@ -157,7 +157,7 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', ...(HAS_CASC ? ['arch_cascade_res'] : []), 'arch_unet', 'arch_pyramid',
                   'arch_plan'] : []),
   ...(HAS_SEMI ? ['semi_res', 'semi_struct', 'semi_contours', 'semi_heldout', 'semi_warped', 'semi_grid', 'semi_paper'] : []),
-  'next'];
+  'next', 'refs'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
 // ───────────────────────────────────────────────────────── 01 封面
@@ -756,7 +756,7 @@ if (HAS_ARCH) {
 
 if (HAS_ARCH) {
   // ─────────────────────────────────────────────────────── ⑥ Step 2：Coarse-to-fine（架構圖＋式 (4)(5)，make_arch.py）
-  const s = base('⑥ 架構修改（紅字以外）', 'Step 2：Coarse-to-fine（multi-resolution pyramid + warping）');
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 2：Coarse-to-fine（Dual-PRNet：Hu et al., MICCAI 2019）');
   fitImage(s, CH('1014_arch_pyramid.png'), M, 1.4, 12.13, 3.45, 'Coarse-to-fine 架構圖');
   fitImage(s, CH('1014_arch_pyramid_eq.png'), M, 4.85, 12.13, 2.25, 'Coarse-to-fine 公式 (4)(5)');
 }
@@ -916,6 +916,35 @@ if (HAS_SEMI) {
     [{ text: '外部資料（附帶結果）：模型應用於未參與訓練之 MRS 研究，Dice ' + f3(D.mrs.after) + '（affine ' + f3(D.mrs.before) + '）', options: { bold: true } },
      { text: '\n　與原 test set 之 ' + score('mix_exp3') + ' 相當，顯示模型可泛化至不同研究之資料', options: { color: C.MUTED } }],
   ]), { x: M, y: 1.8, w: 12.13, h: 4.2, fontSize: 16, paraSpaceAfter: 16 });
+}
+
+// ───────────────────────────────────────────────────────── 參考文獻（2026-10-12 使用者：「可以在報告寫 cascade、coarse to fine 是參考哪個論文嗎」）
+// 作者與出處照論文 PDF 首頁（文獻/reference/，只留本機）；Dual-PRNet 用 MICCAI 2019 原版（簡報引用的是這版）
+{
+  const s = base('REFERENCES', '參考文獻');
+  const pg = (...ks) => ks.filter((k) => PG[k]).map((k) => PG[k]);
+  const at = (...ks) => { const v = pg(...ks); return v.length ? '（第 ' + v.join('、') + ' 頁）' : ''; };
+  const R = [
+    ['G. Balakrishnan, A. Zhao, M. R. Sabuncu, J. Guttag, A. V. Dalca. VoxelMorph: A Learning Framework for Deformable Medical Image Registration. ',
+     'IEEE Transactions on Medical Imaging', ', 38(8):1788–1800, 2019.', '本研究之基礎模型；folding 與半監督之比較' + at('met_res', 'semi_paper')],
+    ['A. V. Dalca, G. Balakrishnan, J. Guttag, M. R. Sabuncu. Unsupervised Learning of Probabilistic Diffeomorphic Registration for Images and Surfaces. ',
+     'Medical Image Analysis', ', 57:226–236, 2019.', 'SVF（φ = exp(v)，scaling and squaring）' + at('summary')],
+    ['S. Zhao, Y. Dong, E. I-C. Chang, Y. Xu. Recursive Cascaded Networks for Unsupervised Medical Image Registration. ',
+     'ICCV', ', 2019.', 'Step 0 test-time recursion、Step 1 cascade' + at('arch_step0', 'arch_cascade', 'arch_cascade_res')],
+    ['X. Hu, M. Kang, W. Huang, M. R. Scott, R. Wiest, M. Reyes. Dual-Stream Pyramid Registration Network. ',
+     'MICCAI', ', 2019.', 'Step 2 coarse-to-fine（dual-stream encoder、逐層 warp 與輸出形變）' + at('arch_unet', 'arch_pyramid')],
+    ['B. Jian, J. Pan, M. Ghahremani, D. Rueckert, C. Wachinger, B. Wiestler. Mamba? Catch The Hype Or Rethink What Really Helps for Image Registration. ',
+     'WBIR', ', 2024.', '架構修改方向；DWP（dual-stream + warping + pyramid）' + at('arch_why', 'arch_pyramid')],
+    ['Learn2Reg 2024 LUMIR Challenge, test leaderboard. ', 'github.com/JHU-MedImage-Reg/LUMIR_L2R', '.', '架構修改方向' + at('arch_why')],
+  ];
+  const runs = [];
+  R.forEach(([a, venue, tail, use], i) => {
+    runs.push({ text: '[' + (i + 1) + ']  ' + a, options: { bold: false } });
+    runs.push({ text: venue, options: { italic: true } });
+    runs.push({ text: tail });
+    runs.push({ text: '\n　　 ' + use, options: { color: C.MUTED, fontSize: 12, breakLine: i < R.length - 1 } });
+  });
+  txt(s, runs, { x: M, y: 1.5, w: 12.13, h: 5.3, fontSize: 13.5, color: C.INK, valign: 'top', paraSpaceAfter: 10 });
 }
 
 if (Object.keys(NOTES).length) {                 // 講稿的頁碼、缺漏檢查（只提醒，不擋）
