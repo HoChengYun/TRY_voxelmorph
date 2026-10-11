@@ -160,6 +160,8 @@ for epoch in range(args.initial_epoch, args.epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if device.startswith('cuda'):
+            torch.cuda.synchronize()   # 2026-10-11：CUDA 是非同步的，不等 GPU 算完，time 只量到讀資料＋送出指令（log 秒數偏低約一半）
 
         print('  '.join(('epoch: %04d' % (epoch + 1),
                          ('step: %d/%d' % (step + 1, args.steps_per_epoch)).ljust(14),

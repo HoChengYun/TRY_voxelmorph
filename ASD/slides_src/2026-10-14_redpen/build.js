@@ -140,6 +140,13 @@ const HAS_METRIC = SF.affine && ['mix_exp2', 'mix_exp5', 'mix_exp6', 'mix_exp7',
   .every((e) => SF[e]) && ['1014_metric_demo.png', '1014_metric_eq.png'].every((f) => fs.existsSync(CH(f)));
 const FOLD_FG = Object.values(m).every((x) => x.status !== 'done' || x.fold_def === 'fg');   // folding 百分比是否已改用「分母：atlas 非背景」（跟論文比較用 voxel 數）
 
+// 2026-10-11：AI 帶回 mix_cascade（⑥ Step 1）與 mix_exp8／9（⑦ 半監督）→ gather.py 的 cascade、semisup；圖是 make_semisup.py
+const HAS_CASC = HAS_ARCH && D.cascade && fs.existsSync(CH('1014_cascade_res.png'));
+const SEMI_FIGS = ['1014_semi_res.png', '1014_semi_struct.png', '1014_semi_contours.png', '1014_semi_heldout.png', '1014_semi_warped.png',
+  '1014_semi_grid.png'];
+const HAS_SEMI = D.semisup && SEMI_FIGS.every((f) => fs.existsSync(CH(f)));
+const SUBJ = HAS_SEMI ? JSON.parse(fs.readFileSync(CH('semi_subject.json'), 'utf8')) : null;
+
 // 頁碼：第 2 頁的表、最後一頁的「下一步」會引用後面的頁，所以先排好順序再算（最後會檢查有沒有對上）
 const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'] : []), 'fold_regions', 'fold_zoom', 'lam_prev', 'lam',
   ...(HAS_LAM ? ['lam_struct', 'lam_grid'] : []),
@@ -147,7 +154,9 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
   ...(HAS_METRIC ? ['met_def', 'met_res'] : []),
-  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', 'arch_unet', 'arch_pyramid', 'arch_plan'] : []),
+  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', ...(HAS_CASC ? ['arch_cascade_res'] : []), 'arch_unet', 'arch_pyramid',
+                  'arch_plan'] : []),
+  ...(HAS_SEMI ? ['semi_res', 'semi_struct', 'semi_contours', 'semi_heldout', 'semi_warped', 'semi_grid', 'semi_paper'] : []),
   'next'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
 
@@ -162,7 +171,8 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
   txt(s, 'Folding 之位置、SVF 之 λ、殘留鄰近結構之 Dice、枕部殘留、2× width SVF',
     { x: M, y: 3.75, w: 11.5, h: 0.5, fontSize: 18, color: 'D9DEDF' });
   if (HAS_ARCH) {
-    txt(s, '另：VoxelMorph 架構修改之進度', { x: M, y: 4.25, w: 11.5, h: 0.4, fontSize: 16, color: 'D9DEDF' });
+    txt(s, HAS_SEMI ? '另：VoxelMorph 架構修改之進度、半監督訓練之結果' : '另：VoxelMorph 架構修改之進度',
+      { x: M, y: 4.25, w: 11.5, h: 0.4, fontSize: 16, color: 'D9DEDF' });
   }
   txt(s, 'VoxelMorph 腦部 MRI 配準（scan-to-atlas，MNI152）', { x: M, y: 4.8, w: 11, h: 0.4, fontSize: 16, color: '8A9294' });
 }
@@ -191,15 +201,29 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
     { text: 'displacement field', options: { bold: true } },
     { text: '：直接輸出位移 u，φ = Id + u（VoxelMorph 論文 Table I 之版本）' },
   ], { x: M, y: 5.52, w: 12.13, h: 0.35, fontSize: 12.5, color: C.MUTED });
+  // 下方附註：2026-10-11 多了 ⑦，四行改密一點（最後一行讓開右下角頁碼）
+  const NY = HAS_SEMI ? [5.92, 6.27, 6.62, 6.97] : [6.0, 6.42, 6.8, null];
   txt(s, '③ 另確認：顱頂殘留並非 FreeSurfer 分割低估所致，而係去顱骨不完全（第 ' + PG.res_check + ' 頁）',
-    { x: M, y: 6.0, w: 12.13, h: 0.45, fontSize: 14.5, color: C.MUTED });
+    { x: M, y: NY[0], w: 12.13, h: 0.4, fontSize: HAS_SEMI ? 13.5 : 14.5, color: C.MUTED });
   if (HAS_ARCH) {
     const G = D.multipass.mix_exp6.gain2;
+    const casc = HAS_CASC
+      ? 'cascade DSC ' + f3(D.cascade.dice.mix_cascade) + '（' + sgn(D.cascade.p.dice_exp6.mean, 4) + '，' + D.cascade.p.dice_exp6.win
+        + '/' + D.cascade.p.dice_exp6.n + '）'
+      : 'cascade、coarse-to-fine 已實作，待訓練';
     txt(s, [
       { text: '⑥（紅字以外）架構修改：', options: { bold: true, color: C.TEAL } },
-      { text: 'test-time recursion ΔDSC = ' + sgn(G.mean, 4) + '（' + G.win + '/' + G.n + '）；cascade、coarse-to-fine 已實作，待訓練（第 '
+      { text: 'test-time recursion ' + sgn(G.mean, 4) + '（' + G.win + '/' + G.n + '）；' + casc + '（第 '
           + PG.arch_why + '～' + PG.arch_plan + ' 頁）' },
-    ], { x: M, y: 6.42, w: 12.13, h: 0.45, fontSize: 13.5, color: C.MUTED });
+    ], { x: M, y: NY[1], w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED });
+  }
+  if (HAS_SEMI) {
+    const SM = D.semisup;
+    txt(s, [
+      { text: '⑦（紅字以外）半監督訓練：', options: { bold: true, color: C.TEAL } },
+      { text: '訓練之 30 結構 Dice ' + f3(SM.mix_exp8.dice) + '／' + f3(SM.mix_exp9.dice) + '（γ = 0.5／5）；γ = 5 之未參與訓練結構低於 affine（第 '
+          + PG.semi_res + '～' + PG.semi_paper + ' 頁）' },
+    ], { x: M, y: NY[2], w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED });
   }
   if (HAS_METRIC) {
     // 2026-10-07 加：補充評估指標兩頁（HD95、SDlogJ、folding；跟論文比較用 voxel 數）
@@ -207,7 +231,7 @@ const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
       { text: '補充評估指標：', options: { bold: true, color: C.TEAL } },
       { text: 'HD95、SDlogJ；folding 百分比之分母為 atlas 非背景 voxel，與論文比較改用 folding voxel 數（第 '
           + PG.met_def + '～' + PG.met_res + ' 頁）' },
-    ], { x: M, y: 6.8, w: 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED });
+    ], { x: M, y: HAS_SEMI ? NY[3] : 6.8, w: HAS_SEMI ? 11.2 : 12.13, h: 0.4, fontSize: 13.5, color: C.MUTED });
   }
 }
 
@@ -700,6 +724,27 @@ if (HAS_ARCH) {
   fitImage(s, CH('1014_arch_cascade_eq.png'), M, 4.35, 12.13, 2.4, 'Cascade 公式 (2)(3)');
 }
 
+if (HAS_CASC) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 1 結果（2026-10-11 AI 帶回；gather.py 的 cascade）
+  const CC = D.cascade, Q = CC.p;
+  const wp = (q) => '（' + q.win + '/' + q.n + '）';
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 1 結果：cascade 之 Dice ' + f3(CC.dice.mix_cascade) + '，優於 2× width 與 Step 0');
+  fitImage(s, CH('1014_cascade_res.png'), M, 1.38, 12.13, 2.85, 'mix_exp6、mix_wide_vel、mix_cascade 之五項指標');
+  bullets(s, [
+    [{ text: 'Dice：相對 mix_exp6 ' + sgn(Q.dice_exp6.mean, 4) + wp(Q.dice_exp6) + '、mix_wide_vel ' + sgn(Q.dice_wide.mean, 4)
+       + wp(Q.dice_wide) + '、Step 0（mix_exp6 × 2）' + sgn(Q.dice_step0.mean, 4) + wp(Q.dice_step0), options: { bold: true } }],
+    [{ text: '未參與訓練之結構 Dice ' + sgn(Q.held_exp6.mean, 3) + '、影像 NCC ' + sgn(Q.ncc_exp6.mean, 3) + '（皆相對 mix_exp6，'
+       + Q.ncc_exp6.win + '/' + Q.ncc_exp6.n + '）；HD95 ' + sgn(Q.hd95_exp6.mean, 3) + ' mm（' + pval(Q.hd95_exp6.p) + '）' },
+     { text: '\n改善集中於 cortex（' + sgn(CC.struct['大腦皮質'], 3) + '）；參數量為 mix_exp6 之 2 倍（2× width 為 4 倍）',
+       options: { color: C.MUTED, fontSize: 13 } }],
+    [{ text: '代價：SDlogJ ' + CC.sdlogj.mix_exp6.toFixed(2) + ' → ' + CC.sdlogj.mix_cascade.toFixed(2) + '；folding '
+       + CC.fold_n.mix_exp6.toFixed(1) + ' → ' + Math.round(CC.fold_n.mix_cascade) + ' voxels／位（test-time recursion 為 '
+       + Math.round(CC.step0.fold_n) + '）', options: { color: C.RUST } }],
+  ], { x: M, y: 4.45, w: 12.13, h: 2.2, fontSize: 14, paraSpaceAfter: 8 });
+  txt(s, 'test 51 位；未參與訓練之結構：Accumbens、Inf-Lat-Vent、胼胝體（ASD/check_semisup.py）；影像 NCC 為形變後影像與 atlas 之局部 NCC（窗格 9）',
+    { x: M, y: 6.75, w: 11.2, h: 0.3, fontSize: 10.5, color: C.MUTED });
+}
+
 if (HAS_ARCH) {
   // ─────────────────────────────────────────────────────── ⑥ Step 2 與 VoxelMorph U-Net 之比較（make_arch.py）
   // 2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」→ 直式 U 對照圖放在 Step 2 那頁前面
@@ -739,9 +784,107 @@ if (HAS_ARCH) {
   bullets(s, [
     [{ text: '實作驗證：', options: { bold: true } },
      { text: '1-stage cascade 與 VoxelMorph 輸出一致；translation test 確認各層 upsampling 與 composition 正確' }],
-    [{ text: '訓練順序：', options: { bold: true } },
-     { text: 'mix_exp8／9（semi-supervised）→ coarse-to-fine → cascade → cascade + coarse-to-fine' }],
+    done('mix_cascade')
+      ? [{ text: '訓練進度：', options: { bold: true } },
+         { text: 'mix_exp8／9、cascade 已完成（第 ' + (HAS_CASC ? PG.arch_cascade_res : PG.arch_cascade)
+             + ' 頁）；接續 coarse-to-fine → cascade + coarse-to-fine' }]
+      : [{ text: '訓練順序：', options: { bold: true } },
+         { text: 'mix_exp8／9（semi-supervised）→ coarse-to-fine → cascade → cascade + coarse-to-fine' }],
   ], { x: M, y: 4.75, w: 12.13, h: 1.4, fontSize: 15, paraSpaceAfter: 12 });
+}
+
+// ───────────────────────────────────────────────────────── ⑦ 半監督訓練（2026-10-11 AI 帶回 mix_exp8／9；gather.py 的 semisup）
+// 🔴 標籤項用的就是評估 Dice 的同一組 30 個結構 → 另看「未參與訓練之結構」與影像 NCC（ASD/check_semisup.py），不只看 Dice
+const EB7 = '⑦ 半監督訓練（紅字以外）';
+if (HAS_SEMI) {
+  const SM = D.semisup, P8 = SM.mix_exp8.p, P9 = SM.mix_exp9.p;
+  const s = base(EB7, '半監督訓練：γ = 5 提升訓練之結構，但損及未參與訓練之結構');
+  const p3 = (p) => (p < 0.001 ? 'p < 0.001' : 'p = ' + (p < 0.01 ? p.toFixed(3) : p.toFixed(2)));
+  txt(s, [{ text: 'L', options: { bold: true, italic: true } }, { text: ' = −NCC(f, m∘φ) + λ‖∇v‖² + γ ', options: { bold: true } },
+          { text: 'L', options: { bold: true, italic: true } }, { text: 'seg', options: { subscript: true, bold: true } },
+          { text: '，' }, { text: 'L', options: { italic: true } }, { text: 'seg', options: { subscript: true } },
+          { text: ' = −(1/K) Σ Dice（K = 30，與評估相同之結構；TMI 2019, Eq. 9–10）' }],
+    { x: M, y: 1.35, w: 12.13, h: 0.35, fontSize: 13, color: C.INK });
+  fitImage(s, CH('1014_semi_res.png'), M, 1.78, 12.13, 3.4, 'γ = 0、0.5、5 與 affine 之五項指標');
+  bullets(s, [
+    [{ text: '訓練之 30 結構：' + f3(SM.mix_exp6.dice) + ' → ' + f3(SM.mix_exp8.dice) + '（γ = 0.5）、' + f3(SM.mix_exp9.dice)
+       + '（γ = 5），' + P9.dice30.win + '/' + P9.dice30.n + ' 位上升', options: { bold: true } }],
+    [{ text: '未參與訓練之結構：γ = 0.5 ' + sgn(P8.heldout_mean.mean, 3) + '（' + p3(P8.heldout_mean.p) + '）；γ = 5 '
+       + sgn(P9.heldout_mean.mean, 3) + '，' + SM.mix_exp9.below_affine + '/51 位低於 affine', options: { bold: true, color: C.RUST } }],
+    [{ text: 'γ 增大時影像 NCC 下降、形變較不規則：SDlogJ ' + [SM.mix_exp6, SM.mix_exp8, SM.mix_exp9].map((x) => x.sdlogj.toFixed(2)).join(' → ')
+       + '；validation Dice 至第 250 epoch 仍上升' }],
+  ], { x: M, y: 5.25, w: 12.13, h: 1.4, fontSize: 13.5, paraSpaceAfter: 5 });
+  txt(s, 'λ = 1，其餘設定同 mix_exp6；測試時僅使用影像。未參與訓練之結構：Accumbens、Inf-Lat-Vent、胼胝體；test 51 位',
+    { x: M, y: 6.75, w: 11.2, h: 0.3, fontSize: 10.5, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  const SM = D.semisup;
+  const s = base(EB7, '各結構：低對比之結構改善最多；鄰近之未參與訓練結構於 γ = 5 下降');
+  fitImage(s, CH('1014_semi_struct.png'), M, 1.38, 12.13, 5.0, '各結構相對 mix_exp6 之 ΔDice');
+  txt(s, '改善最多者（脈絡叢、腦脊髓液、深部灰質）為影像對比低、NCC 難以對齊之結構；Accumbens 位於 Caudate 與 Putamen 之間、'
+    + 'Inf-Lat-Vent 緊鄰 Hippocampus 與 Amygdala，γ = 5 時被鄰近之訓練結構擠壓（第 ' + PG.semi_heldout + ' 頁）',
+    { x: M, y: 6.45, w: 11.2, h: 0.5, fontSize: 12, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  // 2026-10-11 使用者：「要不要每個 model 的 contours 圖放在一起比較」→ visualize_dice.py 的輪廓圖，五個模型並排（make_semisup.py）
+  const s = base(EB7, '訓練時使用之結構：γ 增大時受試者輪廓與 atlas 幾近重合');
+  fitImage(s, CH('1014_semi_contours.png'), M, 1.35, 12.13, 5.25, '五個模型之結構輪廓（冠狀面、軸狀面）');
+  txt(s, '受試者 ' + SUBJ.subject + '；背景與實線為 atlas，虛線為受試者之標籤經形變搬至 atlas；僅顯示冠狀面與軸狀面',
+    { x: M, y: 6.72, w: 11.2, h: 0.3, fontSize: 11, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  const s = base(EB7, '未參與訓練之結構：鄰近之訓練結構對齊 atlas，未參與訓練之結構被擠壓');
+  fitImage(s, CH('1014_semi_heldout.png'), M, 1.38, 12.13, 5.2, 'Accumbens 與 Inf-Lat-Vent 之放大');
+  txt(s, '受試者 ' + SUBJ.subject + '（γ = 5 之未參與訓練結構 ΔDice ' + sgn(SUBJ.d, 3) + '，為 51 位之中位數）；atlas 空間之冠狀切面；'
+    + 'Dice 為該受試者左右合併之 3D Dice', { x: M, y: 6.7, w: 11.2, h: 0.3, fontSize: 11, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  const SM = D.semisup;
+  const s = base(EB7, '形變後影像 m∘φ：γ = 5 之深部結構呈均勻色塊，失去原有紋理');
+  fitImage(s, CH('1014_semi_warped.png'), M, 1.38, 12.13, 4.3, 'm、f 與四個模型之 m∘φ');
+  bullets(s, [
+    [{ text: 'γ = 5：側腦室輪廓與 atlas 幾近一致，但紋狀體與視丘呈均勻色塊（同論文 Fig. 10「warped image visually less coherent」）',
+       options: { bold: true } }],
+    [{ text: '原因：標籤內部被放大（|J| < 1），受試者一小塊均勻組織被拉滿整個結構；邊界則被壓縮成細帶（|J| > 1，第 ' + PG.semi_grid + ' 頁）' }],
+  ], { x: M, y: 5.75, w: 12.13, h: 1.0, fontSize: 13.5, paraSpaceAfter: 4 });
+  txt(s, '受試者 ' + SUBJ.subject + '；上：冠狀切面，下：黃框放大；NCC 為該受試者全腦之局部 NCC（窗格 9）',
+    { x: M, y: 6.8, w: 11.2, h: 0.3, fontSize: 11, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  const s = base(EB7, '形變網格與 log|J|：γ 增大時深部結構呈「邊界膨脹、內部壓縮」');
+  fitImage(s, CH('1014_semi_grid.png'), M, 1.35, 12.13, 5.0, '四個模型之形變網格與 log|J|');
+  txt(s, '受試者 ' + SUBJ.subject + '，同一冠狀切面。上：atlas 之規則網格經形變後之位置（受試者空間）；下：log|J|（atlas 空間），'
+    + '紅 = 膨脹、藍 = 壓縮，黑點為 folding voxel。Cascade 與 γ = 0 相近，無此型態',
+    { x: M, y: 6.45, w: 11.2, h: 0.5, fontSize: 11.5, color: C.MUTED });
+}
+
+if (HAS_SEMI) {
+  const SM = D.semisup, PP = SM.paper;
+  const s = base(EB7, '與 VoxelMorph 論文之比較：趨勢一致，論文建議之 γ 對應 mix_exp8');
+  const ours = (e) => SM[e];
+  table(s, [
+    ['γ（論文 → 本研究）', 'Dice：論文（Fig. 9c）', 'Dice：本研究', 'Folding voxels：論文（Table IV）', 'Folding voxels：本研究'],
+    ...PP.map((r) => [
+      r.gamma + ' → ' + (r.gamma === 0 ? '0' : r.gamma === 0.01 ? '0.5' : '5') + '（' + r.ours + '）',
+      '≈ ' + r.dice.toFixed(2) + (r.gamma ? '（+' + (r.dice - PP[0].dice).toFixed(2) + '）' : ''),
+      f3(ours(r.ours).dice) + (r.gamma ? '（' + sgn(ours(r.ours).dice - SM.mix_exp6.dice, 3) + '）' : ''),
+      r.fold.toLocaleString('en-US'),
+      ours(r.ours).fold_n < 10 ? ours(r.ours).fold_n.toFixed(1) : Math.round(ours(r.ours).fold_n).toLocaleString('en-US')]),
+  ], { x: M, y: 1.5, w: 12.13, colW: [2.7, 2.1, 1.95, 2.95, 2.43], fontSize: 13.5, rowH: 0.42 });
+  bullets(s, [
+    [{ text: 'γ 之對應：論文為 MSE、λ = 0.02；本研究為 NCC、λ = 1，維持相同之 γ／λ 比例' }],
+    [{ text: 'Dice 增幅相近；論文建議 γ = 0.01 為折衷（Dice 高且形變規則、不過度擬合）→ 對應 mix_exp8', options: { bold: true } }],
+    [{ text: '論文亦指出 γ 過大時，未觀察之結構準確度下降、形變場不規則（Fig. 9a–b、Fig. 10）→ 與 mix_exp9 一致' }],
+    [{ text: 'Folding 絕對值之差異來自參數化：論文為 displacement field，本研究為 SVF（本研究 displacement field λ = 1 為 '
+       + Math.round(m.mix_exp3.points).toLocaleString('en-US') + '，與論文同量級）' }],
+  ], { x: M, y: 3.55, w: 12.13, h: 2.9, fontSize: 14, paraSpaceAfter: 8 });
+  txt(s, '論文 Dice 由 Fig. 9c 圖讀取（約 ±0.01）；論文於「30 結構皆用於訓練」之情境未評估未參與訓練之結構，本研究另以 FreeSurfer 之其他結構評估',
+    { x: M, y: 6.75, w: 11.2, h: 0.3, fontSize: 10.5, color: C.MUTED });
 }
 
 // ───────────────────────────────────────────────────────── 14 下一步
@@ -754,11 +897,20 @@ if (HAS_ARCH) {
     ? [[{ text: PEND.join('、') + ' 訓練完成後', options: { bold: true } },
         { text: '\n　更新' + where.join('與'), options: { color: C.MUTED } }]]
     : [];
+  // 2026-10-11：mix_exp8／9、mix_cascade 跑完 → 半監督改寫成待討論事項，架構修改改寫成接續的兩個實驗
+  const semiItem = HAS_SEMI
+    ? [{ text: '半監督訓練（第 ' + PG.semi_res + '～' + PG.semi_paper + ' 頁）：γ = 0.5 對應論文建議值；γ = 5 不建議採用', options: { bold: true } },
+       { text: '\n　待討論：γ 之選擇；評估時應另以未參與訓練之結構檢驗（訓練所用結構之 Dice 會高估）', options: { color: C.MUTED } }]
+    : [{ text: '半監督訓練：訓練時加入 FreeSurfer 標籤（Balakrishnan et al., TMI 2019, Eq. 10）', options: { bold: true } },
+       { text: '\n　γ = 0.5、5 兩個模型（mix_exp8／9）接續訓練；測試時僅使用影像，評估 Dice 是否進一步提升', options: { color: C.MUTED } }];
+  const archItem = done('mix_cascade')
+    ? [{ text: '架構修改：cascade 已完成；接續 coarse-to-fine → cascade + coarse-to-fine（第 ' + PG.arch_plan + ' 頁）', options: { bold: true } },
+       { text: '\n　皆以 mix_exp6 為 baseline，每次僅改變一項因素', options: { color: C.MUTED } }]
+    : [{ text: '架構修改：coarse-to-fine → cascade → cascade + coarse-to-fine（第 ' + PG.arch_plan + ' 頁）', options: { bold: true } },
+       { text: '\n　接續上述兩個模型依序訓練；皆以 mix_exp6 為 baseline，每次僅改變一項因素', options: { color: C.MUTED } }];
   bullets(s, items.concat([
-    [{ text: '半監督訓練：訓練時加入 FreeSurfer 標籤（Balakrishnan et al., TMI 2019, Eq. 10）', options: { bold: true } },
-     { text: '\n　γ = 0.5、5 兩個模型（mix_exp8／9）接續訓練；測試時僅使用影像，評估 Dice 是否進一步提升', options: { color: C.MUTED } }],
-    ...(HAS_ARCH ? [[{ text: '架構修改：coarse-to-fine → cascade → cascade + coarse-to-fine（第 ' + PG.arch_plan + ' 頁）', options: { bold: true } },
-                     { text: '\n　接續上述兩個模型依序訓練；皆以 mix_exp6 為 baseline，每次僅改變一項因素', options: { color: C.MUTED } }]] : []),
+    semiItem,
+    ...(HAS_ARCH ? [archItem] : []),
     [{ text: '新資料：第五批 MRS（' + D.mrs.n + ' 位）已完成前處理', options: { bold: true } },
      { text: '\n　待其餘資料到齊後一併納入，重新切分 train／val／test，作為新版資料集', options: { color: C.MUTED } }],
     [{ text: '外部資料（附帶結果）：模型應用於未參與訓練之 MRS 研究，Dice ' + f3(D.mrs.after) + '（affine ' + f3(D.mrs.before) + '）', options: { bold: true } },

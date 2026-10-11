@@ -555,6 +555,114 @@ D['arch'] = [
 ]
 
 
+# ── 2026-10-11：AI 帶回 mix_cascade（⑥ Step 1）與 mix_exp8／9（半監督，γ = 0.5／5，基礎同 mix_exp6）──────────────
+# 🔴 半監督的標籤項（ASD/train_semisup.py）用的就是 Dice 評估的同一組 30 個結構 → test Dice 有一部分是「訓練目標＝評估指標」。
+#    另外用 ASD/check_semisup.py 看兩件事：沒參與訓練的結構（Accumbens 26/58、Inf-Lat-Vent 5/44、胼胝體 251～255）的 Dice、
+#    搬過去的影像與 atlas 的局部 NCC（窗格 9，跟訓練的相似度項同一種）。論文 §V-G（Fig. 9、Table IV）也是這樣檢查
+HELD = {'Accumbens': ('accumbens_L', 'accumbens_R'), 'Inf-Lat-Vent': ('inflatvent_L', 'inflatvent_R'),
+        '胼胝體': ('corpus_callosum',)}
+HELD_EN = {'Accumbens': 'Left/Right-Accumbens-area（26、58）', 'Inf-Lat-Vent': 'Left/Right-Inf-Lat-Vent（5、44）',
+           '胼胝體': 'CC_Posterior～CC_Anterior（251～255，合併）'}
+CHK_EP = {'mix_exp6': '0190', 'mix_wide_vel': '0240', 'mix_cascade': '0170', 'mix_exp8': '0250', 'mix_exp9': '0245'}
+
+
+def rd_check(e):
+    p = J('models', 'semisup_check_affine.csv') if e == 'affine' else J('models', e, 'semisup_check_%s.csv' % CHK_EP[e])
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding='utf-8') as f:
+        rr = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    if set(rr) != set(K):
+        raise SystemExit('[X] %s 的受試者跟 test 對不上' % p)
+    return {c: np.array([float(rr[k][c]) for k in K]) for c in next(iter(rr.values())) if c != 'file'}
+
+
+CHK = {e: rd_check(e) for e in ['affine'] + list(CHK_EP)}
+SEMI = {'mix_exp8': 0.5, 'mix_exp9': 5.0}
+for e in SEMI:                                     # 不放進 CFG（不在 ①～⑤ 的圖表裡），只給 ⑦ 用
+    p = test_csv(e)
+    if p is not None:
+        per[e] = rd(p)[0]
+
+
+def pw(a, b):
+    """逐人配對 a − b（Wilcoxon）。"""
+    from scipy.stats import wilcoxon as _w
+    v = a - b
+    return {'mean': float(v.mean()), 'win': int((v > 0).sum()), 'n': len(v), 'p': float(_w(a, b).pvalue)}
+
+
+def held_means(c):
+    return {n: float(np.mean([c[x].mean() for x in xs])) for n, xs in HELD.items()}
+
+
+def struct_of(e):
+    with open(test_csv(e), encoding='utf-8') as f:
+        rr = {r['file'][:-4]: r for r in csv.DictReader(f)}
+    return {n: float(np.mean([np.nanmean([float(rr[k]['label_%d' % l]) for k in K]) for l in ls])) for n, ls in PAIRS.items()}
+
+
+S6 = struct_of('mix_exp6')
+if all(CHK[e] is not None for e in ('affine', 'mix_exp6')) and all(e in per for e in SEMI):
+    sm = {}
+    for e in ['affine', 'mix_exp6'] + list(SEMI):
+        c = CHK[e]
+        ent = {'gamma': 0.0 if e == 'mix_exp6' else SEMI.get(e), 'dice': float(c['dice30'].mean()),
+               'heldout': float(c['heldout_mean'].mean()), 'held': held_means(c), 'ncc': float(c['ncc'].mean())}
+        if e == 'affine':
+            ent.update({'hd95': surf['affine']['hd95'], 'sdlogj': 0.0, 'fold_n': 0.0})
+        else:
+            ep = CHK_EP[e]
+            with open(J('models', e, 'surface_%s.csv' % ep), encoding='utf-8') as f:
+                rr = {r['file'][:-4]: r for r in csv.DictReader(f)}
+            ent.update({'epoch': ep, 'hd95': float(np.mean([float(rr[k]['hd95_mean']) for k in K])),
+                        'sdlogj': float(np.mean([float(rr[k]['sdlogj']) for k in K])),
+                        'fold_n': float(np.mean([float(rr[k]['jneg_pct']) for k in K]) / 100 * 192 * 224 * 192),
+                        'fold_max': float(max(float(rr[k]['jneg_pct']) for k in K) / 100 * 192 * 224 * 192)})
+            if e in SEMI:
+                ent['struct'] = {n: v - S6[n] for n, v in struct_of(e).items()}       # 每個結構相對 mix_exp6
+                ent['held_d'] = {n: v - sm['mix_exp6']['held'][n] for n, v in ent['held'].items()}
+                ent['p'] = {c_: pw(CHK[e][c_], CHK['mix_exp6'][c_]) for c_ in ('dice30', 'heldout_mean', 'ncc')}
+                ent['p'].update({x: pw(CHK[e][y], CHK['mix_exp6'][y]) for x, y in
+                                 (('accumbens', 'accumbens_L'), ('corpus_callosum', 'corpus_callosum'))})
+                ent['below_affine'] = int((CHK[e]['heldout_mean'] < CHK['affine']['heldout_mean']).sum())
+                with open(J('models', e, 'dice_curve_val.csv'), encoding='utf-8') as f:
+                    cv = [float(r['dice_mean']) for r in csv.DictReader(f)]
+                ent['val_last'] = cv[-3:]                                          # 第 240、245、250 epoch：還在上升
+        sm[e] = ent
+    # 論文 §V-G（MSE、λ = 0.02、displacement field）：30 個結構全部用上（Fig. 9c，Dice 由圖讀取，約 ±0.01）、Table IV「all」列
+    # γ 的對應：論文 γ／λ 與我們 γ／λ 相同（論文 0.01、0.1 ↔ 我們 0.5、5）
+    sm['paper'] = [{'gamma': 0, 'ours': 'mix_exp6', 'dice': 0.75, 'fold': 9606},
+                   {'gamma': 0.01, 'ours': 'mix_exp8', 'dice': 0.84, 'fold': 19226},
+                   {'gamma': 0.1, 'ours': 'mix_exp9', 'dice': 0.85, 'fold': 102295}]
+    sm['held_en'] = HELD_EN
+    D['semisup'] = sm
+
+# mix_cascade（⑥ Step 1）：跟 mix_exp6、mix_wide_vel、Step 0（mix_exp6 連跑兩次）比
+if models['mix_cascade']['status'] == 'done' and all(CHK[e] is not None for e in ('mix_exp6', 'mix_wide_vel', 'mix_cascade')):
+    with open(J('models', 'mix_exp6', MP['mix_exp6']), encoding='utf-8') as f:
+        two = {r['file'][:-4]: float(r['dice_mean']) for r in csv.DictReader(f) if r['pass'] == '2'}
+    two = np.array([two[k] for k in K])
+    cd = lambda e: np.array([per[e][k] for k in K])
+    cc = {'dice': {e: float(cd(e).mean()) for e in ('mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'heldout': {e: float(CHK[e]['heldout_mean'].mean()) for e in ('affine', 'mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'ncc': {e: float(CHK[e]['ncc'].mean()) for e in ('affine', 'mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'hd95': {e: surf[e]['hd95'] for e in ('affine', 'mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'sdlogj': {e: surf[e]['sdlogj'] for e in ('mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'fold_n': {e: models[e]['points'] for e in ('mix_exp6', 'mix_wide_vel', 'mix_cascade')},
+          'step0': {'dice': float(two.mean()), 'fold_n': D['multipass']['mix_exp6']['passes'][1]['points']},
+          'p': {'dice_exp6': pw(cd('mix_cascade'), cd('mix_exp6')), 'dice_wide': pw(cd('mix_cascade'), cd('mix_wide_vel')),
+                'dice_step0': pw(cd('mix_cascade'), two),
+                'held_exp6': pw(CHK['mix_cascade']['heldout_mean'], CHK['mix_exp6']['heldout_mean']),
+                'held_wide': pw(CHK['mix_cascade']['heldout_mean'], CHK['mix_wide_vel']['heldout_mean']),
+                'ncc_exp6': pw(CHK['mix_cascade']['ncc'], CHK['mix_exp6']['ncc']),
+                'ncc_wide': pw(CHK['mix_cascade']['ncc'], CHK['mix_wide_vel']['ncc']),
+                'hd95_exp6': paired_surf('mix_cascade', 'mix_exp6', 'hd95_mean'),
+                'hd95_wide': paired_surf('mix_cascade', 'mix_wide_vel', 'hd95_mean')},
+          'struct': {n: v - S6[n] for n, v in struct_of('mix_cascade').items()}}
+    D['cascade'] = cc
+
+
 def no_nan(o):
     """JSON 不認得 NaN（build.js 的 JSON.parse 會直接報錯），一律換成 null。"""
     if isinstance(o, dict):

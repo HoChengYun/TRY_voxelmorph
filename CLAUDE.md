@@ -1,7 +1,8 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-07**（🔴 折疊率跟論文比較改用 folding voxel 數（論文百分比的分母是固定 5.2 M voxel，跟我們不同）；新增 HD95、SDlogJ（`test_dice.py --surface`，手冊 §26）；
+> 最後更新：**2026-10-11**（AI 帶回 mix_cascade 與 mix_exp8／9：🔴 mix_cascade **0.8156**（+0.0105，51/51；沒訓練過的結構、影像 NCC 也都變好）；半監督 mix_exp8／9 Dice 0.900／0.929，但**標籤項＝評估的 30 個結構**，γ = 5 時沒訓練過的結構反而低於 affine（手冊 §27）；10/14 簡報 45 頁。
+> 10-07：🔴 折疊率跟論文比較改用 folding voxel 數（論文百分比的分母是固定 5.2 M voxel，跟我們不同）；新增 HD95、SDlogJ（`test_dice.py --surface`，手冊 §26）；
 > 10/14 簡報 37 頁：全份正式學術用語、補充評估指標兩頁（結果頁為四格圖）、⑥ 架構修改改成架構圖＋編號公式（`make_arch.py`），Step 2 前加一頁跟 U-Net 的對照圖。
 > 10-06：改架構第 0 步＋第 1、2 步程式（待辦 5）；10/14 簡報先前 29 頁：⑤ 補每個結構、越難的人、訓練 loss、整片腦大圖＋放大對照；③④ 改標 Dice「起點 → 配準後」、殘留量用 mm、「頭頂殘留厚度怎麼量」四頁附公式；
 > 頭頂範圍 25 mm 試過 10～60 mm 結論不變；新增文獻筆記 `文獻/`（LUMIR 排行、SITReg、VFA）。
@@ -57,6 +58,9 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_exp7** | 同 mix_exp5，平滑權重 **0.5**（λ 0.5），val 挑 epoch 250（最後一輪，還在慢慢爬）| 0.6882 | **0.8047** | +0.117 | 0.0005% | 9.7 | 2.42 | 0.576 |
 | **mix_wide** | 同 mix_exp3，**U-Net 每層通道數 ×2**（參數 4 倍），val 挑 epoch 225 | 0.6882 | **0.8114** | +0.123 | **0.814%** | **15,422** | 2.40 | 1.944 |
 | **mix_wide_vel** | 同 mix_wide，換成**速度場**（= mix_exp6 加寬 2 倍），val 挑 epoch 240 | 0.6882 | **0.8111** | +0.123 | < 0.0001% | 0.1 | **2.36** | 0.495 |
+| **mix_cascade** | 同 mix_exp6，**串兩顆**（cascade，照 RCN：各自的權重、一起訓練），val 挑 epoch 170 | 0.6882 | **0.8156** | +0.127 | 0.0013% | 23 | **2.33** | 0.564 |
+| **mix_exp8** | 同 mix_exp6，**訓練時也用標籤**（γ 0.5），val 挑 epoch 250（還在上升）| 0.6882 | **0.8995**³ | +0.211 | 0.0018% | 34 | 1.54³ | 0.607 |
+| **mix_exp9** | 同上，γ 5，val 挑 epoch 245（還在上升）| 0.6882 | **0.9290**³ | +0.241 | 0.077% | 1,481 | 1.44³ | 1.181 |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0%² | 0 | 1.69² | 0.317² |
 | **tiger_exp3** | 同上，位移場版，val 挑 epoch 210 | 0.7453 | **0.8714** | +0.126 | **0.980%**² | **18,694** | 1.73² | 2.111² |
 
@@ -65,6 +69,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 → 位移場 λ = 1：mix_exp3 16,420、mix_wide 15,422、tiger_exp3 18,694，**跟論文 VoxelMorph (CC) 相當**；λ = 2 的 mix_exp4 4,358；速度場近 0。
 表上的百分比分母改成 atlas 非背景 voxel（`test_dice.py` 的 `jneg_fg_pct`），只拿來比我們自己的模型；舊欄位 `jneg_pct`（分母：整個影像）保留。
 HD95、SDlogJ（2026-10-07 加）：`test_dice.py --surface` → `surface_<epoch>.csv`，定義與結果見手冊 §26。
+³ **標籤項用的就是評估的 30 個結構，Dice、HD95 不能跟非監督的模型直接比**；沒參與訓練的結構（Accumbens、Inf-Lat-Vent、胼胝體）Dice：mix_exp6 0.653 → mix_exp8 0.665、mix_exp9 **0.442**（affine 0.475），見下面第 8 點與手冊 §27。
 ¹ 舊定義、未重算（SVF 版近 0，兩種定義都約 0）。² tigerbx 是在筆電上 09-19 更新後的資料算的（29 顆改成不轉正，test 有 2 位；模型當初是在 AI 上舊版評估的，見手冊 §20.9）。
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
@@ -78,7 +83,7 @@ HD95、SDlogJ（2026-10-07 加）：`test_dice.py --surface` → `surface_<epoch
 標籤 Dice、影像相關係數這類「兩顆腦有多像」的方法一律禁止，相關腳本已刪除，不要重建。
 mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 
-🔴 **七件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21，7 出自 §23）：
+🔴 **八件會影響「怎麼解讀結果」的事**（1–5 出自 §20，6 出自 §21，7 出自 §23，8 出自 §27）：
 1. **mix_exp1 / tiger_exp1 的最佳 epoch 是在 test 上挑的**（偏樂觀約 0.004 以內，實測見 §20.1）。
    從 mixed_v2 起改成 train / val / test 三段，val 挑 epoch、test 只跑一次。
 2. **這台筆電（RTX 4060 Laptop 8 GB）訓練不動這個設定**（25 秒/步，溢位到系統記憶體）。
@@ -106,6 +111,8 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
    ✅ **加寬改成速度場**（mix_wide_vel，10-05，§23.9）：速度場加寬也 +0.0060（50/51）。加寬之後速度場 vs 位移場 **−0.0004，看不出差別**
    （p = 0.17；預設寬度時是顯著的 −0.0011），擠爆從每人約 15,000 點變成 51 位只有 2 位有、最多 2 點。
    👉 **目前分數最高（跟 mix_wide 打平）又不擠爆的就是這顆。**
+   ✅ **10-11 mix_cascade（串兩顆）更好**：0.8156，比 mix_wide_vel 高 0.0045（49/51）、比 Step 0（mix_exp6 連跑兩次）高 0.0020（41/51）；沒訓練過的結構 +0.026、影像 NCC +0.025（都是 51/51，相對 mix_exp6）；代價 SDlogJ 0.49 → 0.56、folding 每位 23 個（手冊 §27.1）。
+8. 🔴 **半監督（mix_exp8／9）的 Dice 不能直接跟其他模型比**（§27.2）：標籤項（`train_semisup.py`）用的就是 Dice 評估的同一組 30 個結構，等於「訓練目標＝評估指標」。要另外看**沒參與訓練的結構**（`ASD/check_semisup.py`：Accumbens 26/58、Inf-Lat-Vent 5/44、胼胝體 251～255）與**搬過去的影像跟 atlas 的局部 NCC**。γ 0.5：沒訓練過的結構 +0.012（p = 0.002）、NCC 略降；γ 5：沒訓練過的結構 **−0.212，44/51 位低於 affine**，搬過去的影像深部結構變成均勻色塊（標籤內部被放大、邊界被擠成細帶），SDlogJ 1.18、folding 每位 1,481 個。跟論文 §V-G（Fig. 9、10、Table IV）一致；論文建議的 γ = 0.01 對應我們的 0.5（γ／λ 比例相同）。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
 ⚠️ **折疊率 0% 的那幾顆（asd_exp1、mix_exp1/2、tiger_exp1/2）都是 repo 預設的微分同胚版**
@@ -182,6 +189,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── check_top_residue.py            # 頭頂的「殘留」是貼在皮質外面的東西還是漏標的皮質：放大圖、亮度剖面（手冊 §24.2 最後）
 │   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）；--surface 另算 HD95、SDlogJ、論文定義折疊率（手冊 §26）
+│   ├── check_semisup.py                # 半監督的檢查：沒參與訓練的結構 Dice、搬過去的影像 NCC（手冊 §27.2）；加寬版加 --gpu -1
 │   ├── test_multipass.py               # 改架構第 0 步：不訓練，同一顆模型連跑 2～3 次、位移接起來再算 Dice（待辦 5）
 │   ├── arch.py                         # 改架構用的網路：VxmCascade（串 n 顆，RCN；stage='pyramid' = 每一顆都由粗到細）、VxmPyramid（由粗到細）＋ load_model()（評估腳本都改用它讀 .pt，舊模型照舊）
 │   ├── train_arch.py                   # 訓練新架構（run_train.py --arch cascade / pyramid 會改跑這支）；--grad-checkpoint 省顯存；--crop / --max-steps 是筆電試跑用
@@ -207,7 +215,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── fs_check\                       # --only 單顆驗證輸出
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
-│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 37 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義＋講稿.md 寫進每頁備忘稿，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
+│                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 45 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義＋make_semisup.py 畫 cascade／半監督＋講稿.md 寫進每頁備忘稿，-> meeting報告\ASD_老師紅字回覆_20261014.pptx）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
@@ -249,7 +257,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
-│   ├── asd_exp1\  mix_exp1~7\  mix_wide\  mix_wide_vel\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
+│   ├── asd_exp1\  mix_exp1~9\  mix_wide\  mix_wide_vel\  mix_cascade\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py，1014_method_*.png 是同一夾的 make_method.py，1014_arch_{cascade,pyramid}.png 與 1014_arch_*_eq.png 是 make_arch.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）
 │   ├── folding_check\                      # 擠爆的點在哪：51 人熱圖、按區域 CSV、放大圖（手冊 §24.1）
@@ -607,6 +615,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | `RuntimeError: size XXX not divisible` | 影像維度不能被 16 整除（U-Net 4 層下採樣） | **在 `make_atlas.py` 指定 `--target-shape`**（不是 preprocess_ixi.py，它已移除該旗標） |
 | `CUDA out of memory`（OOM ＝顯存不夠）| 192×224×192 在 8GB GPU 上很緊 | `--batch-size 1`，或改用更小的 target shape。**加寬 U-Net 的實測顯存與對策見手冊 §23** |
 | 沒報錯，但每步慢 10～20 倍（這台筆電 25 秒/步）| **OOM 的另一種樣子**：Windows 顯示卡驅動偷借系統記憶體硬撐，不會噴錯。⚠️ 看的是 PyTorch **預留**的量（預設寬度約實際用量 1.8 倍、加寬 2 倍約 2.4 倍），不是實際用量（手冊 §23.7）| 看第一個 epoch 的 `time:`；遠超過 1.5～2.5 秒/步就是塞不下。實際用量放得下、只是預留超過的話：訓練前 `set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.85`（兩顆同時跑各用 0.42）。AI 上 10-02 實測：兩顆同時跑每步 10 幾秒 → 加了之後約 3 秒；10-05 mix_wide_vel 單獨跑加 0.85：每步 2.84 秒（mix_wide 沒加 3.75 秒）|
+| `train_semisup.py`、`train_arch.py` 的 log 每步時間只有 0.7～0.9 秒（原版 `train.py` 單獨跑約 1.5～1.8 秒）| CUDA 是非同步的，計時在 `loss.item()` 之前，沒等 GPU 算完（10-11 發現；mix_exp8／9、mix_cascade 的 log 都偏低）| 10-11 已在計時前加 `torch.cuda.synchronize()`；之後的 log 才準。以前那三顆的實際時間要看 AI 上 .pt 的修改時間 |
 | `--check-only` 通過，開跑還是爆 | 它**只印出卡有多大，不會真的建模型試跑**；警告門檻 7.5 GB 是為預設寬度設的 | 加寬版要自己拿卡的容量對手冊 §23 的表 |
 | 視覺化 / 推論卡住很久 | 沒加 `--gpu 0`，走 CPU 跑 3D U-Net | 一律加 `--gpu 0` |
 | `test_oasis.py` 讀 `atlas['seg']` 報 KeyError | IXI atlas 沒有 seg | 改用 `test_ixi.py` |
@@ -662,7 +671,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quantum annealing」是另一個計畫，**使用者說先不管**。
 
 **老師紅字之外的下一步（10-04 使用者同意）**：訓練時也用 FreeSurfer 標籤 = mix_exp8（γ 0.5）、mix_exp9（γ 5），基礎同 mix_exp6。
-程式 `ASD/train_semisup.py`、操作單 `ASD/指令_mix_exp8_9.md`。筆電功能測試通過（手冊 §20.5）；mix_wide_vel 10-05 跑完，AI `git pull` 後就可以開跑（兩顆不能同時跑，接著跑約 28 小時）。
+程式 `ASD/train_semisup.py`、操作單 `ASD/指令_mix_exp8_9.md`。筆電功能測試通過（手冊 §20.5）。✅ **10-11 帶回**：0.8995／0.9290，但 γ 5 損及沒訓練過的結構，見上面第 8 點與手冊 §27.2。
 🔴 γ 的尺度跟 λ 一樣取決於 image-loss：論文的 0.01／0.1 是搭 MSE，NCC 要放大約 50 倍 → 0.5／5。
 
 **10/14 簡報**：`ASD/slides_src/2026-10-14_redpen/` → `meeting報告\ASD_老師紅字回覆_20261014.pptx`
@@ -676,6 +685,7 @@ p31（下一步）的「用量子計算模擬 MRS 頻譜、CUDA-Q、QUBO、quant
 同天再加 ⑥ 改架構（紅字之外，待辦 5）；10-07 使用者要求正式學術用語，⑥ 改成五頁：架構修改方向（文獻）、Step 0 test-time recursion、
 Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`make_arch.py`）、2 × 2 實驗設計與進度，共 **34 頁**）。
 重建步驟見該資料夾 README。
+10-07 再加補充評估指標兩頁與 Step 2 的 U-Net 對照頁（37 頁）；**10-11 加 cascade 結果 1 頁與 ⑦ 半監督 7 頁（結果、各結構、輪廓並排、沒訓練過的結構放大、搬過去的影像、網格＋log|J|、跟論文比），共 45 頁**（`make_semisup.py`，講稿同步）。
 🔴 **給老師的投影片一律用正式學術用語**（2026-10-07 使用者：「正式一點，公式 block 都很重要，不要太口語」）：
 英文術語可直接用、架構圖＋編號公式、每頁條列 2～4 行。同天使用者同意 ①～⑤ 與「下一步」也一起改，**全份 34 頁（含圖上的字）都已是正式用語**：
 擠爆 → folding、速度場 → SVF、位移場 → displacement field、平滑權重 → λ、加寬 → 2× width、起點 → affine、Dice 進步多少 → ΔDice、
@@ -792,7 +802,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   mix_wide_vel 0.8111 → **0.8188**。擠爆：速度場每人 0.1 → 43 點（加寬 25 點）。**mix_exp6 跑兩次就贏 mix_wide_vel**（+0.0025，38/51，跟正式 test 結果比）
 - **第 1 步**：串兩顆 = **mix_cascade**（照 RCN，ICCV 2019：各自的權重、一起訓練、相似度只看最後、每顆都罰平滑）。
   10-06 程式寫好、驗證通過（`ASD/verify_cascade.py` 四項；手冊 §25.2），操作單 `ASD/指令_mix_cascade.md`。
-  顯存外插 16.9 GB（要 `set ... per_process_memory_fraction:0.85`），約 25～28 小時。**等 mix_exp8／9 跑完、AI `git pull` 後再跑**
+  顯存外插 16.9 GB（要 `set ... per_process_memory_fraction:0.85`）。✅ **10-11 帶回：0.8156**（val 挑 epoch 170），見上面第 7 點與手冊 §27.1
 - **第 2 步**：由粗到細 = **mix_pyramid**（`VxmPyramid`：兩張影像各自抽特徵、解碼器從 1/16 起每一層都出形變、先把移動影像的特徵拉過去再修；
   參數 41 萬）。10-06 程式寫好、驗證通過（`ASD/verify_pyramid.py`，含平移測試；手冊 §25.3），操作單 `ASD/指令_mix_pyramid.md`。
   顯存外插 9.7 GB，約 19 小時（筆電公平量：比一顆慢 1.49 倍；串兩顆 1.89 倍）。**一次只跑一顆**

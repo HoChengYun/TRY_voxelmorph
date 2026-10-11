@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（37 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（45 頁；2026-10-11 加 cascade 結果 1 頁、⑦ 半監督 7 頁，要先有 `make_semisup.py` 的 7 張圖與 `ASD/check_semisup.py` 的 CSV，沒有就少這 8 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多。**2026-10-07 起全份（投影片文字與圖上的字）改用正式學術用語**，術語對照見下方 📌。
@@ -47,10 +47,18 @@
 | 31 | ⑥ 架構修改方向：加入配準專用設計，而非更換 backbone（老師紅字之外，2026-10-06 使用者：「把改架構的進度也加進 10/14 簡報」）。左 Jian et al., WBIR 2024 Table 2（LPBA）、右 LUMIR 2024 test leaderboard；圖下一行資料來源 | `1014_arch_lit.png` |
 | 32 | ⑥ Step 0：Test-time recursion（不重新訓練）。三顆模型 1、2、3 passes 並排＋右側重點（gather.py 的 `multipass`、`multipass_vs_wide`）＋式 (1) | `1014_arch_step0.png`、`1014_arch_step0_eq.png` |
 | 33 | ⑥ Step 1：Cascaded registration（Zhao et al., ICCV 2019）。架構圖＋式 (2)(3) | `1014_arch_cascade.png`、`1014_arch_cascade_eq.png` |
-| 34 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
-| 35 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
-| 36 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（沒結果的格子寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練順序 | （表格）|
-| 37 | 下一步（訓練時也用標籤 mix_exp8／9、架構修改的順序、MRS）| |
+| 34 | ⑥ Step 1 結果（2026-10-11 AI 帶回 mix_cascade）：mix_exp6、mix_wide_vel、mix_cascade × Dice、未參與訓練之結構 Dice、影像 NCC、HD95、folding voxel 數（gather.py 的 `cascade`）＋三點重點（相對 mix_exp6、mix_wide_vel、Step 0 的配對比較；代價）| `1014_cascade_res.png`（`make_semisup.py`）|
+| 35 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
+| 36 | ⑥ Step 2：Coarse-to-fine（multi-resolution pyramid + warping）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
+| 37 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（有結果的格子寫 DSC，沒結果的寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練進度 | （表格）|
+| 38 | ⑦ 半監督訓練之結果（2026-10-11 AI 帶回 mix_exp8／9）：一行損失式＋affine、γ = 0、0.5、5 × 五項（訓練之 30 結構 Dice、未參與訓練之結構 Dice、影像 NCC、SDlogJ、folding）＋三點重點（gather.py 的 `semisup`）| `1014_semi_res.png` |
+| 39 | ⑦ 各結構相對 γ = 0 之 ΔDice：左 17 種訓練結構、右 3 種未參與訓練之結構 | `1014_semi_struct.png` |
+| 40 | ⑦ 訓練時使用之結構：五個模型的 `visualize_dice.py` 輪廓圖並排（冠狀、軸狀；2026-10-11 使用者：「要不要每個 model 的 contours 圖放在一起比較」）| `1014_semi_contours.png`（要先有四個模型的 `vis_T079\contours_*.png`）|
+| 41 | ⑦ 未參與訓練之結構放大：Accumbens、Inf-Lat-Vent，atlas（虛線）vs 受試者（實線），紅 = 未參與訓練、青 = 鄰近之訓練結構（使用者要求兩種都畫、各自都要有 atlas 對照）| `1014_semi_heldout.png` |
+| 42 | ⑦ 形變後影像 m∘φ：m、f、四個模型並排＋放大（排法同論文 Fig. 10；使用者：「視覺化放一些和捏出來影像有關的照片」）| `1014_semi_warped.png` |
+| 43 | ⑦ 形變網格＋log\|J\|（四個模型同一冠狀切面）| `1014_semi_grid.png` |
+| 44 | ⑦ 與 VoxelMorph 論文比較（Fig. 9c、Table IV；γ 的對應）表格＋四點 | （表格）|
+| 45 | 下一步（半監督的待討論事項、架構修改接續、MRS）| |
 
 📌 **⑥ 架構修改（第 31～35 頁）的寫法（2026-10-07 定案）**：使用者：「這個 block 有些太口語了」「由粗到細老師肯定不知道」
 「正式一點，公式 block 都很重要，不要太口語」。因此 ⑥ 全部改成**正式學術用語＋架構圖＋編號公式 (1)～(5)**，每頁條列 2～4 行：
@@ -93,9 +101,10 @@
 | `make_method.py` | 第 12～15 頁「頭頂殘留厚度怎麼量」的 4 張圖＋4 個公式區塊，順便寫 `models/skullstrip_check/top_band_sensitivity.csv` |
 | `make_arch.py` | ⑥ 第 33、34 頁的架構圖（cascade、coarse-to-fine）＋第 32～34 頁的公式區塊 (1)～(5)，不讀資料、幾秒 |
 | `make_metrics.py` | 第 29 頁補充評估指標之示意圖（合成之 2D 例子）＋公式區塊 (1)～(3)，不讀資料、幾秒 |
+| `make_semisup.py` | 2026-10-11：第 34 頁 cascade 結果、第 38～43 頁 ⑦ 的 7 張圖。數字讀 `deck_data.json`；受試者圖自動挑「mix_exp9 之未參與訓練結構 ΔDice 最接近 51 位中位數」的那位（T079），推論結果快取在 `models/deck_charts/semi_<受試者>_cache.npz`（GPU；cascade 在 8 GB 筆電上接近顯存上限，但跑得動）|
 | `build.js` | pptxgenjs 產生器：版面、文字、表格、圖片 |
 | `render.ps1` | 用 PowerPoint 把每頁轉成 PNG，做版面檢查。PowerPoint 本來就開著的話不會把它關掉 |
-| `講稿.md` | 每頁的講稿（2026-10-07 使用者：「感覺可以來個講稿」），正式口語、附每頁約略秒數，全份約 26～28 分鐘；最後是「可能的提問與回答」。`build.js` 依標題行的 `<!-- key -->`（對應 `ORDER`）把各段寫進該頁的**備忘稿**（簡報者檢視可見；「# 」開頭的段落不寫進去），頁碼對不上或缺頁會印 `[!]` 提醒。**改了投影片的數字或頁序，講稿要跟著改** |
+| `講稿.md` | 每頁的講稿（2026-10-07 使用者：「感覺可以來個講稿」），正式口語、附每頁約略秒數，全份約 33～36 分鐘（45 頁）；最後是「可能的提問與回答」。`build.js` 依標題行的 `<!-- key -->`（對應 `ORDER`）把各段寫進該頁的**備忘稿**（簡報者檢視可見；「# 」開頭的段落不寫進去），頁碼對不上或缺頁會印 `[!]` 提醒。**改了投影片的數字或頁序，講稿要跟著改** |
 
 ## 重建
 
@@ -110,12 +119,24 @@ foreach ($s in 'mix_exp2\0240','mix_exp5\0150','mix_exp6\0190','mix_exp7\0250','
 foreach ($s in 'mix_wide\0225','mix_wide_vel\0240') { .\vxm_env\Scripts\python.exe ASD\test_dice.py --model models\$s.pt --test-dir data\mixed_preprocessed_v2\test --surface --gpu -1 }
 ```
 
+⑦ 半監督與 cascade（2026-10-11）：test_dice 的 surface、未參與訓練之結構與影像 NCC、受試者 T079 的輪廓圖（模型沒變就不用重跑）：
+
+```powershell
+cd C:\Users\h4524\claude_cheng
+foreach ($s in 'mix_cascade\0170','mix_exp8\0250','mix_exp9\0245') { .\vxm_env\Scripts\python.exe ASD\test_dice.py --model models\$s.pt --test-dir data\mixed_preprocessed_v2\test --surface }
+.\vxm_env\Scripts\python.exe ASD\check_semisup.py --test-dir data\mixed_preprocessed_v2\test --models mix_exp6\0190 mix_cascade\0170 mix_exp8\0250 mix_exp9\0245
+.\vxm_env\Scripts\python.exe ASD\check_semisup.py --test-dir data\mixed_preprocessed_v2\test --models mix_wide_vel\0240 --gpu -1
+.\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_cascade:0170 mix_exp8:0250 mix_exp9:0245 --gpu 0   # folding 位置（講稿第 43 頁）
+foreach ($s in 'mix_exp6\0190','mix_cascade\0170','mix_exp8\0250','mix_exp9\0245') { $e = $s.Split('\')[0]; .\vxm_env\Scripts\python.exe ASD\visualize_dice.py --model models\$s.pt --test-dir data\mixed_preprocessed_v2\test --subject T079 --out-dir models\$e\vis_T079 }
+```
+
 ```powershell
 cd ASD\slides_src\2026-10-14_redpen
 ..\..\..\vxm_env\Scripts\python.exe gather.py          # -> deck_data.json
 ..\..\..\vxm_env\Scripts\python.exe make_charts.py     # -> models\deck_charts\1014_*.png（要先有 deck_data.json）
 ..\..\..\vxm_env\Scripts\python.exe make_method.py     # -> 1014_method_{1..4}.png、1014_method_eq{1..4}.png（約 1～2 分鐘）
 ..\..\..\vxm_env\Scripts\python.exe make_arch.py       # -> 1014_arch_{cascade,pyramid}.png、1014_arch_{step0,cascade,pyramid}_eq.png
+..\..\..\vxm_env\Scripts\python.exe make_semisup.py   # -> 1014_cascade_res.png、1014_semi_*.png（2026-10-11；要先跑上面 ⑦ 那段）
 cd ..\..\..
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --models mix_exp6:0190 mix_exp7:0250 mix_wide_vel:0240 --gpu 0   # 速度場三顆的擠爆位置（位移場三顆 09-30 算過）
 .\vxm_env\Scripts\python.exe ASD\check_folding.py --plot-only --views   # -> folding_views.png、folding_params.png（6 欄：左 3 顆速度場、右 3 顆位移場）
@@ -142,7 +163,7 @@ copy deck.pptx ..\..\..\meeting報告\ASD_老師紅字回覆_20261014.pptx
 
 ## 還沒跑完的實驗
 
-mix_exp6、mix_exp7（10-04）、mix_wide_vel（10-05）都帶回來了，現在沒有 pending 的。
+mix_exp6、mix_exp7（10-04）、mix_wide_vel（10-05）、mix_exp8／9、mix_cascade（10-11）都帶回來了。mix_pyramid、mix_cascade_pyramid 還沒跑（2 × 2 表顯示「待訓練」）。
 `gather.py` 找不到某顆的 test CSV（`models/<exp>/dice_<4 位數>.csv`）就標成 pending，簡報第 2 頁、平滑權重那頁、加寬＋速度場那頁顯示「訓練中」、圖上標「訓練中」框。
 **結果帶回來放進 `models/<exp>/` 之後，照上面重建一次就會補上**，不用改程式。
 一個資料夾有好幾份 test CSV 的話，用 `dice_curve_val.csv` 裡驗證集最好的那個 epoch。
