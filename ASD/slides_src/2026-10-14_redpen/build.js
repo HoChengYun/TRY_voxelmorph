@@ -131,7 +131,7 @@ const HAS_METHOD = METHOD.every((f) => fs.existsSync(CH(f)));
 // 2026-10-07 使用者：「正式一點、公式 block 都很重要、不要太口語」→ 學術用語；cascade、coarse-to-fine 各一頁架構圖＋編號公式。
 // 長條圖是 make_charts.py 的，架構圖與公式是 make_arch.py 的
 const ARCH_FIGS = ['1014_arch_lit.png', '1014_arch_step0.png', '1014_arch_step0_eq.png', '1014_arch_cascade.png',
-  '1014_arch_cascade_eq.png', '1014_arch_unet_vs_pyramid.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png'];
+  '1014_arch_cascade_eq.png', '1014_arch_unet_vs_pyramid.png', '1014_arch_pyramid.png', '1014_arch_pyramid_eq.png', '1014_arch_pyramid_box.png'];
 const HAS_ARCH = ARCH_FIGS.every((f) => fs.existsSync(CH(f))) && D.multipass && D.multipass.mix_exp6 && D.multipass_vs_wide;
 // 補充評估指標（2026-10-07 使用者：「把 HD95 和 SDlogJ 加進去，然後可以更新這次 meeting 簡報」）：定義一頁＋結果一頁
 // 數值：ASD/test_dice.py --surface → models/<exp>/surface_<epoch>.csv → gather.py 的 surface；圖與公式：make_metrics.py
@@ -154,8 +154,8 @@ const ORDER = ['cover', 'summary', 'fold_where', ...(HAS_PARAMS ? ['fold_params'
   ...(HAS_BASE6 ? ['base6'] : []), 'res_check',
   'wide', ...(HAS_WCURVE ? ['wide_curve'] : []), ...WIDE_MORE.filter(([, f]) => f.every((x) => fs.existsSync(x))).map(([k]) => k),
   ...(HAS_METRIC ? ['met_def', 'met_res'] : []),
-  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', ...(HAS_CASC ? ['arch_cascade_res'] : []), 'arch_unet', 'arch_pyramid',
-                  'arch_plan'] : []),
+  ...(HAS_ARCH ? ['arch_why', 'arch_step0', 'arch_cascade', ...(HAS_CASC ? ['arch_cascade_res'] : []), 'arch_rcn_cmp', 'arch_unet',
+                  'arch_pyramid', 'arch_pyramid_box', 'arch_prnet_cmp', 'arch_plan'] : []),
   ...(HAS_SEMI ? ['semi_res', 'semi_struct', 'semi_contours', 'semi_heldout', 'semi_warped', 'semi_grid', 'semi_paper'] : []),
   'next', 'refs'];
 const PG = Object.fromEntries(ORDER.map((k, i) => [k, i + 1]));
@@ -745,6 +745,36 @@ if (HAS_CASC) {
     { x: M, y: 6.75, w: 11.2, h: 0.3, fontSize: 10.5, color: C.MUTED });
 }
 
+// 2026-10-12 使用者：「meeting 簡報可以做個幾頁說我們和論文差在哪」→ 依兩篇公開程式碼逐項對照（手冊 §25.5），只讀、程式未改
+const CMP_FOOT = { x: M, y: 6.72, w: 11.2, h: 0.3, fontSize: 10.5, color: C.MUTED };
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 1 實作與 RCN 之比較
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 1 實作與 RCN 之比較：核心設計一致，2-cascade 之增益相近');
+  const same = (t) => ({ text: t || '相同', options: { color: C.TEAL } });
+  const diff = (t) => ({ text: t, options: { color: C.RUST, bold: true } });
+  const gain = HAS_CASC ? f3(D.cascade.dice.mix_exp6) + ' → ' + f3(D.cascade.dice.mix_cascade) + '（' + sgn(D.cascade.p.dice_exp6.mean, 4) + '）' : '—';
+  table(s, [
+    ['項目', 'RCN（Zhao et al., ICCV 2019）', '本研究（mix_cascade）'],
+    ['Stage 數', 'affine 1 ＋ deformable 1、2、3、5', diff('deformable 2（affine 於前處理以 ANTs 完成）')],
+    ['各 stage 之輸入', '以累積形變 warp 原始 m', same()],
+    ['形變之合成', { text: [{ text: 'U' }, { text: 'k', options: { subscript: true } }, { text: '(x) = u' },
+      { text: 'k', options: { subscript: true } }, { text: '(x) + U' }, { text: 'k−1', options: { subscript: true } },
+      { text: '(x + u' }, { text: 'k', options: { subscript: true } }, { text: '(x))' }] }, same()],
+    ['相似度項', '僅最後一個 stage；1 − 全域相關係數', diff('僅最後一個 stage；局部 NCC（窗格 9）')],
+    ['平滑項', '每個 stage，權重相同', same('相同（λ = 1）')],
+    ['參數化', 'displacement field', diff('SVF')],
+    ['各 stage 輸出之縮放', '× 1/n（flow_multiplier）', diff('無')],
+    ['資料', '訓練 ADNI、ABIDE、ADHD；測試 LPBA（128³）', diff('mixed_v2（192×224×192）')],
+    ['2-cascade 之增益（Dice）', '0.688 → 0.699（+0.011，LPBA）', gain],
+  ], { x: M, y: 1.45, w: 12.13, colW: [2.6, 4.6, 4.93], fontSize: 12.5, rowH: 0.4 });
+  bullets(s, [
+    [{ text: '核心設計（各 stage 之輸入、形變之合成、損失之配置）與 RCN 一致', options: { bold: true } }],
+    [{ text: '差異為參數化（SVF）、相似度（局部 NCC）與輸出縮放 × 1/n；後者僅影響訓練初期之形變幅度與學習速度，不改變模型可表達之形變' }],
+    [{ text: '2-cascade 之 Dice 增益與 RCN 相近（+0.0105 vs +0.011）', options: { bold: true, color: C.TEAL } }],
+  ], { x: M, y: 5.6, w: 12.13, h: 1.1, fontSize: 13, paraSpaceAfter: 4 });
+  txt(s, '比較依據：RCN 公開程式碼（github.com/microsoft/Recursive-Cascaded-Networks：network/recursive_cascaded_networks.py、base_networks.py）', CMP_FOOT);
+}
+
 if (HAS_ARCH) {
   // ─────────────────────────────────────────────────────── ⑥ Step 2 與 VoxelMorph U-Net 之比較（make_arch.py）
   // 2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」→ 直式 U 對照圖放在 Step 2 那頁前面
@@ -759,6 +789,40 @@ if (HAS_ARCH) {
   const s = base('⑥ 架構修改（紅字以外）', 'Step 2：Coarse-to-fine（Dual-PRNet：Hu et al., MICCAI 2019）');
   fitImage(s, CH('1014_arch_pyramid.png'), M, 1.4, 12.13, 3.45, 'Coarse-to-fine 架構圖');
   fitImage(s, CH('1014_arch_pyramid_eq.png'), M, 4.85, 12.13, 2.25, 'Coarse-to-fine 公式 (4)(5)');
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 2：D_l 之特寫（make_arch.py）
+  // 2026-10-12 使用者：「就一個特寫 D 在幹嘛」→「好，放進簡報」
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 2：Decoder 單層之運算（對應式 (4)）');
+  fitImage(s, CH('1014_arch_pyramid_box.png'), M, 1.4, 12.13, 4.3, 'Decoder 第 l 層之運算');
+  txt(s, '第 ' + PG.arch_pyramid + ' 頁架構圖中每個 decoder 方塊之內部；放大後之上一層形變同時用於 ① warp 與 ⑤ composition。'
+    + '結構依 ASD/arch.py 之 VxmPyramid', { x: M, y: 5.95, w: 12.13, h: 0.3, fontSize: 11.5, color: C.MUTED });
+}
+
+if (HAS_ARCH) {
+  // ─────────────────────────────────────────────────────── ⑥ Step 2 實作與 Dual-PRNet 之比較
+  const s = base('⑥ 架構修改（紅字以外）', 'Step 2 實作與 Dual-PRNet 之比較：核心設計一致');
+  const same = (t) => ({ text: t || '相同', options: { color: C.TEAL } });
+  const diff = (t) => ({ text: t, options: { color: C.RUST, bold: true } });
+  table(s, [
+    ['項目', 'Dual-PRNet（Hu et al., MICCAI 2019）', '本研究（mix_pyramid）'],
+    ['Encoder', '雙流，共用權重', same()],
+    ['每層之計算', 'warp m 之特徵 → 與 f 之特徵串接 → 卷積輸出修正', same('相同；另串接上一層之 decoder 特徵 h')],
+    ['形變之合成', '以 warp 合成（非直接相加）', same()],
+    ['形變之放大', '正規化座標（−1～1），數值不需乘 2', same('voxel 單位，位移 × 2（數學上等價）')],
+    ['warp 特徵時之梯度', '切斷（detach）', diff('保留')],
+    ['相似度項', 'NCC（窗格 9），僅最終輸出', same()],
+    ['平滑項', '每層之修正皆計算，與相似度等權', same('相同（每層之速度場皆計算，λ = 1）')],
+    ['參數化', 'displacement field', diff('每層 SVF（exp）')],
+    ['訓練設定', 'Adam 1e-4；warm-up 5 epochs、梯度裁剪、weight decay', diff('Adam 1e-4（同 VoxelMorph）')],
+    ['原論文結果（Dice）', 'VoxelMorph 0.683 → 0.778（LPBA40；MICCAI 2019）', diff('待訓練')],
+  ], { x: M, y: 1.45, w: 12.13, colW: [2.4, 4.9, 4.83], fontSize: 12.5, rowH: 0.38 });
+  bullets(s, [
+    [{ text: '核心設計（雙流 encoder、逐層 warp 與輸出修正、以 warp 合成、每層皆計算平滑項）與 Dual-PRNet 一致', options: { bold: true } }],
+    [{ text: '可能影響結果之差異：warp 特徵時是否切斷梯度、參數化（displacement field vs SVF）、訓練技巧' }],
+  ], { x: M, y: 5.85, w: 12.13, h: 0.85, fontSize: 13, paraSpaceAfter: 4 });
+  txt(s, '比較依據：Dual-PRNet++ 公開程式碼（github.com/kangmiao15/Dual-Stream-PRNet-Plus：net/cascade_morph_net.py、solver.py、train_lpba40.py）', CMP_FOOT);
 }
 
 if (HAS_ARCH) {
@@ -930,9 +994,9 @@ if (HAS_SEMI) {
     ['A. V. Dalca, G. Balakrishnan, J. Guttag, M. R. Sabuncu. Unsupervised Learning of Probabilistic Diffeomorphic Registration for Images and Surfaces. ',
      'Medical Image Analysis', ', 57:226–236, 2019.', 'SVF（φ = exp(v)，scaling and squaring）' + at('summary')],
     ['S. Zhao, Y. Dong, E. I-C. Chang, Y. Xu. Recursive Cascaded Networks for Unsupervised Medical Image Registration. ',
-     'ICCV', ', 2019.', 'Step 0 test-time recursion、Step 1 cascade' + at('arch_step0', 'arch_cascade', 'arch_cascade_res')],
+     'ICCV', ', 2019.', 'Step 0 test-time recursion、Step 1 cascade' + at('arch_step0', 'arch_cascade', 'arch_cascade_res', 'arch_rcn_cmp')],
     ['X. Hu, M. Kang, W. Huang, M. R. Scott, R. Wiest, M. Reyes. Dual-Stream Pyramid Registration Network. ',
-     'MICCAI', ', 2019.', 'Step 2 coarse-to-fine（dual-stream encoder、逐層 warp 與輸出形變）' + at('arch_unet', 'arch_pyramid')],
+     'MICCAI', ', 2019.', 'Step 2 coarse-to-fine（dual-stream encoder、逐層 warp 與輸出形變）' + at('arch_unet', 'arch_pyramid', 'arch_prnet_cmp')],
     ['B. Jian, J. Pan, M. Ghahremani, D. Rueckert, C. Wachinger, B. Wiestler. Mamba? Catch The Hype Or Rethink What Really Helps for Image Registration. ',
      'WBIR', ', 2024.', '架構修改方向；DWP（dual-stream + warping + pyramid）' + at('arch_why', 'arch_pyramid')],
     ['Learn2Reg 2024 LUMIR Challenge, test leaderboard. ', 'github.com/JHU-MedImage-Reg/LUMIR_L2R', '.', '架構修改方向' + at('arch_why')],

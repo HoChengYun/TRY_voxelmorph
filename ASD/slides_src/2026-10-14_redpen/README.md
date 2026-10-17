@@ -2,7 +2,7 @@
 
 09-30 meeting 老師寫在 `meeting報告/ASD_520顆與交叉測試_20260920.pptx` 第 18、22、23、25 頁的五件事
 （清單在 CLAUDE.md「待辦 0」、細節在手冊 §24）。
-產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（46 頁；2026-10-12 最後加「參考文獻」1 頁；2026-10-11 加 cascade 結果 1 頁、⑦ 半監督 7 頁，要先有 `make_semisup.py` 的 7 張圖與 `ASD/check_semisup.py` 的 CSV，沒有就少這 8 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
+產出 `meeting報告/ASD_老師紅字回覆_20261014.pptx`（49 頁；2026-10-12 加「與原論文實作之比較」2 頁（第 35、39 頁）、Step 2 decoder 方塊之特寫 1 頁（第 38 頁）與「參考文獻」1 頁；2026-10-11 加 cascade 結果 1 頁、⑦ 半監督 7 頁，要先有 `make_semisup.py` 的 7 張圖與 `ASD/check_semisup.py` 的 CSV，沒有就少這 8 頁；補充評估指標兩頁要先有 `surface_*.csv` 與 `1014_metric_*.png`、⑥ 架構修改六頁要先有 `1014_arch_*.png` 八張圖（`make_charts.py` 兩張、`make_arch.py` 六張）和第 0 步的 CSV、mix_exp6、7 沒結果時少 2 頁、`make_method.py` 的 8 張圖沒齊時少 4 頁、⑤ 補充的四張圖沒有時各少 1 頁、沒有 `folding_params.png`、`curve_wide.png`、`1014_six.png` 或 `1014_six_base.png` 時各少 1 頁）。**不會碰 09-20 那份**（上面有老師的紅字）。
 
 **投影片上的數字一律由 `gather.py` 從原始 CSV 算出，不手打。**
 給老師看的版本，所以文字盡量少、圖盡量多。**2026-10-07 起全份（投影片文字與圖上的字）改用正式學術用語**，術語對照見下方 📌。
@@ -48,18 +48,21 @@
 | 32 | ⑥ Step 0：Test-time recursion（不重新訓練）。三顆模型 1、2、3 passes 並排＋右側重點（gather.py 的 `multipass`、`multipass_vs_wide`）＋式 (1) | `1014_arch_step0.png`、`1014_arch_step0_eq.png` |
 | 33 | ⑥ Step 1：Cascaded registration（Zhao et al., ICCV 2019）。架構圖＋式 (2)(3) | `1014_arch_cascade.png`、`1014_arch_cascade_eq.png` |
 | 34 | ⑥ Step 1 結果（2026-10-11 AI 帶回 mix_cascade）：mix_exp6、mix_wide_vel、mix_cascade × Dice、未參與訓練之結構 Dice、影像 NCC、HD95、folding voxel 數（gather.py 的 `cascade`）＋三點重點（相對 mix_exp6、mix_wide_vel、Step 0 的配對比較；代價）| `1014_cascade_res.png`（`make_semisup.py`）|
-| 35 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
-| 36 | ⑥ Step 2：Coarse-to-fine（Dual-PRNet：Hu et al., MICCAI 2019；10-12 標題改成寫出參考論文）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
-| 37 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（有結果的格子寫 DSC，沒結果的寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練進度 | （表格）|
-| 38 | ⑦ 半監督訓練之結果（2026-10-11 AI 帶回 mix_exp8／9）：一行損失式＋affine、γ = 0、0.5、5 × 五項（訓練之 30 結構 Dice、未參與訓練之結構 Dice、影像 NCC、SDlogJ、folding）＋三點重點（gather.py 的 `semisup`）| `1014_semi_res.png` |
-| 39 | ⑦ 各結構相對 γ = 0 之 ΔDice：左 17 種訓練結構、右 3 種未參與訓練之結構 | `1014_semi_struct.png` |
-| 40 | ⑦ 訓練時使用之結構：五個模型的 `visualize_dice.py` 輪廓圖並排（冠狀、軸狀；2026-10-11 使用者：「要不要每個 model 的 contours 圖放在一起比較」）| `1014_semi_contours.png`（要先有四個模型的 `vis_T079\contours_*.png`）|
-| 41 | ⑦ 未參與訓練之結構放大：Accumbens、Inf-Lat-Vent，atlas（虛線）vs 受試者（實線），紅 = 未參與訓練、青 = 鄰近之訓練結構（使用者要求兩種都畫、各自都要有 atlas 對照）| `1014_semi_heldout.png` |
-| 42 | ⑦ 形變後影像 m∘φ：m、f、四個模型並排＋放大（排法同論文 Fig. 10；使用者：「視覺化放一些和捏出來影像有關的照片」）| `1014_semi_warped.png` |
-| 43 | ⑦ 形變網格＋log\|J\|（四個模型同一冠狀切面）| `1014_semi_grid.png` |
-| 44 | ⑦ 與 VoxelMorph 論文比較（Fig. 9c、Table IV；γ 的對應）表格＋四點 | （表格）|
-| 45 | 下一步（半監督的待討論事項、架構修改接續、MRS）| |
-| 46 | 參考文獻（2026-10-12 使用者：「可以在報告寫 cascade、coarse to fine 是參考哪個論文嗎」）：VoxelMorph、Dalca（SVF）、RCN、Dual-PRNet、Jian et al.、LUMIR，各篇註明用在哪幾頁（頁碼由 `PG` 自動算）| |
+| 35 | ⑥ Step 1 實作與 RCN 之比較（2026-10-12 使用者：「meeting 簡報可以做個幾頁說我們和論文差在哪」）：項目 × RCN × 本研究的表（相同標青、不同標橘）＋三點；依 RCN 公開程式碼（手冊 §25.5）| （表格）|
+| 36 | ⑥ Step 2 之結構：以 VoxelMorph U-Net 為基礎之三處修改（2026-10-07 使用者：「最後一頁不好想像，和 U-Net 本身架構有點搞混」）。左 VoxelMorph U-Net（直式 U）、右 Step 2 轉成同一方向，標出 ① dual-stream encoder ② m 之 skip 先 warp ③ 每層輸出形變；圖下一行說明與下一頁的對應 | `1014_arch_unet_vs_pyramid.png`（`make_arch.py`）|
+| 37 | ⑥ Step 2：Coarse-to-fine（Dual-PRNet：Hu et al., MICCAI 2019；10-12 標題改成寫出參考論文）。架構圖＋式 (4)(5) | `1014_arch_pyramid.png`、`1014_arch_pyramid_eq.png` |
+| 38 | ⑥ Step 2：Decoder 單層之運算（對應式 (4)）（2026-10-12 使用者：「就一個特寫 D 在幹嘛」）。輸入 4 項 → ① warp ② concat ③ g_l（h_l、v_l）④ exp ⑤ composition → 輸出 3 項；通道數以 l = 2 為例 | `1014_arch_pyramid_box.png`（`make_arch.py`）|
+| 39 | ⑥ Step 2 實作與 Dual-PRNet 之比較：同上格式；依 Dual-PRNet++ 公開程式碼，原論文結果 0.683 → 0.778（LPBA40）| （表格）|
+| 40 | ⑥ 實驗設計（2 × 2）與進度：2 × 2 表（有結果的格子寫 DSC，沒結果的寫「待訓練」，mix_cascade_pyramid 寫「待前兩者結果」）＋參數量／訓練時間表（gather.py 的 `arch`）＋實作驗證、訓練進度 | （表格）|
+| 41 | ⑦ 半監督訓練之結果（2026-10-11 AI 帶回 mix_exp8／9）：一行損失式＋affine、γ = 0、0.5、5 × 五項（訓練之 30 結構 Dice、未參與訓練之結構 Dice、影像 NCC、SDlogJ、folding）＋三點重點（gather.py 的 `semisup`）| `1014_semi_res.png` |
+| 42 | ⑦ 各結構相對 γ = 0 之 ΔDice：左 17 種訓練結構、右 3 種未參與訓練之結構 | `1014_semi_struct.png` |
+| 43 | ⑦ 訓練時使用之結構：五個模型的 `visualize_dice.py` 輪廓圖並排（冠狀、軸狀；2026-10-11 使用者：「要不要每個 model 的 contours 圖放在一起比較」）| `1014_semi_contours.png`（要先有四個模型的 `vis_T079\contours_*.png`）|
+| 44 | ⑦ 未參與訓練之結構放大：Accumbens、Inf-Lat-Vent，atlas（虛線）vs 受試者（實線），紅 = 未參與訓練、青 = 鄰近之訓練結構（使用者要求兩種都畫、各自都要有 atlas 對照）| `1014_semi_heldout.png` |
+| 45 | ⑦ 形變後影像 m∘φ：m、f、四個模型並排＋放大（排法同論文 Fig. 10；使用者：「視覺化放一些和捏出來影像有關的照片」）| `1014_semi_warped.png` |
+| 46 | ⑦ 形變網格＋log\|J\|（四個模型同一冠狀切面）| `1014_semi_grid.png` |
+| 47 | ⑦ 與 VoxelMorph 論文比較（Fig. 9c、Table IV；γ 的對應）表格＋四點 | （表格）|
+| 48 | 下一步（半監督的待討論事項、架構修改接續、MRS）| |
+| 49 | 參考文獻（2026-10-12 使用者：「可以在報告寫 cascade、coarse to fine 是參考哪個論文嗎」）：VoxelMorph、Dalca（SVF）、RCN、Dual-PRNet、Jian et al.、LUMIR，各篇註明用在哪幾頁（頁碼由 `PG` 自動算）| |
 
 📌 **⑥ 架構修改（第 31～35 頁）的寫法（2026-10-07 定案）**：使用者：「這個 block 有些太口語了」「由粗到細老師肯定不知道」
 「正式一點，公式 block 都很重要，不要太口語」。因此 ⑥ 全部改成**正式學術用語＋架構圖＋編號公式 (1)～(5)**，每頁條列 2～4 行：

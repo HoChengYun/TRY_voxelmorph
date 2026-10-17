@@ -9,6 +9,7 @@
   1014_arch_pyramid.png      Step 2：coarse-to-fine 架構圖
   1014_arch_unet_vs_pyramid.png  Step 2 與 VoxelMorph U-Net 之比較（直式 U 對照，標出三處不同；放在 Step 2 那頁前面）
   1014_arch_pyramid_eq.png   Step 2：公式 (4)、(5)
+  1014_arch_pyramid_box.png  Step 2：D_l 之特寫（式 (4) 逐步對應）
 
 記號照 VoxelMorph（Balakrishnan et al., TMI 2019）：(m∘φ)(x) = m(φ(x))，φ = Id + u。
 先 φ1、再對 m∘φ1 估計 φ2，總形變是 Φ = φ1 ∘ φ2，位移寫法 U(x) = u2(x) + u1(x + u2(x))，跟 ASD/arch.py 一致。
@@ -282,3 +283,73 @@ eq_block('1014_arch_pyramid_eq.png',
           + r'$h_{l+1}$' + '：上一層之 decoder feature',
           SP + '通道數同 VoxelMorph；參數 0.41 M。參考：Hu et al., MICCAI 2019（Dual-PRNet）；Jian et al., WBIR 2024（DWP）'],
          2.45, fs=20)
+
+
+# ── Step 2：D_l 之特寫（2026-10-12 使用者：「就一個特寫 D 在幹嘛」）────────────────────────────
+#   照 ASD/arch.py 的 VxmPyramid.fields：放大 Φ、h → 以 Φ̃ warp m 之特徵 → 串接 → g_l（conv 區塊得 h_l，再以 conv 得 v_l）
+#   → exp → 與 Φ̃ 合成為 Φ_l。通道數以 l = 2 為例
+with plt.rc_context({'font.family': ['Microsoft JhengHei', 'DejaVu Sans']}):   # ×、→ 用 DejaVu Sans 補
+    fig, ax = canvas(4.3)
+    LP, LM, LC, LF = 37, 29.5, 22, 14.5                # Φ_{l+1}、F_m、主軸（h_{l+1}）、F_f 之高度
+    LV, LH = 15, 10.5                                  # 輸出 v_l、h_l 之高度
+    ax.add_patch(FancyBboxPatch((11.5, 7.5), 87.8, 34.8, boxstyle='round,pad=0,rounding_size=1',
+                                fc='#F0F7F6', ec=TEAL, lw=1.3, zorder=0))
+    ax.text(12.8, 40.6, r'$D_l$' + '：decoder 第 ' + r'$l$' + ' 層（式 (4)）', ha='left', va='center',
+            fontsize=12.5, color=TEAL, fontweight='bold')
+    for y, t, fc in [(LP, r'$\Phi_{l+1}$', _DEC), (LM, r'$F_m^{\,l}$', _ENC), (LC, r'$h_{l+1}$', _DEC), (LF, r'$F_f^{\,l}$', _ENC)]:
+        box(ax, 1, y - 2.5, 9, 5, t, fc=fc, fs=15)
+    for y, sub in [(LP, 'trilinear, ×2'), (LC, 'nearest')]:                       # 𝒰：放大 2 倍
+        box(ax, 13.5, y - 2.5, 9, 5, '')
+        ax.text(18, y + 0.9, r'$\mathcal{U}$', ha='center', va='center', fontsize=15, color=INK, zorder=3)
+        ax.text(18, y - 1.3, sub, ha='center', va='center', fontsize=8.5, color=MUTED, zorder=3)
+        arr(ax, (10, y), (13.5, y))
+    PX, CX = 26.5, 93                                  # W 與 ∘ 之位置
+    ax.plot([22.5, CX], [LP, LP], color=TEAL, lw=1.3, ls=':', zorder=1)           # Φ̃ → W、→ ∘
+    arr(ax, (PX, LP), (PX, LM + 1.8), color=TEAL, ls=':')
+    arr(ax, (CX, LP), (CX, LC + 2), color=TEAL, ls=':')
+    ax.text(60, LP + 0.5, r'$\tilde{\Phi}_{l+1}=\mathcal{U}(\Phi_{l+1})$', ha='center', va='bottom', fontsize=13, color=TEAL)
+    ax.add_patch(Circle((PX, LM), 1.8, fc='white', ec=INK, lw=1.2, zorder=4))
+    ax.text(PX, LM, 'W', ha='center', va='center', fontsize=11, zorder=5)
+    arr(ax, (10, LM), (PX - 1.8, LM))
+    arr(ax, (PX + 1.8, LM), (38, LM), r'$F_m^{\,l}\circ\tilde{\Phi}_{l+1}$', dy=0.5, fs=12)
+    arr(ax, (22.5, LC), (38, LC), r'$\mathcal{U}(h_{l+1})$', dy=0.5, fs=12)
+    arr(ax, (10, LF), (38, LF))
+    for y in (LM, LC, LF):
+        ax.text(35.3, y - 0.6, '(32)', ha='center', va='top', fontsize=9.5, color=MUTED)
+    box(ax, 38, 11.5, 5, 20.5, r'$[\cdot]$', fs=15)                                # channel concatenation
+    arr(ax, (43, LC), (47, LC))
+    ax.add_patch(FancyBboxPatch((45.5, LC - 5), 31, 11, boxstyle='round,pad=0,rounding_size=0.8',
+                                fc='none', ec=TEAL, lw=1.2, ls='--', zorder=1))
+    ax.text(61, LC + 7.6, r'$g_l$', ha='center', va='center', fontsize=15, color=TEAL)
+    box(ax, 47, LC - 3, 11, 6, '3×3×3 conv\n+ LeakyReLU\n96 → 32 ch', fs=9.5)
+    arr(ax, (58, LC), (64, LC), r'$h_l$', dy=0.4, fs=13)
+    box(ax, 64, LC - 3, 11, 6, '3×3×3 conv\n32 → 3 ch', fs=9.5)
+    arr(ax, (75, LC), (81, LC), r'$v_l$', dy=0.4, fs=13)
+    box(ax, 81, LC - 3, 7, 6, r'$\exp$', fs=14)
+    arr(ax, (88, LC), (CX - 2, LC), r'$\phi_l$', dy=0.4, fs=13)
+    ax.add_patch(Circle((CX, LC), 2, fc='white', ec=INK, lw=1.2, zorder=4))
+    ax.text(CX, LC, r'$\circ$', ha='center', va='center', fontsize=17, zorder=5)
+    arr(ax, (CX + 2, LC), (101, LC), r'$\Phi_l$', dy=0.4, fs=13)
+    poly(ax, [(61, LC), (61, LH), (101, LH)])                                       # h_l → 下一層
+    poly(ax, [(78, LC), (78, LV), (101, LV)], color=_RED, ls='--')                  # v_l → loss
+    ax.text(97, LH + 0.4, r'$h_l$', ha='center', va='bottom', fontsize=12)
+    ax.text(97, LV + 0.4, r'$v_l$', ha='center', va='bottom', fontsize=12, color=_RED)
+    ax.text(101.8, LC, r'$D_{l-1}$' + '（' + r'$l=0$' + '：輸出 ' + r'$\Phi_0$' + '）', ha='left', va='center', fontsize=11.5)
+    ax.text(101.8, LV, '式 (5) 之 ' + r'$\lambda\Vert\nabla v_l\Vert^2$', ha='left', va='center', fontsize=11.5, color=_RED)
+    ax.text(101.8, LH, r'$D_{l-1}$', ha='left', va='center', fontsize=11.5)
+
+    def _num(x, y, k):
+        ax.add_patch(Circle((x, y), 1.5, fc=_RED, ec='none', zorder=6))
+        ax.text(x, y, str(k), ha='center', va='center', fontsize=10, color='white', fontweight='bold', zorder=7)
+    _num(24, LM + 3.1, 1)
+    _num(40.5, 34.2, 2)
+    _num(57.2, LC + 7.6, 3)
+    _num(84.5, 27.2, 4)
+    _num(96.8, LC + 4, 5)
+    ax.text(1, 4.3, '① 以 ' + r'$\tilde{\Phi}_{l+1}$' + ' warp m 之特徵　② channel concatenation　③ ' + r'$g_l$'
+            + '：conv 區塊得 ' + r'$h_l$' + '，再以 conv 輸出 SVF ' + r'$v_l$' + '　④ scaling and squaring（7 steps）　⑤ '
+            + r'$\Phi_l=\tilde{\Phi}_{l+1}\circ\phi_l$', ha='left', va='center', fontsize=10.5, color=INK)
+    ax.text(1, 1.4, '灰底：encoder 特徵；青底：' + r'$D_{l+1}$' + ' 之輸出；括號為通道數（' + r'$l=2$' + '）；'
+            + r'$l=4$' + '：' + r'$\tilde{\Phi}_5=\mathrm{Id}$' + '、無 ' + r'$h_5$' + '；' + r'$l=0$' + '：'
+            + r'$F^{\,0}$' + ' 為影像本身，' + r'$g_0$' + ' 含 3 層 conv', ha='left', va='center', fontsize=10.5, color=MUTED)
+    save(fig, '1014_arch_pyramid_box.png')

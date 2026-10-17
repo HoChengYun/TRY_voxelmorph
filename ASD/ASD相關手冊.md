@@ -2660,6 +2660,8 @@ VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一�
 
 **判讀**：跟 mix_exp6 只差架構（差多少＝由粗到細的貢獻）；跟 mix_wide_vel 比參數只有 1/3；跟 mix_cascade 比兩種設計哪個有用，之後可以疊在一起。
 
+✅ **10-13 帶回：0.8149**（val 挑 epoch 245），跟 mix_cascade 打平、參數少 1/3；腦外背景有 folding。結果見 §28.1。
+
 ### 25.4 兩個疊在一起：mix_cascade_pyramid（2 × 2 的最後一格）
 
 |  | 不串 | 串兩顆 |
@@ -2695,8 +2697,60 @@ VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一�
 
 **操作單**：`ASD/指令_mix_cascade_pyramid.md`（Drive 傳輸站\reg\script\mix_cascade_pyramid\ 也有一份）。
 
+📌 **10-15 使用者確認已在 AI 上跑。**
+
 **判讀**：（疊在一起 − mix_exp6）跟（mix_cascade − mix_exp6）＋（mix_pyramid − mix_exp6）比。
 差不多＝兩種設計各補各的；明顯比較小＝兩個在補同一件事（第 0 步就看到「多跑一次」和「加寬」幫到的是同一批人，r = 0.65）。
+
+### 25.5 跟原論文程式的對照（2026-10-12，只讀、沒有改程式）
+
+我們的 `ASD/arch.py` 是照論文描述自己寫的（沿用 VoxelMorph 的零件、一次只改一件事），沒用他們的程式。
+10-12 去 GitHub 讀了兩篇的原始碼，確認**關鍵設計都有對上**；使用者決定**程式先不改**（mix_pyramid 已經在跑）。
+
+讀的檔案：RCN [`microsoft/Recursive-Cascaded-Networks`](https://github.com/microsoft/Recursive-Cascaded-Networks)（TensorFlow 1.4）的
+`network/recursive_cascaded_networks.py`、`network/base_networks.py`；Dual-PRNet [`kangmiao15/Dual-Stream-PRNet-Plus`](https://github.com/kangmiao15/Dual-Stream-PRNet-Plus)
+（PyTorch，期刊擴充版 Dual-PRNet++ 的程式；`--net voxnet_cascade` 是原版的逐層形變、`voxnet_fusion` 是 PR++）的
+`net/cascade_morph_net.py`、`net_factory.py`、`solver.py`、`train_lpba40.py`。
+
+**RCN（cascade）vs mix_cascade**
+
+| 項目 | RCN 程式 | 我們 |
+|---|---|---|
+| 每個 stage 的輸入 | 用累積的形變把**原始** m 拉過去（`warp([img2, agg_flow])`）| 相同 |
+| 形變合成 | `agg_flow = warp(前一個 agg_flow, flow) + flow`，即 U_k(x) = u_k(x) + U_{k−1}(x + u_k(x)) | 相同 |
+| 相似度 | 只算最後一個 stage（前面的 `raw_weight = 0`）| 相同 |
+| 平滑項 | 每個 stage 都罰、權重相同（`reg_weight = 1`）；形式是空間梯度平方（常數係數跟 VoxelMorph 不同）| 相同（用 VoxelMorph 的 `Grad('l2')`）|
+| 梯度穿過 warp | 穿過（`warp_gradient=True`）| 相同 |
+| 底層 VoxelMorph | 通道 16/32/32/32、32…16/16，輸出層初始化 N(0, 1e-5) | 相同 |
+| **每個 stage 的輸出乘 1/n**（`flow_multiplier = 1/n_cascades`）| 有 | **沒有** |
+| 相似度的種類 | 1 − 全域相關係數 | 局部 NCC（窗格 9）|
+| 形變 | displacement field；前面多一個 affine stage | SVF；資料先用 ANTs affine 過 |
+
+「乘 1/n」：網路能表達的形變不變（要 4 mm 就輸出 8），改變的是**學習速度**——每步調權重的幅度差不多，乘 0.5 後形變變化只有一半，比較穩。
+RCN 最多串 10 顆，不這樣做一開始 10 顆疊起來形變可能太大。我們只串 2 顆、輸出層一開始就接近 0，影響應該很小；屬於訓練技巧，不是架構。
+
+**Dual-PRNet（coarse-to-fine）vs mix_pyramid（VxmPyramid）**
+
+| 項目 | Dual-PRNet 程式 | 我們 |
+|---|---|---|
+| 兩條路的權重 | 共用（`symmetry=True` 時 m、f 走同一個 pyramid）| 相同 |
+| 每層做法 | 用上一層形變 warp m 的特徵 → 跟 f 特徵串接 → 卷積出這層的修正 | 相同 |
+| 形變合成 | 用 warp 合成（`grid_sample(last_flow, flow)`），不是直接相加 | 相同 |
+| 平滑項 | 對**每一層的修正**（`delta_list`）都罰，最終形變不另外罰 | 相同（每層的速度場都罰）|
+| 相似度 | NCC，窗格 9，只看最後的輸出；兩項等權相加（相當於 λ = 1）| 相同 |
+| 學習率 | Adam 1e-4 | 相同 |
+| **放大形變時乘 2** | 不乘：用 −1～1 的正規化座標（占整張圖的比例），格子大小不影響數值 | 乘 2：用 voxel 為單位，粗一層的 1 格＝細一層的 2 格。**兩者數學上相同** |
+| **warp 特徵時切斷梯度** | 有（`last_flow.detach()`）：上一層的形變不會因為下一層的誤差被修正 | 沒有 |
+| 每層修正的輸入 | ［warp 後的 m 特徵、f 特徵］（特徵金字塔本身各有 top-down 路徑）| 另外串接上一層 decoder 的特徵 h |
+| 訓練技巧 | 前 5 個 epoch 暖身、梯度裁剪 10、weight decay 1e-5 | 照 VoxelMorph 原本的 train.py |
+| 形變 | displacement field | 每層都用 SVF |
+| 影像大小 | LPBA40 中心裁成 160×192×160 | 192×224×192 |
+
+**結論**：核心設計（輸入怎麼形成、形變怎麼合成、相似度只看最後、每一段都罰平滑）兩篇都對上。
+差異是實作細節，最可能影響結果的是 RCN 的「輸出乘 1/n」和 Dual-PRNet 的「warp 時切斷梯度」。
+如果 mix_pyramid 或 cascade + pyramid 的結果需要解釋（例如訓練不穩、沒有進步），可以從這兩點著手；**沒有在跑的實驗需要中斷**。
+
+**簡報**：10/14 簡報第 35 頁（Step 1 vs RCN）、第 39 頁（Step 2 vs Dual-PRNet）就是這兩張表的正式用語版（`build.js` 的 `arch_rcn_cmp`、`arch_prnet_cmp`），講稿附「乘 1/n」「為何不需乘 2」「切斷梯度」的備忘。
 
 ---
 
@@ -2890,3 +2944,102 @@ log 加總只有 6.1 小時。原因：CUDA 是非同步的，這兩支在 `loss
 
 第 34 頁 cascade 結果；第 38～44 頁 ⑦ 半監督：五項指標、各結構、輪廓並排、沒參與訓練的結構放大、搬過去的影像、網格＋log|J|、跟論文比。
 圖由 `make_semisup.py` 畫（受試者自動挑中位數那位；推論快取在 `models\deck_charts\semi_<受試者>_cache.npz`）。講稿同步。
+
+---
+
+## 28. mix_pyramid 結果與 10/14 meeting 的紅字（2026-10-13～15）
+
+### 28.1 mix_pyramid（由粗到細）：跟 mix_cascade 打平，參數少 1/3
+
+指令 `log\mix_pyramid_script.txt`（AI，10-12 19:02 開始；`train_arch.py --arch pyramid`，其餘同 mix_exp6）。
+val 挑 epoch 245（0.8128；200 輪之後在 0.806～0.813 波動，跟 mix_cascade 的最佳 0.8129 一樣高）。
+筆電用 `test_dice.py --surface` 重算 Dice，跟 AI 上的 CSV 最大差 0.0001；`check_semisup.py` 算沒參與訓練的結構與影像 NCC。
+
+| 模型 | 改了什麼 | 參數 | Dice | 沒參與訓練的結構 | 影像 NCC | HD95 | SDlogJ | 腦內 folding／位 |
+|---|---|---|---|---|---|---|---|---|
+| mix_exp6 | 基準 | 0.30 M | 0.8051 | 0.653 | 0.232 | 2.39 | 0.49 | 0.1 |
+| mix_wide_vel | 加寬 2 倍 | 1.20 M | 0.8111 | 0.677 | 0.243 | 2.36 | 0.50 | 0.1 |
+| mix_cascade | 串兩顆 | 0.60 M | **0.8156** | 0.679 | 0.257 | 2.33 | 0.56 | 23 |
+| **mix_pyramid** | 由粗到細 | **0.41 M** | 0.8149 | **0.680** | **0.259** | **2.33** | 0.53 | **4** |
+
+- 配對比較（test 51 位）：比 mix_exp6 +0.0099（51/51）、比 mix_wide_vel +0.0038（50/51）、比 mix_cascade −0.0007（19/51，p = 0.03，實際上打平）
+- 相對 mix_cascade：沒參與訓練的結構 +0.0002（p = 0.89）、HD95 −0.006（p = 0.15）、影像 NCC +0.0016（51/51）
+- 各結構（相對 mix_exp6）：皮質 +0.038、白質 +0.020、脈絡叢 +0.027（比 cascade 多 0.011）；第三腦室、腦脊髓液、蒼白球比 cascade 少約 0.01
+- 越難的人幫越多：起點最差 10 位 +0.017、最好 10 位 +0.007（cascade 同樣趨勢）
+- 訓練 loss（最後一個 epoch）：影像項 −0.2606（cascade −0.2602、mix_exp6 −0.2346）；平滑項 0.0192（五層加總）
+- **結論**：改架構比單純加寬有效；cascade、pyramid 打平，pyramid 參數少 1/3、形變較平滑（SDlogJ 0.53 vs 0.56）
+
+⚠️ **folding 幾乎都在腦外背景**：整張影像每位約 10,300 個（中位數 10,295、最多 18,821），腦內（atlas 非背景）只有 4 個；其他模型沒有這個現象。
+原因還沒查（猜：最粗那幾層的速度場延伸到沒有影像的背景）。不影響結構對位，但用整張影像的 `jneg_pct`（0.125%）會很難看 → 報 `jneg_fg_pct` 或腦內 voxel 數。
+
+⚠️ log 每步 0.57 秒偏快：AI 上的 `train_arch.py` 可能還沒 pull 到 10-12 的計時修正（§27.3），實際訓練時間要看 AI 上 .pt 的修改時間。
+
+📌 2 × 2 最後一格 mix_cascade_pyramid：10-15 使用者確認已在 AI 上跑（§25.4）。
+
+📌 **下一顆：mix_pyramid_500**（10-16 使用者決定）：mix_pyramid 接著訓練到 500 輪，看 val 是否還會上升。操作單 `ASD/指令_mix_pyramid_500.md`（等 cascade_pyramid 跑完）。用新實驗名，因為 `run_train.py --resume` 會重寫 `log\<實驗名>.txt`。Adam 的狀態沒存在 .pt 裡，接著練時會重新累積。筆電實測從 0245.pt 接著練 2 步正常：第一步影像項 −0.2597（原本最後一輪 −0.2606），顯存實際 9.61 GB、預留 16.13 GB。
+
+### 28.2 10/14 meeting 老師的紅字
+
+老師寫在 `meeting報告\ASD_老師紅字回覆_20261014.pptx`（使用者 10-13 19:51 存檔）；備份 `ASD_老師紅字回覆_20261014_紅筆備份_20261013.pptx`。
+⚠️ **這份也不能再用 build.js 的輸出覆蓋。** 只看打字的紅字（`srgbClr val="FF0000"`）；手寫筆跡（ink）使用者說不用看。
+
+| 頁 | 老師寫的 | 做法 | 狀態 |
+|---|---|---|---|
+| p12 | 下次可以換成算 freesurfer seg 以外的都當成是顱骨；去看 freesurfer seg 外面剩多少殘留體積 | 殘留改用體積（§28.3）| ✅ 10-13 |
+| p18 | 可以用體積來估計看看；為何只有顱底是體積另外兩個是厚度 | 同上：三個部位統一改成體積 | ✅ 10-13 |
+| p18 | 下次要看區域體積圖 | 使用者 10-13：「老師想要一起看，先不要分區」→ 以整體呈現（分區程式留著）| ⏸ |
+| p16 | 下次放 dice 數值圖 | Dice 數值（affine、配準後）的散佈圖（§28.3）| ✅ 10-13 |
+| p18 | 想看不同 model 做出來的效果 | 五個模型重做（§28.3）| ✅ 10-14 |
+| p12 | 換去的乾淨的 tbet（ex tigerbx）去看看做完後 dice 差多少 | 同一人、同一模型，有殘留 vs 乾淨的影像各跑一次 | ⏳ 使用者：之後再說 |
+| p18 | 看 freesurfer label 有沒有細分 cortex 區域 | 有（aparc，Desikan-Killiany 每側 34 區）；`fs_stats` 有 lh/rh_aparc 的統計表，但 voxel 標籤 `aparc+aseg.mgz` 沒傳過來，atlas 也要一份 | ⏳ 等資料 |
+
+簡報：`ASD/slides_src/2026-10-28_redpen/`（下次 meeting，日期暫定 10/28；使用者：「先做這一 part 就好」，目前 3 頁：定義、結果、不同模型）。
+
+### 28.3 殘留改用體積（p12、p16、p18）
+
+**定義**（`ASD/skullstrip_volume.py`，在 affine 後的 atlas 空間量，1 voxel = 1 mm³）：
+
+$$B=\mathrm{Fill}\big((S\oplus D_r)\ominus D_r\big),\qquad V_{\mathrm{res}}=\big|\{x\notin B:\ I(x)>0\}\big|$$
+
+- $S$ = FreeSurfer seg > 0；$D_r$ = 半徑 r 的球；⊕ 膨脹、⊖ 侵蝕（兩步合起來是 closing），Fill = 補封閉的洞。$B$ 就是使用者說的「把 seg 想成一顆球」
+- 為什麼要先補成球：直接用 $S$ 外，腦溝、大腦縱裂裡的腦脊髓液、皮質部分容積、大腦鐮都會被算進去。sub-0043：$S$ 外非零 685 cm³，其中 201 cm³ 在腦溝與縱裂裡；$B$ 外 484 cm³
+- 實作用兩次 distance transform（等於圓球形的 structuring element），每位約 1 秒
+- **不設門檻**（老師 10-13：「球表面外面就當殘留體積，不用門檻」）：亮度 > 0 跟 > 0.001 只差 0.6%。另記一欄 `res_bright`（亮度 ≥ 皮質中位數一半，以前厚度法的門檻）只拿來對照
+- **不分區**（使用者 10-13）。程式仍記五區（依最近的球表面點相對腦中心的方向：顱頂、顱底、枕部、額部、兩側）的欄位，備用
+- 半徑：主要用 5 mm（使用者：「取一個半徑就好」）。另算過 3、8 mm：中位數 438／406／380 cm³，ΔDice r = −0.14（p = 0.066）／−0.21／−0.22。8 mm 開始把大腦、小腦之間的縫也包進球
+- 參考：closing 補腦溝、做出腦外殼，FreeSurfer 的 local gyrification index 也這樣做（Schaer et al., IEEE TMI 2008, 27(2):161–170；`mris_compute_lgi` 預設 `closespheresize = 15`，應為直徑）。
+  差別：lGI 對單一半腦的皮質，我們對整顆腦（含小腦、腦幹），所以也補縱裂；球用半徑 5 mm（直徑 10 mm）。原文 PDF 打不開，15 mm 是直徑還是半徑沒直接核對
+
+**資料**：170 位（test 50、val 50、MRS 70，同 §24.2，排除 A0131、FSS_A001）。Dice 只平均殘留旁邊的結構（每個殘留點最近的結構，佔 ≥ 5% 且在 30 個評估結構裡）：
+左右大腦皮質（各約 40%）＋左右小腦皮質（各約 7%）；腦幹 3.8% 沒算進去。統計用原始數值、170 位合起來的 Spearman r（同 10/14 第 16 頁）；批內百分位的版本幾乎一樣（−0.19）。
+
+**結果**（mix_exp3，半徑 5 mm）：
+- 殘留體積中位數 406 cm³（324～514；test 395、val 387、MRS 420）；亮度達皮質一半以上的只占約 22%，其餘大多是 FreeSurfer 留在腦周圍的腦脊髓液
+- ΔDice（鄰近結構）：**r = −0.21（p = 0.007）**；只看大腦皮質 −0.28；30 個結構平均 −0.05（看不出關係）
+- **配準後的 Dice 跟殘留無關：r = +0.08（p = 0.28）**；affine 的 Dice 反而隨殘留略高：r = +0.17（p = 0.028）
+  → ΔDice 的負相關有一部分是起點效應（殘留多的人起點略高、配準後跟大家一樣），跟 §21「沒去乾淨的那組配準後反而較高」同一個現象
+- 殘留最多／最少 1/4（43 位）：affine 0.680 → 0.836（+0.157）vs 0.672 → 0.835（+0.163），p = 0.017
+- 對照顱頂殘留厚度（§24.2，Dice 只看大腦皮質）：ΔDice r = −0.40；**配準後的皮質 Dice r = −0.20（p = 0.011）**，最多／最少 1/4 是 0.768 vs 0.773
+  → 局部看，顱頂殘留對附近皮質有約 0.005 的小影響；整顆腦的體積看不到
+
+**不同模型**（10/14 紅字「想看不同 model 做出來的效果」，10-14）：四顆模型對 val、MRS 補算 Dice（`models\skullstrip_check\cohorts\dice_<模型>_<epoch>_{val,MRS}.csv`；mix_wide_vel 用 `--gpu -1`）
+
+| 模型 | 配準後 Dice（鄰近結構）| 殘留 vs ΔDice | 殘留 vs 配準後 Dice |
+|---|---|---|---|
+| mix_exp3 | 0.834 | r = −0.21（p = 0.007）| r = +0.08（p = 0.28）|
+| mix_exp6 | 0.834 | −0.19（p = 0.015）| +0.10（p = 0.18）|
+| mix_wide_vel | 0.844 | −0.17（p = 0.023）| +0.11（p = 0.14）|
+| mix_cascade | 0.858 | −0.16（p = 0.033）| +0.12（p = 0.12）|
+| mix_pyramid | 0.858 | −0.17（p = 0.031）| +0.08（p = 0.28）|
+
+五個模型結論一樣；模型越好，整條線越高，斜率幾乎不變。
+
+🔴 **整體結論**（10-15 跟使用者整理的說法）：去顱骨沒去乾淨對配準的影響很小、只在局部——顱頂殘留讓附近皮質配準後的 Dice 低約 0.005；
+用整顆腦的殘留體積、或 30 個結構平均，都看不出影響。ΔDice 的負相關有一部分是起點效應。
+⚠️ 以上都是相關，不是因果；要直接證明得做 p12 的 tbet 對照（§28.2 第 6 項）。
+
+**檔案**
+- `models\skullstrip_check\residue_volume_r{3,5,8}.csv`（每人一列）、`_near.json`（每人每區最近的結構）、`_summary.csv`（`--analyze`）
+- 簡報：`ASD/slides_src/2026-10-28_redpen/`（`make_resvol.py` → `deck_data.json`、`models\deck_charts\1028_resvol_*.png`；`build.js` → `deck.pptx`；`講稿.md`）。
+  `1028_resvol_steps.png` 是「球怎麼來的」四格圖，沒放進簡報
+
