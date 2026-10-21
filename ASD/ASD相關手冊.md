@@ -2991,7 +2991,7 @@ val 挑 epoch 245（0.8128；200 輪之後在 0.806～0.813 波動，跟 mix_cas
 | p16 | 下次放 dice 數值圖 | Dice 數值（affine、配準後）的散佈圖（§28.3）| ✅ 10-13 |
 | p18 | 想看不同 model 做出來的效果 | 五個模型重做（§28.3）| ✅ 10-14 |
 | p12 | 換去的乾淨的 tbet（ex tigerbx）去看看做完後 dice 差多少 | 同一人、同一模型，有殘留 vs 乾淨的影像各跑一次 | ⏳ 使用者：之後再說 |
-| p18 | 看 freesurfer label 有沒有細分 cortex 區域 | 有（aparc，Desikan-Killiany 每側 34 區）；`fs_stats` 有 lh/rh_aparc 的統計表，但 voxel 標籤 `aparc+aseg.mgz` 沒傳過來，atlas 也要一份 | ⏳ 等資料 |
+| p18 | 看 freesurfer label 有沒有細分 cortex 區域 | 有：recon-all 的 `mri/` 底下有 `aparc+aseg.mgz`（Desikan-Killiany，每側 34 區）、`aparc.DKTatlas+aseg.mgz`（31 區）、`aparc.a2009s+aseg.mgz`（Destrieux，74 區），皮質下部分跟 aseg 逐 voxel 相同。我們交付的是 `aseg.mgz`，皮質只有左右各一塊（3、42）。原始輸出在 Ubuntu 那台，要用的話重新匯出即可，不用重跑 recon-all | ✅ 10-21 先口頭回答老師「有細分」；殘留分析目前不分區，**先不匯出、不動資料**（使用者決定）|
 
 簡報：`ASD/slides_src/2026-10-28_redpen/`（下次 meeting，日期暫定 10/28；使用者：「先做這一 part 就好」，目前 3 頁：定義、結果、不同模型）。
 

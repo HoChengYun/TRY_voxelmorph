@@ -6,6 +6,9 @@
 
 輸入（都在 --model-dir 底下，由 test_dice.py 產生）
     dice_curve.csv        必要。欄位 epoch, dice_mean, jneg_pct（下圖畫 jneg_pct × 影像大小 = folding voxel 數）
+                          有 jneg_fg_pct 欄位的話（2026-10-07 起），下圖主線改畫腦內（atlas 非背景）的 voxel 數，
+                          整張影像的數字淡淡畫在旁邊（2026-10-18：由粗到細系列在影像最外圈有大量假 folding，
+                          是接位移時 grid_sample 補 0 造成的，不在腦裡，見 ASD/check_bg_folding.py、手冊 §28.1）
     dice_curve_val.csv    有的話一起畫（val 挑 epoch 的實驗才有）
     dice_baseline.csv     有的話拿來畫「只有 affine」的起點
     dice_baseline_val.csv 同上，val 的起點
@@ -46,6 +49,7 @@ for _stream in (sys.stdout, sys.stderr):
 PAPER_VXM = 19077          # VoxelMorph (CC)
 PAPER_SYN = 9662           # ANTs SyN (CC)
 VOL = 192 * 224 * 192
+FG_VOX = 1867705           # atlas 非背景 voxel 數（atlas_mni152_09c_v3.npz 的 vol > 0；jneg_fg_pct 的分母）
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--model-dir', required=True, help='例如 models\\mix_exp1')
@@ -57,7 +61,7 @@ ap.add_argument('--label', default=None, help='圖例上的說明，例如 "ncc,
 args = ap.parse_args()
 
 MD = os.path.abspath(args.model_dir)
-name = os.path.basename(MD)
+name = args.title or os.path.basename(MD)
 
 
 def read_curve(path):
@@ -65,8 +69,11 @@ def read_curve(path):
         return None
     with open(path, encoding='utf-8') as f:
         recs = list(csv.DictReader(f))
-    # jneg_pct（分母：整個影像）× 影像大小 = 每位平均 folding voxel 數（精確）
-    rows = [(int(r['epoch']), float(r['dice_mean']), float(r['jneg_pct']) / 100 * VOL) for r in recs]
+    # jneg_pct（分母：整個影像）× 影像大小 = 每位平均 folding voxel 數（精確）；
+    # jneg_fg_pct（分母：atlas 非背景）× FG_VOX = 腦內的 voxel 數，舊的 CSV 沒有這欄就是 None
+    rows = [(int(r['epoch']), float(r['dice_mean']), float(r['jneg_pct']) / 100 * VOL,
+             float(r['jneg_fg_pct']) / 100 * FG_VOX if r.get('jneg_fg_pct') not in (None, '') else None)
+            for r in recs]
     rows.sort()
     return rows
 
@@ -130,13 +137,19 @@ ax1.legend(loc='lower right', fontsize=8)
 
 # ── 下：折疊率 ───────────────────────────────────────────────────────
 allzero = True
+FGMODE = all(r[3] is not None for _, rows, _, _, _ in series for r in rows)
 for tag, rows, color, marker, ls in series:
     ep = [r[0] for r in rows]
-    jn = [r[2] for r in rows]
+    jn = [r[3] if FGMODE else r[2] for r in rows]
     if max(jn) > 0:
         allzero = False
     ax2.plot(ep, jn, ls, color=color, marker=marker, ms=4, lw=1.8,
-             label='%s — %s%s' % (name, tag, '  (all zero)' if max(jn) == 0 else ''))
+             label='%s — %s%s%s' % (name, tag, ', inside brain (atlas foreground)' if FGMODE else '',
+                                    '  (all zero)' if max(jn) == 0 else ''))
+    whole = [r[2] for r in rows]
+    if FGMODE and max(whole) > max(1.0, 1.5 * max(jn)):
+        ax2.plot(ep, whole, ':', color=color, lw=1.0, alpha=0.5,
+                 label='%s — %s, whole image (incl. image-border artifact)' % (name, tag))
 
 ax2.axhline(PAPER_VXM, ls='--', color='#d62728', lw=1.4,
             label='paper VoxelMorph(CC) {:,} voxels'.format(PAPER_VXM))
@@ -157,5 +170,6 @@ fig.savefig(out, dpi=130)
 print('  -> %s' % out)
 for tag, rows, _, _, _ in series:
     best = max(rows, key=lambda r: r[1])
-    print('  %-5s 最佳 epoch %d = %.4f；folding %.0f voxels（最大 %.0f）'
-          % (tag, best[0], best[1], best[2], max(r[2] for r in rows)))
+    k = 3 if FGMODE else 2
+    print('  %-5s 最佳 epoch %d = %.4f；folding%s %.0f voxels（最大 %.0f）'
+          % (tag, best[0], best[1], '（腦內）' if FGMODE else '', best[k], max(r[k] for r in rows)))

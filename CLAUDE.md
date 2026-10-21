@@ -197,6 +197,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── skullstrip_volume.py            # ⭐ 殘留改用體積（10/14 紅字）：seg closing＋補洞成「球」B，B 外非零 voxel 都算；--scan --analyze --r 5、--show（手冊 §28.3）
 │   ├── check_top_residue.py            # 頭頂的「殘留」是貼在皮質外面的東西還是漏標的皮質：放大圖、亮度剖面（手冊 §24.2 最後）
 │   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
+│   ├── check_bg_folding.py             # 由粗到細系列「腦外背景」的 folding：位置、每一層拆解、推論改 padding_mode='border' 驗證（10-18；接位移時 grid_sample 補 0 造成，全在影像最外圈，不影響 Dice）
+│   ├── ants_syn_baseline.py            # 傳統方法對照：ANTs SyN（論文 §V-A-3 參數）對 test 51 位，Dice、folding 跟 test_dice.py 同算法；--subjects --save-dir 存視覺化用的結果
 │   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）；--surface 另算 HD95、SDlogJ、論文定義折疊率（手冊 §26）
 │   ├── check_semisup.py                # 半監督的檢查：沒參與訓練的結構 Dice、搬過去的影像 NCC（手冊 §27.2）；加寬版加 --gpu -1
 │   ├── test_multipass.py               # 改架構第 0 步：不訓練，同一顆模型連跑 2～3 次、位移接起來再算 Dice（待辦 5）
@@ -220,6 +222,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_pyramid.md             # mix_pyramid（改架構第 2 步：由粗到細，基礎同 mix_exp6），Drive 傳輸站\reg\script\mix_pyramid\ 也有一份
 │   ├── 指令_mix_cascade_pyramid.md     # mix_cascade_pyramid（串兩顆＋由粗到細疊在一起，2 × 2 最後一格），Drive 傳輸站\reg\script\mix_cascade_pyramid\ 也有一份
 │   ├── 指令_mix_pyramid_500.md         # mix_pyramid 接著訓練到 500 輪（新實驗名 mix_pyramid_500，免得蓋掉原本的 log；等 cascade_pyramid 跑完）
+│   ├── 指令_mix_cascade_pyramid_500.md # mix_cascade_pyramid 從第 250 輪接著訓練到 500 輪（跟 mix_pyramid_500 公平比較；等 TransMorph 跑完）
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -720,7 +723,7 @@ Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`m
 | p16 | 下次放 dice 數值圖 | ✅ affine、配準後的 Dice 散佈圖 |
 | p18 | 不同 model 的效果 | ✅ 10-14 五個模型都做：配準後 Dice 跟殘留無關（r = +0.08～+0.12），ΔDice r = −0.16～−0.21 |
 | p12 | 換乾淨的 tbet（tigerbx）看 Dice 差多少 | ⏳ 使用者：之後再說 |
-| p18 | FreeSurfer label 有沒有細分皮質 | ⏳ 有（aparc），但 `aparc+aseg.mgz` 沒傳過來，要等資料 |
+| p18 | FreeSurfer label 有沒有細分皮質 | ✅ 10-21 回答「有」：`aparc+aseg.mgz`（DK，每側 34 區）等三種，我們交付的 aseg 皮質只有一塊；殘留分析不分區，先不匯出（使用者決定，手冊 §28.2）|
 
 🔴 **殘留的整體結論**（10-15）：影響很小、只在局部——顱頂殘留讓附近皮質配準後的 Dice 低約 0.005（厚度 r = −0.20）；整顆腦的殘留體積、30 個結構平均都看不出影響；ΔDice 的負相關有一部分是起點效應（殘留多的人 affine 起點略高）。都是相關，因果要等 tbet 對照。
 
