@@ -39,6 +39,21 @@ VxmPyramid：由粗到細（第 2 步；Mamba 那篇的 dual stream + pyramid + 
     用來看兩種設計的進步加不加得起來（跟 mix_exp6、mix_cascade、mix_pyramid 湊成 2 × 2）。
 
 load_model(path, device)：看存檔裡的 config['arch'] 決定蓋哪一種網路；沒有 arch 就是原本的 VxmDense。
+
+照原作程式補上的細節（2026-10-21，使用者：「要先看過他們原始碼再寫自己程式」；對照見手冊 §29）
+---------------------------------------------------------------------
+都是開關，預設＝舊行為，舊的 .pt（config 裡沒有這些鍵）讀進來結果一模一樣。
+  VxmCascade(flow_mult, border) —— RCN（github.com/microsoft/Recursive-Cascaded-Networks，commit 0709490）
+    flow_mult = 1/n：network/recursive_cascaded_networks.py 第 48～50 行每顆 stem 給 flow_multiplier=1/n_cascades，
+                     base_networks.py 的 VoxelMorph 輸出 net * flow_multiplier；平滑項罰的是乘過的（第 120 行）。
+                     我們乘在每顆網路的輸出（速度場，積分前），平滑項也算在乘過的速度場上。
+    border = True：  network/spatial_transformer.py 的 Dense3DSpatialTransformer 取樣時 tf.clip_by_value 把座標夾回影像內
+                     （warp_padding 預設 False），等於 grid_sample 的 padding_mode='border'。
+                     只改串接那一層的 warp（warp 移動影像、合成兩顆形變）；每顆內部的積分維持 VoxelMorph 原本的。
+  VxmPyramid(detach_compose) —— DWP（Jian et al., WBIR 2024；github.com/BailiangJ/rethink-reg，commit 97175ff）
+    detach_compose = True：models/networks/vxm_pwc.py 第 97 行 warp(prev_flow, delta_flow.detach()) + delta_flow，
+                     合成時 δ 只當「去哪裡取上一層的形變」的座標、不往回傳梯度（往前算出來的形變不變）。
+    DWP 的另一項「粗的層也算相似度」是 loss，在 ASD/train_arch.py --dwp；這裡只提供各層的總形變（return_levels=True）。
 """
 import os
 import sys
@@ -46,6 +61,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
+import torch.nn.functional as nnf
 from torch.distributions.normal import Normal
 
 ROOT =os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,11 +73,14 @@ import voxelmorph as vxm                                                  # noqa
 from voxelmorph.torch.modelio import LoadableModel, store_config_args     # noqa: E402
 
 
-def stage_flows(m, source, target):
+def stage_flows(m, source, target, mult=1.0):
     """跟 VxmDense.forward（networks.py:180-205）同一套計算，但同時回傳兩個形變場：
-    積分完、全尺寸的位移（拿來搬東西、往下接），以及積分前的形變場（給平滑項，跟 train.py 一樣）。"""
+    積分完、全尺寸的位移（拿來搬東西、往下接），以及積分前的形變場（給平滑項，跟 train.py 一樣）。
+    mult：RCN 的 flow_multiplier（每顆輸出乘 1/n）；1.0 時跟以前完全一樣。"""
     x = m.unet_model(torch.cat([source, target], dim=1))
     pos = m.flow(x)
+    if mult != 1.0:
+        pos = pos * mult
     if m.resize:
         pos = m.resize(pos)
     pre = pos
@@ -72,50 +91,86 @@ def stage_flows(m, source, target):
     return pos, pre
 
 
+class BorderTransformer(vxm.torch.layers.SpatialTransformer):
+    """SpatialTransformer（layers.py:6）一模一樣的算法，只把 grid_sample 改成 padding_mode='border'：
+    取到影像外面時用最靠近的邊界值，不補 0（RCN 的 Dense3DSpatialTransformer 用 clip 把座標夾回影像內，效果相同）。"""
+
+    def forward(self, src, flow):
+        new_locs = self.grid + flow
+        shape = flow.shape[2:]
+        for i in range(len(shape)):
+            new_locs[:, i, ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
+        if len(shape) == 2:
+            new_locs = new_locs.permute(0, 2, 3, 1)[..., [1, 0]]
+        elif len(shape) == 3:
+            new_locs = new_locs.permute(0, 2, 3, 4, 1)[..., [2, 1, 0]]
+        return nnf.grid_sample(src, new_locs, align_corners=True, mode=self.mode, padding_mode='border')
+
+
 class VxmCascade(LoadableModel):
     """n 顆網路串起來，最後接成一個總位移。參數名稱跟 VxmDense 一樣，多 n_cascades 和 stage：
         stage='vxm'（預設）    每一顆是 VxmDense —— 第 1 步 mix_cascade
-        stage='pyramid'        每一顆是 VxmPyramid —— 串接和由粗到細疊在一起（mix_cascade_pyramid）"""
+        stage='pyramid'        每一顆是 VxmPyramid —— 串接和由粗到細疊在一起（mix_cascade_pyramid）
+    照 RCN 原作程式（10-21，見檔頭）：flow_mult = 1/n、border = True；stage='pyramid' 時 detach_compose 傳給每一顆 VxmPyramid。"""
 
     @store_config_args
     def __init__(self, inshape, nb_unet_features=None, int_steps=7, int_downsize=2, n_cascades=2,
-                 arch='cascade', stage='vxm'):
+                 arch='cascade', stage='vxm', flow_mult=1.0, border=False, detach_compose=False):
         super().__init__()
         assert arch == 'cascade', arch
         assert n_cascades >= 1, n_cascades
         assert stage in ('vxm', 'pyramid'), stage
+        assert stage == 'pyramid' or not detach_compose, 'detach_compose 只給由粗到細的網路用'
         net = vxm.networks.VxmDense if stage == 'vxm' else VxmPyramid
+        kw = dict(nb_unet_features=nb_unet_features, int_steps=int_steps, int_downsize=int_downsize)
+        if stage == 'pyramid':
+            kw['detach_compose'] = detach_compose
         self.stage = stage
-        self.stages = nn.ModuleList([
-            net(inshape, nb_unet_features=nb_unet_features, int_steps=int_steps, int_downsize=int_downsize)
-            for _ in range(n_cascades)])
-        self.transformer = vxm.torch.layers.SpatialTransformer(inshape)
+        self.flow_mult = flow_mult
+        self.stages = nn.ModuleList([net(inshape, **kw) for _ in range(n_cascades)])
+        # border = False 時用原本的 SpatialTransformer（舊模型的計算一個位元都不變）
+        self.transformer = (BorderTransformer if border else vxm.torch.layers.SpatialTransformer)(inshape)
         # 省顯存用（訓練腳本 --grad-checkpoint 會打開，不存進 config）：每一顆的中間結果不留，反向傳播時再算一次。
         # 算出來的數字一樣，只是比較慢；給顯存不夠的時候用。
         self.grad_ckpt = False
 
-    def _run_stage(self, m, src, target):
-        """一顆的（總位移, 積分前的形變場…），攤平成一個 tuple（checkpoint 要這樣）。"""
+    def _run_stage(self, m, src, target, keep_levels=False):
+        """一顆的（總位移, 積分前的形變場…[, 各層的總形變…]），攤平成一個 tuple（checkpoint 要這樣）。"""
         if self.stage == 'vxm':
-            u, pre = stage_flows(m, src, target)
+            u, pre = stage_flows(m, src, target, self.flow_mult)
             return (u, pre)
-        u, pre = m.fields(src, target)                    # 由粗到細：每一層一個速度場，全部都要罰
+        if keep_levels:                                   # DWP 的多尺度 loss 要用各層的總形變（只有最後一顆）
+            u, pre, Us = m.fields(src, target, mult=self.flow_mult, keep_levels=True)
+            return (u,) + tuple(pre) + tuple(Us)
+        u, pre = m.fields(src, target, mult=self.flow_mult)   # 由粗到細：每一層一個速度場，全部都要罰
         return (u,) + tuple(pre)
 
-    def forward(self, source, target, registration=False):
-        U, pres = None, []
-        for m in self.stages:
+    def forward(self, source, target, registration=False, return_levels=False):
+        """return_levels=True（訓練用，只給 stage='pyramid'）：另外回傳最後一顆的（輸入影像, 各層總形變, 各層的 warp），
+        給 train_arch.py --dwp 算粗的層的相似度。RCN 只對最後一顆算相似度，所以子層 loss 也只算最後一顆。"""
+        assert not return_levels or self.stage == 'pyramid', 'return_levels 只給 stage=pyramid 用'
+        U, pres, extra = None, [], None
+        last = len(self.stages) - 1
+        for i, m in enumerate(self.stages):
             src = source if U is None else self.transformer(source, U)
+            keep = return_levels and i == last
             if self.grad_ckpt and self.training and torch.is_grad_enabled():
-                out = torch.utils.checkpoint.checkpoint(self._run_stage, m, src, target, use_reentrant=False)
+                out = torch.utils.checkpoint.checkpoint(self._run_stage, m, src, target, keep, use_reentrant=False)
             else:
-                out = self._run_stage(m, src, target)
+                out = self._run_stage(m, src, target, keep)
             u = out[0]
-            pres.extend(out[1:])
+            if keep:
+                nl = (len(out) - 1) // 2
+                pres.extend(out[1:1 + nl])
+                extra = (src, list(out[1 + nl:]), m.warp)
+            else:
+                pres.extend(out[1:])
             U = u if U is None else u + self.transformer(U, u)
         moved = self.transformer(source, U)
         if registration:
             return moved, U
+        if return_levels:
+            return moved, pres, extra
         return moved, pres
 
 
@@ -123,9 +178,11 @@ class VxmPyramid(LoadableModel):
     """由粗到細：兩張影像各自抽特徵，解碼器每一層都出形變、先把移動影像的特徵拉過去再修（見檔頭）。"""
 
     @store_config_args
-    def __init__(self, inshape, nb_unet_features=None, int_steps=7, int_downsize=1, arch='pyramid'):
+    def __init__(self, inshape, nb_unet_features=None, int_steps=7, int_downsize=1, arch='pyramid',
+                 detach_compose=False):
         super().__init__()
         assert arch == 'pyramid', arch
+        self.detach_compose = detach_compose              # DWP：合成時 δ 不往回傳梯度（見檔頭）
         assert int_downsize == 1, '由粗到細只做全尺寸積分（--int-downsize 1），粗的層本來就是縮小過的'
         ndims = len(inshape)
         enc_nf, dec_nf = nb_unet_features or ([16, 32, 32, 32], [32, 32, 32, 32, 32, 16, 16])
@@ -180,10 +237,12 @@ class VxmPyramid(LoadableModel):
             feats.append(blk(feats[-1]))
         return feats                                      # feats[k] = 第 k 層（0 是影像本身）
 
-    def fields(self, source, target):
-        """回傳（全尺寸的總位移, [每一層積分前的速度場]）。forward 和串接（VxmCascade stage='pyramid'）都用這個。"""
+    def fields(self, source, target, mult=1.0, keep_levels=False):
+        """回傳（全尺寸的總位移, [每一層積分前的速度場]）。forward 和串接（VxmCascade stage='pyramid'）都用這個。
+        mult：串接時 RCN 的每顆輸出乘 1/n（乘在每一層的速度場上）。
+        keep_levels=True 時多回傳 [每一層合成後的總形變]，順序同速度場：第 0 個是最粗（1/2^n），最後一個是原尺寸。"""
         fm, ff = self.encode(source), self.encode(target)
-        U, h, pres = None, None, []
+        U, h, pres, Us = None, None, [], []
         for k in range(self.n, -1, -1):                   # 從最粗（1/16）到原尺寸
             if U is not None:
                 U, h = self.up_flow(U), self.up_feat(h)
@@ -193,12 +252,23 @@ class VxmPyramid(LoadableModel):
                 x = blk(x)
             h = x
             v = self.flows[k](h)
+            if mult != 1.0:
+                v = v * mult
             pres.append(v)
             u = self.integrate[k](v) if self.integrate is not None else v
-            U = u if U is None else u + self.warp[k](U, u)          # U_k(x) = u_k(x) + U↑(x + u_k(x))
-        return U, pres
+            if U is not None:                                       # U_k(x) = u_k(x) + U↑(x + u_k(x))
+                U = u + self.warp[k](U, u.detach() if self.detach_compose else u)
+            else:
+                U = u
+            if keep_levels:
+                Us.append(U)
+        return (U, pres, Us) if keep_levels else (U, pres)
 
-    def forward(self, source, target, registration=False):
+    def forward(self, source, target, registration=False, return_levels=False):
+        """return_levels=True（訓練用）：另外回傳（輸入影像, 各層總形變, 各層的 warp），給 train_arch.py --dwp。"""
+        if return_levels:
+            U, pres, Us = self.fields(source, target, keep_levels=True)
+            return self.warp[0](source, U), pres, (source, Us, self.warp)
         U, pres = self.fields(source, target)
         moved = self.warp[0](source, U)
         if registration:

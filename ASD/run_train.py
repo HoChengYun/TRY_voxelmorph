@@ -65,6 +65,11 @@ ap.add_argument('--stage', default='vxm', choices=['vxm', 'pyramid'],
                 help='--arch cascade 時每一顆用什麼；pyramid = 跟由粗到細疊在一起')
 # 串接時省顯存：每一顆的中間結果不留、反向傳播時再算一次。數字一樣（10-06 實測梯度差 2e-7），顯存約一半，慢約 1.24 倍
 ap.add_argument('--grad-checkpoint', action='store_true', help='串接時省顯存（數字一樣，比較慢）')
+# 2026-10-21：照原作程式補上的細節（手冊 §29；ASD/arch.py、train_arch.py 檔頭）。不給就是以前的版本。
+#   --rcn：串接照 RCN —— 每顆輸出乘 1/n、串接的 warp 取邊界值
+#   --dwp：由粗到細照 DWP（Jian et al., WBIR 2024）—— 合成時 δ detach、粗的層（1/16、1/8、1/4）也算影像項＋平滑項
+ap.add_argument('--rcn', action='store_true', help='串接照 RCN 原作程式（只給 --arch cascade）')
+ap.add_argument('--dwp', action='store_true', help='由粗到細照 DWP 原作程式（--arch pyramid 或 --stage pyramid）')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
                 help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
@@ -89,6 +94,10 @@ if PYR and args.int_downsize != 1:
     sys.exit('[X] 由粗到細只支援 --int-downsize 1（粗的層本來就是縮小過的）')
 if args.grad_checkpoint and args.arch != 'cascade':
     sys.exit('[X] --grad-checkpoint 目前只給串接（--arch cascade）用')
+if args.rcn and args.arch != 'cascade':
+    sys.exit('[X] --rcn 只給串接（--arch cascade）用')
+if args.dwp and not PYR:
+    sys.exit('[X] --dwp 只給由粗到細（--arch pyramid 或 --arch cascade --stage pyramid）用')
 # 每步時間、存檔大小大約是一顆 VoxelMorph 的幾倍（2026-10-06 筆電實測：串兩顆 1.89、由粗到細 1.49、
 # 疊在一起 2.86、疊在一起＋省顯存 3.54 倍；參數 2、1.35、2.7 倍）
 per = 1.43 if args.stage == 'pyramid' else 0.95                         # 串接時每一顆的時間倍數
@@ -98,6 +107,10 @@ ARCH_DESC = {'cascade': ('串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），�
                          if args.stage == 'vxm' else
                          '串 %d 顆由粗到細的網路（兩個疊在一起；ASD/train_arch.py），每一顆的每一層都罰平滑' % args.n_cascades),
              'pyramid': '由粗到細（兩張影像各自抽特徵、每一層都出形變；ASD/train_arch.py），每一層都罰平滑'}.get(args.arch)
+if ARCH_DESC and args.rcn:
+    ARCH_DESC += '；照 RCN 原作：每顆輸出乘 1/%d、串接的 warp 取邊界值' % args.n_cascades
+if ARCH_DESC and args.dwp:
+    ARCH_DESC += '；照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項'
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
@@ -250,6 +263,10 @@ if ARCH:
                                     if args.arch == 'cascade' else [])
     if args.grad_checkpoint:
         cmd += ['--grad-checkpoint']
+    if args.rcn:
+        cmd += ['--rcn']
+    if args.dwp:
+        cmd += ['--dwp']
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]

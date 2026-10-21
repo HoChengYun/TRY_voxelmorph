@@ -14,6 +14,17 @@
     - 影像項只算最後搬好的影像：L_sim(atlas, 受試者∘U_n)
     - 每一顆的形變場都罰平滑：λ · Σ_k Grad(v_k)
 log：  loss: 總計  (影像項, 平滑項)   —— 平滑項是 n 顆加起來；ASD/plot_loss_curve.py 讀得懂。
+
+照原作程式補上的細節（2026-10-21，手冊 §29；arch.py 檔頭有原作檔名與行號）
+    --rcn（--arch cascade）：RCN —— 每顆輸出乘 1/n（flow_multiplier）、串接那一層的 warp 取邊界值（padding_mode='border'）
+    --dwp（由粗到細，--arch pyramid 或 --stage pyramid）：DWP（Jian et al., WBIR 2024）——
+          ① 合成時 δ detach（vxm_pwc.py 第 97 行）
+          ② 粗的層也算相似度：1/16、1/8、1/4 三層，各層用當下的總形變 warp 縮小（average pooling）後的移動影像，
+             跟縮小的 atlas 算影像項（同一個 NCC，窗格 9），加上 λ × 該層總形變的平滑項，再乘權重 1/16、1/8、1/4
+             （論文 Implementation Details「the computed loss is 2^-4 * (L_sim + λL_reg)」；程式 run_iter.py 第 97～125 行、
+             configs/pwc_cfg.py 的 scale_pyramid、scale_loss_weights）。λ 用這次的 --lambda（原作 0.5，我們整個系列 1）。
+             串兩顆時只算最後一顆（RCN 只對最後一顆算相似度）。
+          log 在括號後面多印「ms: 子層 loss 合計」；總計＝影像項＋平滑項＋ms。影像項只有最後一層，照樣能跟其他模型比。
 存出來的 .pt 帶 config['arch']，test_dice.py 等腳本透過 ASD/arch.py 的 load_model() 讀。
 
 用法（一般透過 ASD/run_train.py --arch cascade 呼叫，不直接跑）：
@@ -68,7 +79,15 @@ parser.add_argument('--grad-checkpoint', action='store_true',
                     help='串接時省顯存：每一顆的中間結果不留、反向傳播時再算一次（數字一樣，比較慢）')
 parser.add_argument('--crop', type=int, nargs=3, help='測試用：只取中間這麼大一塊（每邊要能被 16 整除）')
 parser.add_argument('--max-steps', type=int, default=0, help='測試用：總共只跑幾步就停，並印顯存峰值（0 = 不限）')
+parser.add_argument('--rcn', action='store_true', help='照 RCN 原作程式：每顆輸出乘 1/n、串接的 warp 取邊界值（只給 --arch cascade）')
+parser.add_argument('--dwp', action='store_true', help='照 DWP 原作程式：合成時 δ detach、粗的層也算相似度（只給由粗到細）')
 args = parser.parse_args()
+
+PYR = args.arch == 'pyramid' or (args.arch == 'cascade' and args.stage == 'pyramid')
+assert not args.rcn or args.arch == 'cascade', '--rcn 只給 --arch cascade 用'
+assert not args.dwp or PYR, '--dwp 只給由粗到細（--arch pyramid 或 --stage pyramid）用'
+FLOW_MULT = 1.0 / args.n_cascades if args.rcn else 1.0
+DWP_SCALES = (16, 8, 4)          # DWP 的子層：1/16、1/8、1/4；權重 = 1/scale
 
 # ── 資料 ─────────────────────────────────────────────────────────────
 files = sorted(glob.glob(os.path.join(args.datadir, '*.npz')))
@@ -108,16 +127,20 @@ enc_nf = args.enc if args.enc else [16, 32, 32, 32]
 dec_nf = args.dec if args.dec else [32, 32, 32, 32, 32, 16, 16]
 if args.load_model:
     model = load_model(args.load_model, device)
-    assert model.config.get('arch') == args.arch and \
-        (args.arch != 'cascade' or (model.config['n_cascades'] == args.n_cascades
-                                    and model.config.get('stage', 'vxm') == args.stage)), \
-        '--load-model 的架構跟這次的參數不一樣：%s' % model.config
+    c = model.config
+    assert c.get('arch') == args.arch and \
+        (args.arch != 'cascade' or (c['n_cascades'] == args.n_cascades and c.get('stage', 'vxm') == args.stage)), \
+        '--load-model 的架構跟這次的參數不一樣：%s' % c
+    assert (c.get('flow_mult', 1.0) == FLOW_MULT and bool(c.get('border', False)) == args.rcn
+            and bool(c.get('detach_compose', False)) == args.dwp), \
+        '--load-model 的 --rcn／--dwp 跟這次不一樣（不能混著接）：%s' % c
 elif args.arch == 'cascade':
     model = VxmCascade(inshape, nb_unet_features=[enc_nf, dec_nf], int_steps=args.int_steps,
-                       int_downsize=args.int_downsize, n_cascades=args.n_cascades, stage=args.stage)
+                       int_downsize=args.int_downsize, n_cascades=args.n_cascades, stage=args.stage,
+                       flow_mult=FLOW_MULT, border=args.rcn, detach_compose=args.dwp)
 else:
     model = VxmPyramid(inshape, nb_unet_features=[enc_nf, dec_nf], int_steps=args.int_steps,
-                       int_downsize=args.int_downsize)
+                       int_downsize=args.int_downsize, detach_compose=args.dwp)
 if args.grad_checkpoint:
     assert args.arch == 'cascade', '--grad-checkpoint 目前只給串接用'
     model.grad_ckpt = True
@@ -134,11 +157,33 @@ else:
 grad_loss = vxm.losses.Grad('l2', loss_mult=args.int_downsize).loss      # 同 train.py:139
 
 atlas_t = torch.from_numpy(cut(atlas_vol))[None, None].to(device).repeat(args.batch_size, 1, 1, 1, 1)
+if args.dwp:
+    import torch.nn.functional as F
+    N_LV = (model.stages[-1] if args.arch == 'cascade' else model).n          # 由粗到細有幾層（預設 4：1/2～1/16）
+    atlas_down = {s: F.avg_pool3d(atlas_t, s, s) for s in DWP_SCALES}
+
+
+def dwp_sublevel_loss(src_in, Us, warps):
+    """DWP 的子層 loss：Σ_s (1/s)·[L_sim(atlas↓s, warp_k(src↓s, U_k)) + λ·Grad(U_k)]，k = log2(s)。
+    Us 的順序是最粗（k = N_LV）到原尺寸（k = 0）；U_k 的單位是該層的 voxel。"""
+    tot = 0.0
+    for s in DWP_SCALES:
+        k = int(round(np.log2(s)))
+        Uk = Us[N_LV - k]
+        moved_k = warps[k](F.avg_pool3d(src_in, s, s), Uk)
+        tot = tot + (1.0 / s) * (image_loss(atlas_down[s], moved_k) + args.weight * grad_loss(None, Uk))
+    return tot
+
 
 n_par = sum(p.numel() for p in model.parameters())
 desc = ('串 %d 顆 VoxelMorph（RCN）' % args.n_cascades if args.arch == 'cascade' and args.stage == 'vxm'
         else '串 %d 顆由粗到細的網路（兩個疊在一起）' % args.n_cascades if args.arch == 'cascade'
         else '由粗到細（兩張影像各自抽特徵、每一層都出形變）')
+if args.rcn:
+    desc += '；照 RCN 原作：每顆輸出乘 1/%d、串接的 warp 取邊界值' % args.n_cascades
+if args.dwp:
+    desc += '；照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項（權重 1/16、1/8、1/4%s）' % (
+        '，只算最後一顆' if args.arch == 'cascade' else '')
 print('架構：%s，共 %d 個參數；影像項 %s，λ = %g（每一%s都罰）；int_steps %d、int_downsize %d；'
       '%d 位訓練資料；影像 %s%s'
       % (desc + ('，省顯存模式（--grad-checkpoint）' if args.grad_checkpoint else ''), n_par, args.image_loss, args.weight,
@@ -153,10 +198,15 @@ for epoch in range(args.initial_epoch, args.epochs):
     for step in range(args.steps_per_epoch):
         t0 = time.time()
         source = torch.from_numpy(sample())[:, None].to(device)
-        moved, pres = model(source, atlas_t)
+        if args.dwp:
+            moved, pres, (src_in, Us, warps) = model(source, atlas_t, return_levels=True)
+            ms = dwp_sublevel_loss(src_in, Us, warps)
+        else:
+            moved, pres = model(source, atlas_t)
+            ms = None
         terms = [image_loss(atlas_t, moved),
                  args.weight * sum(grad_loss(None, p) for p in pres)]
-        loss = sum(terms)
+        loss = sum(terms) + (ms if ms is not None else 0.0)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -166,7 +216,8 @@ for epoch in range(args.initial_epoch, args.epochs):
         print('  '.join(('epoch: %04d' % (epoch + 1),
                          ('step: %d/%d' % (step + 1, args.steps_per_epoch)).ljust(14),
                          'time: %.2f sec' % (time.time() - t0),
-                         'loss: %.6f  (%s)' % (loss.item(), ', '.join('%.6f' % t.item() for t in terms)))),
+                         'loss: %.6f  (%s)%s' % (loss.item(), ', '.join('%.6f' % t.item() for t in terms),
+                                                 '  ms: %.6f' % ms.item() if ms is not None else ''))),
               flush=True)
         done_steps += 1
         if args.max_steps and done_steps >= args.max_steps:

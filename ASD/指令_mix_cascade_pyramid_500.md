@@ -1,5 +1,7 @@
 # mix_cascade_pyramid_500 操作單（cmd 版）：mix_cascade_pyramid 接著訓練到 500 輪
 
+> ⏸ **2026-10-21 暫停，先不要跑**：程式照原作補了細節（手冊 §29），改跑 `ASD/指令_mix_rcn_dwp.md` 的三顆。這份是舊版本程式的延長訓練，之後再決定要不要。
+
 > **這顆在問什麼**：mix_pyramid 接著練到 500 輪（mix_pyramid_500）之後，test 0.8185，跟只練 250 輪的 mix_cascade_pyramid（0.8192）打平。
 > 但 mix_cascade_pyramid 的 val 在 200～250 輪還在上升（區間平均 0.8127 → 0.8144），兩顆練的長度不一樣，比得不公平。
 > 讓 mix_cascade_pyramid 也練到 500 輪，看「串兩顆＋由粗到細」在同樣長度下是不是還比較好（10/28 簡報第 6 頁留的問題）。

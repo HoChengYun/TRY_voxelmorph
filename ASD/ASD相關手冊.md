@@ -2704,6 +2704,8 @@ VoxelMorph 原文的 U-Net 特徵有粗有細，但形變只在最後輸出一�
 
 ### 25.5 跟原論文程式的對照（2026-10-12，只讀、沒有改程式）
 
+> 🔴 **2026-10-21 更正**（§29）：重讀三份原作程式後，我們的 VxmPyramid 在結構上是 Jian et al. 的 **DWP**（共用 encoder ＋ 帶上一層 decoder 特徵的 decoder），不是 Dual-PRNet（每條路一整個 U-Net＋FPN、每層只有一層卷積）。下面 Dual-PRNet 那張表保留當紀錄；照著做的對象、補上的細節與重跑見 §29。
+
 我們的 `ASD/arch.py` 是照論文描述自己寫的（沿用 VoxelMorph 的零件、一次只改一件事），沒用他們的程式。
 10-12 去 GitHub 讀了兩篇的原始碼，確認**關鍵設計都有對上**；使用者決定**程式先不改**（mix_pyramid 已經在跑）。
 
@@ -3043,3 +3045,115 @@ $$B=\mathrm{Fill}\big((S\oplus D_r)\ominus D_r\big),\qquad V_{\mathrm{res}}=\big
 - 簡報：`ASD/slides_src/2026-10-28_redpen/`（`make_resvol.py` → `deck_data.json`、`models\deck_charts\1028_resvol_*.png`；`build.js` → `deck.pptx`；`講稿.md`）。
   `1028_resvol_steps.png` 是「球怎麼來的」四格圖，沒放進簡報
 
+### 28.4 mix_cascade_pyramid、mix_pyramid_500、ANTs SyN、影像邊界的 folding（2026-10-18～21）
+
+**2 × 2 最後一格與延長訓練**（test 51 位；筆電補算 HD95、SDlogJ、沒參與訓練的結構，`--surface` 重算 Dice 跟 AI 的 CSV 最大差 1.3e-4）
+
+| 模型 | 輪數 | val 挑 | Dice | ΔDice | 沒參與訓練的結構 | HD95 | SDlogJ | 腦內 folding／位 | 參數 |
+|---|---|---|---|---|---|---|---|---|---|
+| mix_cascade_pyramid | 250 | 140 | **0.8192** | +0.131 | **0.690** | 2.31 | 0.61 | 67 | 0.82 M |
+| mix_pyramid_500 | 500（從 mix_pyramid 第 250 輪接著練）| 335 | 0.8185 | +0.130 | 0.683 | 2.31 | 0.55 | 5 | 0.41 M |
+
+- cascade_pyramid：比 mix_pyramid +0.0043（51/51）、比 mix_cascade +0.0036（46/51）、比 mix_exp6 +0.0141（51/51）；兩項設計的增益可部分相加（合併 +0.0141 ＝ 兩者之和 +0.0204 的 69%）；起點最差 10 位 +0.023、最好 10 位 +0.010
+- pyramid_500：比 mix_pyramid +0.0036（51/51）；但 val 區間平均 200～250 輪 0.8100 → 300～400 輪 0.8123 → 400～500 輪 0.8120，**約 300 輪後就持平**（第 335 輪是波動中較高的一點；test 獨立，+0.0036 成立）
+- 兩者打平（cascade_pyramid − pyramid_500 = +0.0007，35/51，p = 0.024），但 cascade_pyramid 只練 250 輪、200～250 輪 val 還在上升 → 不公平。延長版操作單 `ASD/指令_mix_cascade_pyramid_500.md`（10-21 暫停，見 §29）
+- 訓練時間（AI，計時已修正）：cascade_pyramid 每步約 4.0 秒、27.7 小時；pyramid_500 每步約 2.0 秒、250 輪 14.2 小時
+
+**ANTs SyN 對照**（`ASD/ants_syn_baseline.py`；參數照論文 §V-A-3：SyNOnly、step 0.25、Gaussian (9, 0.2)、201×3、CC 半徑 4；資料已 affine，`initial_transform='Identity'`）
+
+| | affine | ANTs SyN | VoxelMorph（mix_exp3，同論文 Table I 版本）| 差 |
+|---|---|---|---|---|
+| 論文 Table I | 0.584 | 0.749 | 0.753 | +0.004 |
+| 本研究 test 51 | 0.688 | **0.804** | 0.806 | +0.0019（39/51，p = 0.002）|
+
+- ANTs 腦內 folding 0、每位 2,231 秒（CPU 20 執行緒）。架構修改後的模型都高於 ANTs（cascade_pyramid +0.0149，51/51）
+- 👉 我們 Dice 的絕對值比論文高，是因為**起點高**（affine 直接對到評估用的 atlas、單一掃描儀）；**傳統方法也一樣高** → 資料比較好對，不是模型比較強（§18）
+
+**影像邊界的 folding**（`ASD/check_bg_folding.py`，5 位：T054、D031、T079、VNT045、sub-0043；圖在 `models\folding_check\bg\`）
+- 由粗到細系列的「腦外 folding」（mix_pyramid 每位約 1 萬、pyramid_500 1.3 萬、cascade_pyramid 5 萬）**99.99% 以上在影像最外面 0～4 格**（大多在下緣，腦幹最靠近）
+- 每一層自己積分的 u_k 都沒有 folding；出在**合成** U_k = u_k + U↑(x + u_k(x))：x + u_k 落到影像外，grid_sample 補 0，邊界上的總位移突然掉下來 → φ 往回走。由粗到細最粗那層的位移延伸到影像邊界（邊界平均 2.2 mm，VoxelMorph 0.56 mm）；cascade_pyramid 多一次兩顆之間的合成，所以更多
+- **只改推論**成 `padding_mode='border'`：腦外 folding 11,535 → 0、13,962 → 0、50,813 → 2，腦內 folding、Dice 不變（差 ≤ 4e-5）→ 不影響結果；報告一律用腦內 folding（`jneg_fg_pct`）。`ASD/plot_dice_curve.py` 有 `jneg_fg_pct` 時改畫腦內
+- vis 的 `jacobian_*` 標題百分比是整張影像，由粗到細系列會被邊框拉高（cascade_pyramid T054 寫 0.599%，腦內 0.005%）
+
+**視覺化補齊**（10-18）：mix_pyramid、pyramid_500、cascade_pyramid 的 vis（5 位 × 8 張）；mix_exp2～5、7、mix_wide、mix_wide_vel 補 T079；
+mix_exp8／9、cascade、pyramid、pyramid_500、cascade_pyramid 的 loss 圖與 `dice_curve_analysis.png`。
+
+**10/28 簡報**（`ASD/slides_src/2026-10-28_redpen/`，`make_arch_res.py` → `deck_data_arch.json`、`1028_*.png`）：加 ⑥ 2 × 2 結果、多項指標、延長訓練；⑧ ANTs SyN 與論文 Table I；附錄 影像邊界的 folding；ANTs 並排圖 `make_ants_vis.py`（等 `models\ants_syn\vis` 跑完）。
+p18「FreeSurfer label 有沒有細分皮質」：有（aparc，§28.2），使用者決定先口頭回答、不匯出。
+
+---
+
+## 29. 照原作程式補上細節、重跑三顆（2026-10-21）
+
+**起因**：mix_cascade／mix_pyramid／mix_cascade_pyramid 的 `ASD/arch.py` 是 10-06 照**論文文字**寫的，原作程式到 10-12 做簡報時才讀（§25.5），那時已經在訓練、來不及改。
+使用者 10-21：「你要做這些實驗，你要先看過他們原始碼，再寫自己程式」「該重跑就重跑」。→ 以後的規則：**先讀原作程式、列對照表給使用者確認，再寫**。
+
+### 29.1 讀的程式（只讀，clone 在 scratchpad）
+
+| 原作 | 論文 | 程式（commit）| 讀的檔案 |
+|---|---|---|---|
+| RCN | Zhao et al., ICCV 2019（arXiv 1907.12353）| github.com/microsoft/Recursive-Cascaded-Networks（`0709490`，2019-12-08）| `network/recursive_cascaded_networks.py`、`base_networks.py`、`spatial_transformer.py`、`framework.py`、`train.py` |
+| DWP | Jian et al., WBIR 2024（arXiv 2407.19274）；期刊擴充版 arXiv 2512.01913 | github.com/BailiangJ/rethink-reg（`97175ff`，2026-08-19）。⚠️ 論文寫的 github.com/rethink-reg 已 404 | `models/networks/vxm_pwc.py`、`vxm_pyd.py`、`vxm.py`、`models/utils/warp.py`、`tasks/brainmri/run_iter.py`、`train.py`、`configs/*.py` |
+| Dual-PRNet++ | Kang et al., MedIA 2022（原版 Hu et al., MICCAI 2019）| github.com/kangmiao15/Dual-Stream-PRNet-Plus（`0a25264`）| `net/cascade_morph_net.py`、`refine_pyramid.py`、`voxnet.py`、`net_factory.py`、`solver.py`、`op/losses.py`、`op/warp_flow.py` |
+
+### 29.2 🔴 更正：我們的 pyramid 結構上是 DWP，不是 Dual-PRNet
+
+| | Dual-PRNet（原作程式）| DWP（`VXMPlus_DualWarpPy`）| 我們的 VxmPyramid |
+|---|---|---|---|
+| 兩張影像的特徵 | 各自一整個 U-Net（encoder＋decoder）＋ FPN 式 top-down 融合 | 共用 encoder，只往下抽 | 同 DWP |
+| 每層怎麼出形變 | 一層 3×3 卷積 | decoder 方塊，帶上一層的 decoder 特徵（`prev_dec`）| 同 DWP（我們叫 h）|
+| warp 特徵時 | `last_flow.detach()` | 不 detach | 不 detach |
+| 合成時 | 不 detach | `warp(prev_flow, δ.detach()) + δ` | 舊：不 detach；新：同 DWP |
+| 影像邊界 | `padding_mode="border"` | 補 0（grid_sample 預設）| 補 0 |
+
+→ 簡報與論文寫法改成「Step 2 採 Jian et al. 之 DWP（以 VoxelMorph 為基礎），coarse-to-fine 之概念源自 Dual-PRNet」。§25.5 的 Dual-PRNet 對照表保留，但它不是我們照著做的對象。
+
+### 29.3 逐項對照與處理
+
+原則：**每個方法本身的機制照原作程式；backbone、loss、訓練設定維持 mix_exp6**（一次只改一項）。
+
+**Cascade：RCN vs mix_cascade**
+
+| 項目 | RCN 程式 | 舊版 | 處理 |
+|---|---|---|---|
+| 每顆的輸入、形變合成、相似度只算最後、每顆罰平滑且權重相同、各自權重、梯度穿過 warp | （§25.5）| 相同 | — |
+| **每顆輸出乘 1/n** | `flow_multiplier=1.0 / n_cascades`（第 48～50 行），`'flow': net * self.flow_multiplier`；平滑項罰乘過的（第 120 行）| 沒有 | **補上**：乘在每顆網路的輸出（速度場，積分前），平滑項也算乘過的 |
+| **影像邊界** | `Dense3DSpatialTransformer` 用 `tf.clip_by_value` 把座標夾回影像內（`warp_padding` 預設 False）| 補 0 | **補上**：串接那一層的 warp 用 `padding_mode='border'`；每顆內部的積分維持 VoxelMorph |
+| 相似度種類 | 1 − 全域相關係數 | 局部 NCC | 不改（mix_exp6）|
+| 參數化、affine stage | displacement field；前面多一個可訓練的 affine stem | SVF；ANTs affine 在前處理 | 不改 |
+
+**Pyramid：DWP vs mix_pyramid**
+
+| 項目 | DWP 程式／論文 | 舊版 | 處理 |
+|---|---|---|---|
+| 共用 encoder；每層 warp m 的特徵＋f 的特徵＋上一層 decoder 特徵 → 修正；以 warp 合成；補 0 | `vxm_pwc.py` 的 `WarpPyramidalDecoder` | 相同 | — |
+| **合成時 δ detach** | `vxm_pwc.py` 第 97 行 `warp(prev_flow, delta_flow.detach()) + delta_flow`（腦部設定 `composition='compose'`）| 沒有 | **補上** |
+| **粗的層也算相似度** | 論文 Implementation Details：「at each sub-level, we only compute the image similarity and smoothness regularization … scaled in proportion to the resolution」，例 2⁻⁴(L_sim + λL_reg)；程式 `run_iter.py` 第 97～125 行，`scale_pyramid = [16, 8, 4]`、`scale_loss_weights = [1/16, 1/8, 1/4]`，影像用 `F.avg_pool3d` 縮小，平滑項罰該層的總形變；**所有 pyramid 設定都有、沒有 pyramid 的都沒有** | 只算最後一層 | **補上**（使用者 10-21 同意）：層數、權重、average pooling、NCC 窗格 9 照原作；λ 用 1（整個系列一致；原作 0.5）|
+| 最細一層 | 1/2 解析度再放大 | 全解析度 | 不改（mix_exp6 是全解析度）|
+| backbone、訓練 | InstanceNorm、transposed conv、通道 [8,16,32,48,64]、雙向、lr 衰減 0.996、AMP、100 epochs（LUMIR）| VoxelMorph 原本的 | 不改 |
+| Dice loss | WBIR 的實驗有 γ = 0.5（只在最後一層）；期刊版設定 0 | 無 | 不加（非監督）|
+| 參數化 | displacement field | 每層 SVF | 不改 |
+
+**合成時 δ detach 是什麼**：U_k(x) = δ(x) + U↑(x + δ(x)) 裡 δ 出現兩次——直接加上去、以及「去哪裡取上一層的形變」。detach 把第二條路的梯度切掉（取的位置當成固定），
+往前算出來的形變完全一樣，只影響訓練時梯度怎麼傳。原作沒寫理由（我們的解讀：內插對座標的導數在格點間不連續，切掉比較單純）。
+
+### 29.4 程式（都是開關，預設＝舊版；舊的 .pt 讀進來逐 voxel 相同）
+
+- `ASD/arch.py`：`VxmCascade(flow_mult, border, detach_compose)`、`VxmPyramid(detach_compose)`、`BorderTransformer`、`return_levels=True`（回傳各層總形變給子層 loss）
+- `ASD/train_arch.py`：`--rcn`（flow_mult = 1/n、border）、`--dwp`（detach、子層 loss；串兩顆時只算最後一顆）；接續訓練時開關不一致會擋下來。log：`loss: 總計  (影像項, 平滑項)  ms: 子層合計`（`plot_loss_curve.py` 照樣讀；影像項只有最後一層）
+- `ASD/run_train.py`：`--rcn`、`--dwp` 轉給 train_arch.py
+- `ASD/verify_rcn_dwp.py`（全部通過）：
+  - 舊的三顆，改之前（git HEAD 的 arch.py）vs 現在，總位移最大差 **0**；A0131 的 Dice 跟正式 CSV 差 ≤ 3e-5
+  - flow_mult 0.5 → 速度場剛好一半；detach → 往前算的總位移差 0、梯度不同；border 的差集中在影像邊界；return_levels 各層大小正確
+- 原本的 `verify_cascade.py`、`verify_pyramid.py` 也重跑全部通過
+- 小尺寸（96×112×96）訓練三種組合各 3 步正常；`ms` 約 −0.37（粗的層 NCC 接近 −1，乘上權重後跟最後一層的影像項同一個量級）；每步時間：pyramid、cascade 不變，cascade_pyramid 多約 10%
+
+### 29.5 重跑（操作單 `ASD/指令_mix_rcn_dwp.md`；**新實驗名**，舊的保留）
+
+| 新實驗名 | 指令的開關 | 預估（AI）|
+|---|---|---|
+| `mix_pyramid_dwp` | `--arch pyramid --dwp` | 約 14 小時 |
+| `mix_cascade_rcn` | `--arch cascade --n-cascades 2 --rcn` | 約 18～21 小時 |
+| `mix_cascade_pyramid_rcn_dwp` | `--arch cascade --n-cascades 2 --stage pyramid --rcn --dwp` | 約 30 小時 |
+
+依序跑，等 TransMorph 跑完再開始；`指令_mix_cascade_pyramid_500.md` 暫停（舊版本程式）。結果回來後跟舊的三顆逐人配對比，舊 vs 新的差就是「實作細節的影響」。
