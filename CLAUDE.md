@@ -273,7 +273,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── verify\                         # 方向 / 前處理驗證腳本 ×3
 │   ├── orientation_verify\             NPZtoNII\   orientation_check.png
 ├── draw-img\
-│   ├── visualize_reg_ixi.py            # ⭐ 學術級視覺化 + 存 nii
+│   ├── visualize_reg_ixi.py            # ⭐ 學術級視覺化 + 存 nii（10-21 起 Jacobian 標題的 folding 只算 atlas 腦內、寫 voxel 數）
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
@@ -289,7 +289,7 @@ C:\Users\h4524\claude_cheng\
 ├── oasis\                              # OASIS：oasis_npz\（vol + seg35）、prepare_author_check.py（作者模型對照，手冊 §19）
 ├── meeting報告\                        # 簡報 pptx（.gitignore）
 ├── 前一AI擔心的\                        # 文件稽核報告（另一個 session 產出）
-├── 文獻\                               # 對位模型文獻筆記.md（LUMIR 排行、熱門程度、SITReg、VFA）＋ img\（make_*.py 畫的教學圖）
+├── 文獻\                               # 對位模型文獻筆記.md（LUMIR 排行、熱門程度、SITReg、VFA）、cascade與pyramid原理筆記.md（10-21，兩種架構的原理＋我們的數字）＋ img\（make_*.py 畫的教學圖）
 ├── voxelmorph_citations_dev.bib        # 官方 dev 分支的論文清單（作者群的後續論文，文獻筆記 §6）
 ├── FreeSurfer_到_VoxelMorph_交接.md    # FreeSurfer 端寫的接入說明
 ├── VoxelMorph_PyTorch_實作指南.md      # 🔴 最舊，見文末

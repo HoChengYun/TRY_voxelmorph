@@ -125,7 +125,9 @@ def ncc(a, b):
     a, b = a - a.mean(), b - b.mean()
     return float(np.dot(a, b) / (np.sqrt((a**2).sum() * (b**2).sum()) + 1e-8))
 
-def jacobian_negative_ratio(flow_np):
+def jacobian_negative_ratio(flow_np, mask=None):
+    """|J| <= 0 的比例與 voxel 數。2026-10-21：只算 mask（atlas 腦內，atlas > 0）——同 VoxelMorph 論文「count all non-background voxels」、
+    DWP（rethink-reg）只算 target > 0，也同 ASD/test_dice.py 的 jneg_fg_pct。以前分母是整張影像，由粗到細系列會被影像邊框的假 folding 拉高（手冊 §28.4）。"""
     du_dd = np.gradient(flow_np[0], axis=0)
     du_dh = np.gradient(flow_np[0], axis=1)
     du_dw = np.gradient(flow_np[0], axis=2)
@@ -141,8 +143,11 @@ def jacobian_negative_ratio(flow_np):
     det_j = (j11 * (j22 * j33 - j23 * j32)
            - j12 * (j21 * j33 - j23 * j31)
            + j13 * (j21 * j32 - j22 * j31))
-    neg_ratio = float((det_j <= 0).sum() / det_j.size)
-    return neg_ratio, det_j
+    if mask is None:
+        mask = np.ones(det_j.shape, bool)
+    n_neg = int(((det_j <= 0) & mask).sum())
+    neg_ratio = n_neg / max(1, int(mask.sum()))
+    return neg_ratio, det_j, n_neg
 
 ncc_val_source = ncc(vol, atlas_vol)
 dr_source = max(vol.max(), atlas_vol.max()) - min(vol.min(), atlas_vol.min())
@@ -152,10 +157,10 @@ ncc_val_warped  = ncc(moved_np, atlas_vol)
 dr_warped       = max(moved_np.max(), atlas_vol.max()) - min(moved_np.min(), atlas_vol.min())
 ssim_val_warped = ssim_fn(moved_np, atlas_vol, data_range=dr_warped)
 
-jneg_val, jacobian_map = jacobian_negative_ratio(flow_np)
+jneg_val, jacobian_map, jneg_n = jacobian_negative_ratio(flow_np, mask=atlas_vol > 0)   # 只算 atlas 腦內（見函式說明）
 
 model_name = os.path.splitext(os.path.basename(args.model))[0]
-print(f'Warped NCC={ncc_val_warped:.4f}  SSIM={ssim_val_warped:.4f}  %|J|<=0={jneg_val*100:.3f}%')
+print(f'Warped NCC={ncc_val_warped:.4f}  SSIM={ssim_val_warped:.4f}  %|J|<=0（腦內）={jneg_val*100:.4f}%（{jneg_n:,} voxels）')
 
 # ── 轉正：依 atlas 標籤判斷方向，一律轉成 RAS 再畫（見 ASD/orient.py）──────
 # 切面名稱假設 [左→右, 後→前, 下→上]。我們的 MNI atlas 本來就是，等於沒動；
@@ -463,7 +468,7 @@ for row_i in range(2):
 # 標題與指標
 info_text = (
     f"Linear (Source)          |  NCC: {ncc_val_source:.4f}   |   SSIM: {ssim_val_source:.4f}\n"
-    f"VoxelMorph (Warped)  |  NCC: {ncc_val_warped:.4f}   |   SSIM: {ssim_val_warped:.4f}   |   %|J|≤0: {jneg_val*100:.3f}%"
+    f"VoxelMorph (Warped)  |  NCC: {ncc_val_warped:.4f}   |   SSIM: {ssim_val_warped:.4f}   |   %|J|≤0 (brain): {jneg_val*100:.4f}% ({jneg_n:,} voxels)"
 )
 fig4.suptitle(
     f'Registration Overlay vs Atlas   |   {subject_name}   |   model: {model_name}',
@@ -508,7 +513,7 @@ for i, axis in enumerate(axes_list):
 
 fig5.suptitle(
     f'Jacobian Determinant Map   |   {subject_name}   |   '
-    f'%|J|≤0 (Folding) = {jneg_val*100:.3f}%',
+    f'Folding in brain: |J|≤0 = {jneg_n:,} voxels ({jneg_val*100:.4f}%)',
     color=TEXT_MAIN, fontsize=14, y=0.96, fontweight='bold'
 )
 

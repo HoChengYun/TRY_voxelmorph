@@ -3067,13 +3067,15 @@ $$B=\mathrm{Fill}\big((S\oplus D_r)\ominus D_r\big),\qquad V_{\mathrm{res}}=\big
 | 本研究 test 51 | 0.688 | **0.804** | 0.806 | +0.0019（39/51，p = 0.002）|
 
 - ANTs 腦內 folding 0、每位 2,231 秒（CPU 20 執行緒）。架構修改後的模型都高於 ANTs（cascade_pyramid +0.0149，51/51）
+- **ANTs folding 為什麼是 0**（10-21，5 位存檔）：用 ANTs 自己的 `create_jacobian_determinant_image` 重算也是 0（不是我們算錯）。SyN 每步只走一小步（0.25）、更新場先 Gaussian 平滑（ANTs 的 (9, 0.2) 是**變異數**：更新場 σ = 3 voxel、總形變場變異數 0.2），許多小步合成 → 微分同胚。形變並不小：平均位移約 4 mm、最大約 15 mm，最小 |J| 0.10～0.13（壓縮到 1/10 但未翻折），SDlogJ 0.42～0.47；mix_exp3 同一位（T054）最小 |J| −3.3。論文 ANTs 有 9,662 個：論文 §V-B 自己寫了原因——ANTs、NiftyReg 能強制或強烈鼓勵微分同胚的設定「negatively affected runtime or results」，所以用 Dice 最好的設定（沒強制微分同胚）；論文沒寫關掉哪些選項，我們照它列的參數用 ANTsPy 預設 SyN → 0 個。我們 VoxelMorph 15,864 ≈ 論文 19,077，表示 folding 算法一致
 - 👉 我們 Dice 的絕對值比論文高，是因為**起點高**（affine 直接對到評估用的 atlas、單一掃描儀）；**傳統方法也一樣高** → 資料比較好對，不是模型比較強（§18）
 
 **影像邊界的 folding**（`ASD/check_bg_folding.py`，5 位：T054、D031、T079、VNT045、sub-0043；圖在 `models\folding_check\bg\`）
 - 由粗到細系列的「腦外 folding」（mix_pyramid 每位約 1 萬、pyramid_500 1.3 萬、cascade_pyramid 5 萬）**99.99% 以上在影像最外面 0～4 格**（大多在下緣，腦幹最靠近）
 - 每一層自己積分的 u_k 都沒有 folding；出在**合成** U_k = u_k + U↑(x + u_k(x))：x + u_k 落到影像外，grid_sample 補 0，邊界上的總位移突然掉下來 → φ 往回走。由粗到細最粗那層的位移延伸到影像邊界（邊界平均 2.2 mm，VoxelMorph 0.56 mm）；cascade_pyramid 多一次兩顆之間的合成，所以更多
 - **只改推論**成 `padding_mode='border'`：腦外 folding 11,535 → 0、13,962 → 0、50,813 → 2，腦內 folding、Dice 不變（差 ≤ 4e-5）→ 不影響結果；報告一律用腦內 folding（`jneg_fg_pct`）。`ASD/plot_dice_curve.py` 有 `jneg_fg_pct` 時改畫腦內
-- vis 的 `jacobian_*` 標題百分比是整張影像，由粗到細系列會被邊框拉高（cascade_pyramid T054 寫 0.599%，腦內 0.005%）
+- **原作也只算腦內**（10-21 查程式）：VoxelMorph 論文「count all non-background voxels」、程式 `voxelmorph/py/utils.py` 用 `np.gradient`（同我們）；DWP（rethink-reg）只算 target > 0 並先切掉最外 2 層（`sdlogjac.py` 的 `[2:-2]`）、NDV 也只算 mask 內；RCN 不數 folding，只報 Jacobian 的標準差。→ 我們報 `jneg_fg_pct`（atlas 腦內）跟原作一致
+- 10-21 使用者決定：10/28 簡報**拿掉附錄**這頁（`build.js` 的 `SHOW_BGFOLD = false`），多項指標頁小字改成「僅計 atlas 腦內（同 VoxelMorph、DWP 原作之算法）」；`draw-img/visualize_reg_ixi.py` 的 Jacobian 標題改成**只算 atlas 腦內**、寫出 voxel 數（以前分母是整張影像，cascade_pyramid T054 寫 0.599%，腦內其實 0.0049%＝92 個），全部模型的 vis（88 組）重畫；asd_exp1 那 3 位現在在 train、沒重畫
 
 **視覺化補齊**（10-18）：mix_pyramid、pyramid_500、cascade_pyramid 的 vis（5 位 × 8 張）；mix_exp2～5、7、mix_wide、mix_wide_vel 補 T079；
 mix_exp8／9、cascade、pyramid、pyramid_500、cascade_pyramid 的 loss 圖與 `dice_curve_analysis.png`。

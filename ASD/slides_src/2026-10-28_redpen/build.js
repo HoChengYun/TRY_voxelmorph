@@ -34,8 +34,11 @@ let page = 0;
 const DA_P = path.join(HERE, 'deck_data_arch.json');
 const DA = fs.existsSync(DA_P) ? JSON.parse(fs.readFileSync(DA_P, 'utf8')) : null;
 const HAS_ANTS_VIS = fs.existsSync(path.join(MROOT, 'deck_charts', '1028_ants_vis.png'));
+// 2026-10-21 使用者同意拿掉附錄「影像邊界之 folding」：原作（VoxelMorph、DWP）也只算腦內，跟結論無關，留著反而要多解釋。
+// 內容留在手冊 §28.4；要放回來就改成 true
+const SHOW_BGFOLD = false;
 const ORDER = ['rv_def', 'rv_res', ...(D.models ? ['rv_models'] : []),
-  ...(DA ? ['arch_2x2', 'arch_metrics', 'arch_p500', 'ants_cmp', ...(HAS_ANTS_VIS ? ['ants_vis'] : []), 'app_bgfold'] : [])];
+  ...(DA ? ['arch_2x2', 'arch_metrics', 'arch_p500', 'ants_cmp', ...(HAS_ANTS_VIS ? ['ants_vis'] : []), ...(SHOW_BGFOLD ? ['app_bgfold'] : [])] : [])];
 const sgn = (x, d) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d);
 const thou = (x) => Math.round(x).toLocaleString('en-US');
 
@@ -191,7 +194,7 @@ if (DA) {
       + thou(DA.paper.vxm_fold) + '）', options: { color: C.RUST } }],
   ], { x: M, y: 4.85, w: 12.13, h: 1.8, fontSize: 13.5, paraSpaceAfter: 6 });
   txt(s, 'test ' + DA.n + ' 位之平均；未參與訓練之結構：Accumbens、Inf-Lat-Vent、胼胝體；HD95 為 30 結構之平均；'
-    + 'SDlogJ 與 folding 僅計 atlas 腦內（影像邊界之 folding 見附錄）', FOOT);
+    + 'SDlogJ 與 folding 僅計 atlas 腦內（同 VoxelMorph、DWP 原作之算法）', FOOT);
 }
 
 if (DA) {
@@ -225,9 +228,15 @@ if (DA) {
     ['ANTs SyN', f3(T.ants) + d(T.ants, T.affine), f3(m.ants.dice) + d(m.ants.dice, m.affine.dice)],
     ['VoxelMorph', f3(T.vxm) + d(T.vxm, T.affine), f3(m.mix_exp3.dice) + d(m.mix_exp3.dice, m.affine.dice)],
     ['VoxelMorph − ANTs', sgn(T.vxm - T.ants, 3), sgn(P.mix_exp3_vs_ants.mean, 4) + wp(P.mix_exp3_vs_ants)],
-    ['Folding voxels', 'ANTs ' + thou(T.ants_fold) + '／VxM ' + thou(T.vxm_fold), 'ANTs ' + thou(m.ants.fold) + '／VxM ' + thou(m.mix_exp3.fold)],
+    // 2026-10-21 使用者：「應該要說為啥他們 ants 有東西」→ 論文 §V-B：ANTs、NiftyReg 能強制／強烈鼓勵微分同胚的設定會損及時間或結果，
+    // 故以 Dice 最佳之設定執行（未強制微分同胚）；本研究照論文列出之參數、以 ANTsPy 預設之 SyN 實作執行
+    ['Folding voxels',
+      { text: [{ text: 'ANTs ' + thou(T.ants_fold) + '／VxM ' + thou(T.vxm_fold), options: { breakLine: true } },
+               { text: '採 Dice 最佳設定，未強制微分同胚（§V-B）', options: { fontSize: 9.5, color: C.MUTED } }] },
+      { text: [{ text: 'ANTs ' + thou(m.ants.fold) + '／VxM ' + thou(m.mix_exp3.fold), options: { breakLine: true } },
+               { text: 'ANTsPy 預設 SyN（微分同胚）', options: { fontSize: 9.5, color: C.MUTED } }] }],
     ['時間／位', 'ANTs ' + thou(T.ants_sec) + ' s（CPU）', 'ANTs ' + thou(DA.ants.sec_mean) + ' s（CPU，' + DA.ants.threads + ' threads）'],
-  ], { x: 7.0, y: 1.45, w: 5.73, colW: [1.65, 1.85, 2.23], fontSize: 11.5, rowH: 0.42 });
+  ], { x: 7.0, y: 1.45, w: 5.73, colW: [1.4, 2.1, 2.23], fontSize: 11.5, rowH: 0.42 });
   bullets(s, [
     [{ text: '本研究 Dice 之絕對值較高，主因為 affine 較高（' + f3(m.affine.dice) + ' vs ' + f3(T.affine) + '）；ΔDice 反而較小',
        options: { bold: true } }],
@@ -242,10 +251,12 @@ if (DA) {
 if (DA && HAS_ANTS_VIS) {
   // ─────────────────────────────────────────────── ⑧ ANTs 與 VoxelMorph 之形變結果並排（make_ants_vis.py）
   const s = base(EB8, '形變結果之比較：ANTs SyN、VoxelMorph 與合併模型');
-  fitImage(s, CH('1028_ants_vis.png'), M, 1.35, 12.13, 5.35, 'ANTs SyN 與 VoxelMorph 之形變結果');
+  fitImage(s, CH('1028_ants_vis.png'), M, 1.3, 12.13, 5.25, 'ANTs SyN 與 VoxelMorph 之形變結果');
+  txt(s, 'T054；ANTs SyN 以 Gaussian 平滑形變場（論文參數），形變平滑、無 folding；學習式方法對齊較多細節，'
+    + 'displacement field（mix_exp3）之 folding 較多，架構修改後之模型 folding 大幅減少', FOOT);
 }
 
-if (DA) {
+if (DA && SHOW_BGFOLD) {
   // ─────────────────────────────────────────────── 附錄：影像邊界之 folding（ASD/check_bg_folding.py）
   const B = DA.bgfold;
   const s = base('附錄', 'Coarse-to-fine 之影像邊界 folding：形變合成時 zero padding 所致');

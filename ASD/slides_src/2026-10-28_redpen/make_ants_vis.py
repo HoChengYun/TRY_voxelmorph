@@ -4,7 +4,7 @@
 欄：Fixed（MNI152 atlas）、Moving（affine only）、ANTs SyN、VoxelMorph（mix_exp3，displacement field，同論文 Table I）、
     Cascade + coarse-to-fine（mix_cascade_pyramid）
 列：(a) 形變後影像 m∘φ ＋ atlas 之結構輪廓（側腦室、視丘、殼核、海馬）
-    (b) log|J|（atlas 空間；腦外淡化；|J| ≤ 0 以黑點標示）
+    (b) log|J|（atlas 空間；腦外淡化；|J| ≤ 0 以黃點標示）
 
 ANTs 之結果讀 models\\ants_syn\\vis\\<受試者>.npz（ASD/ants_syn_baseline.py --save-dir；位移場定義在 atlas 格子上、指向受試者，
 與 VoxelMorph 之 SpatialTransformer 同一慣例，--check 已驗證）；VoxelMorph 兩個模型在這裡重跑推論（GPU），結果快取於
@@ -125,16 +125,17 @@ for j, (k, title, dc) in enumerate(COLS):
     if k in ('fixed', 'moving'):
         b.axis('off')
         if k == 'fixed':
-            b.text(0.5, 0.5, '(b) log|J|\n（atlas 空間）\n\n紅：體積放大\n藍：體積縮小\n黑點：|J| ≤ 0',
+            b.text(0.5, 0.5, '(b) log|J|\n（atlas 空間）\n\n紅：體積放大\n藍：體積縮小\n黃點：|J| ≤ 0\n'
+                   '淺灰：atlas 值為 0\n（腦外、腦室內，不計）',
                    ha='center', va='center', fontsize=10, color=MUTED, transform=b.transAxes)
         continue
     det = R[k]['det']
     lj = np.log(np.clip(det, 1e-3, None))
     show = np.ma.masked_where(~cut(FG), cut(lj))
-    b.imshow(cut(atlas_vol), cmap='gray', vmin=0, vmax=3, interpolation='nearest')
+    b.imshow(np.full(cut(FG).shape, 0.85), cmap='gray', vmin=0, vmax=1, interpolation='nearest')
     b.imshow(show, cmap='RdBu_r', vmin=-1, vmax=1, interpolation='nearest')
     fy, fx = np.where(cut(det <= 0) & cut(FG))
-    b.plot(fx, fy, 'k.', ms=2.5)
+    b.plot(fx, fy, '.', color='#FFD400', ms=3.5, mec='#5A4A00', mew=0.3)
     nfold = int(((det <= 0) & FG).sum())
     b.text(0.02, 0.02, '腦內 |J| ≤ 0：{:,} voxels'.format(nfold), transform=b.transAxes, fontsize=9, color=INK,
            va='bottom', bbox=dict(boxstyle='round,pad=0.2', fc='white', ec='none', alpha=0.8))
