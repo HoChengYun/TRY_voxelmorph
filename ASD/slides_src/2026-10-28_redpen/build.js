@@ -372,7 +372,7 @@ if (DA && DA.train) {
       + (['mix_exp8', 'mix_exp9'].every((k) => TR[k].val_win['200-250'] > TR[k].val_win['150-200']) ? '；val Dice 至 250 epochs 仍上升' : ''),
       options: { color: '8E5B8A' } }]] : []),
   ], { x: M, y: 5.4, w: 12.13, h: 1.3, fontSize: 13.5, paraSpaceAfter: 4 });
-  txt(s, 'λ = 1，250 epochs；相似度項 = −NCC（窗格 9）；★ = val Dice 最高之 epoch；TransMorph-diff 之訓練 log 未帶回，僅畫 val Dice；'
+  txt(s, 'λ = 1，250 epochs；相似度項 = −NCC（窗格 9）；★ = val Dice 最高之 epoch；TransMorph-diff 之相似度為 MSE/σ²，上排縱軸另計；'
     + '* 半監督之標籤項即為評估之 30 結構', FOOT);
 }
 

@@ -13,6 +13,8 @@
 /ASD/**/*
 !/ASD/**/
 !/ASD/*.txt
+# 照原作重現（10-28）：DWP 的套件版本（AI 用 git pull 拿）、RCN 原作的 MIT 授權（翻譯程式要附）
+!/ASD/reproduce/*.txt
 !/ASD/slides_src/**/*.dc.html
 !/ASD/slides_src/canvas.json
 /*.pptx

@@ -1,7 +1,10 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-28**（🔴 照原作補齊的三顆＋官方 TransMorph-diff 帶回（手冊 §30.6）：mix_cascade_rcn **0.8166**、mix_pyramid_dwp **0.8162**（單獨的都比舊版 +0.001）、
+> 最後更新：**2026-10-28 晚**（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
+> RCN 從 TF 1.4 逐行翻成 PyTorch（`rcn_torch.py`，`verify_rcn_port.py` 直接執行原作 TF 程式比對，全部相同；RCN 的腦部實驗本來就是 atlas 配準）；TransMorph 兩支改成每輪全部資料洗牌、預設 500 輪（官方）。
+> 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）。
+> 同日稍早：照原作補齊的三顆＋官方 TransMorph-diff 帶回（手冊 §30.6）：mix_cascade_rcn **0.8166**、mix_pyramid_dwp **0.8162**（單獨的都比舊版 +0.001）、
 > 但合併 mix_cascade_pyramid_rcn_dwp **0.8149**（舊版 0.8192，只有 3/51 位較高；低於單獨兩顆，差在第 1 級）；TransMorph-diff **0.7143**（官方 MSE 碰上 MNI152 atlas 亮度跟受試者不同，小腦低於 affine）。
 > 10/28 簡報換成新三顆、多兩頁，共 24 頁；標題結論改成依數字判斷。TransMorph-diff 加進所有比較圖；🔴 使用者決定 Dice／HD95 只用論文 30 個結構（不放「未參與訓練之結構」），
 > 多項指標頁加半監督兩列（標 *）；全份減字（每頁 ≤ 3 條、每條一行、註腳一行，細節放講稿備忘）。
@@ -69,16 +72,16 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_exp7** | 同 mix_exp5，平滑權重 **0.5**（λ 0.5），val 挑 epoch 250（最後一輪，還在慢慢爬）| 0.6882 | **0.8047** | +0.117 | 0.0005% | 9.7 | 2.42 | 0.576 |
 | **mix_wide** | 同 mix_exp3，**U-Net 每層通道數 ×2**（參數 4 倍），val 挑 epoch 225 | 0.6882 | **0.8114** | +0.123 | **0.814%** | **15,422** | 2.40 | 1.944 |
 | **mix_wide_vel** | 同 mix_wide，換成**速度場**（= mix_exp6 加寬 2 倍），val 挑 epoch 240 | 0.6882 | **0.8111** | +0.123 | < 0.0001% | 0.1 | **2.36** | 0.495 |
-| **mix_cascade** | 同 mix_exp6，**串兩顆**（cascade，照 RCN：各自的權重、一起訓練），val 挑 epoch 170 | 0.6882 | **0.8156** | +0.127 | 0.0013% | 23 | **2.33** | 0.564 |
-| **mix_pyramid** | 同 mix_exp6，**由粗到細**（coarse-to-fine；結構上是 Jian et al. 的 DWP，見手冊 §29；參數 0.41 M），val 挑 epoch 245 | 0.6882 | **0.8149** | +0.127 | 0.0002% | 4⁴ | **2.33** | 0.535 |
-| **mix_cascade_pyramid** | 串兩顆＋每顆由粗到細（2 × 2 最後一格；參數 0.82 M），val 挑 epoch 140 | 0.6882 | **0.8192** | +0.131 | 0.0036% | 67⁴ | **2.31** | 0.614 |
-| **mix_pyramid_500** | mix_pyramid 從第 250 輪接著練到 500 輪，val 挑 epoch 335 | 0.6882 | **0.8185** | +0.130 | 0.0003% | 5⁴ | **2.31** | 0.547 |
+| **mix_cascade**⁵ | 同 mix_exp6，**串兩顆**（cascade，照 RCN：各自的權重、一起訓練），val 挑 epoch 170 | 0.6882 | **0.8156** | +0.127 | 0.0013% | 23 | **2.33** | 0.564 |
+| **mix_pyramid**⁵ | 同 mix_exp6，**由粗到細**（coarse-to-fine；結構上是 Jian et al. 的 DWP，見手冊 §29；參數 0.41 M），val 挑 epoch 245 | 0.6882 | **0.8149** | +0.127 | 0.0002% | 4⁴ | **2.33** | 0.535 |
+| **mix_cascade_pyramid**⁵ | 串兩顆＋每顆由粗到細（2 × 2 最後一格；參數 0.82 M），val 挑 epoch 140 | 0.6882 | **0.8192** | +0.131 | 0.0036% | 67⁴ | **2.31** | 0.614 |
+| **mix_pyramid_500**⁵ | mix_pyramid 從第 250 輪接著練到 500 輪，val 挑 epoch 335 | 0.6882 | **0.8185** | +0.130 | 0.0003% | 5⁴ | **2.31** | 0.547 |
 | ANTs SyN（傳統方法）| 論文 §V-A-3 參數，`ASD/ants_syn_baseline.py`；每位 37 分鐘（CPU）| 0.6882 | **0.8043** | +0.116 | 0% | 0 | — | — |
-| TransMorph（另一專案 mixv2）| 設定同 mix_exp3（位移場、λ 1、250 輪），只換成 TransMorph 基本版（46.8 M 參數，155 倍），val 挑 epoch 205 | 0.6882 | **0.8139** | +0.126 | 0.841% | 15,704 | 2.38 | 1.975 |
-| **mix_cascade_rcn** | 同 mix_cascade，照 RCN 原作補細節（`--rcn`：每顆輸出 ×1/n、串接取邊界值），val 挑 epoch 195 | 0.6882 | **0.8166** | +0.128 | 0.0012% | 22 | **2.33** | 0.559 |
-| **mix_pyramid_dwp** | 同 mix_pyramid，照 DWP 原作補細節（`--dwp`：合成時 δ detach、粗的三層也算 loss），val 挑 epoch 205 | 0.6882 | **0.8162** | +0.128 | 0.0006% | 10⁴ | **2.34** | 0.555 |
-| **mix_cascade_pyramid_rcn_dwp** | 同 mix_cascade_pyramid，`--rcn --dwp` 都開，val 挑 epoch 155（之後 val 略降）| 0.6882 | **0.8149** | +0.127 | 0.0038% | 71⁴ | 2.40 | 0.642 |
-| TransMorph-diff（另一專案 mixv2）| 官方 TransMorphDiff 照官方訓練方式（機率式 SVF、MSE＋KL、Adamax、lr 遞減、三向翻轉），只把訓練量改成 2.5 萬步，val 挑 epoch 75 | 0.6882 | **0.7143** | +0.026 | 0.916% | 17,101 | 3.83 | 2.342 |
+| TransMorph（另一專案 mixv2）⁵ | 設定同 mix_exp3（位移場、λ 1、250 輪），只換成 TransMorph 基本版（46.8 M 參數，155 倍），val 挑 epoch 205 | 0.6882 | **0.8139** | +0.126 | 0.841% | 15,704 | 2.38 | 1.975 |
+| **mix_cascade_rcn**⁵ | 同 mix_cascade，照 RCN 原作補細節（`--rcn`：每顆輸出 ×1/n、串接取邊界值），val 挑 epoch 195 | 0.6882 | **0.8166** | +0.128 | 0.0012% | 22 | **2.33** | 0.559 |
+| **mix_pyramid_dwp**⁵ | 同 mix_pyramid，照 DWP 原作補細節（`--dwp`：合成時 δ detach、粗的三層也算 loss），val 挑 epoch 205 | 0.6882 | **0.8162** | +0.128 | 0.0006% | 10⁴ | **2.34** | 0.555 |
+| **mix_cascade_pyramid_rcn_dwp**⁵ | 同 mix_cascade_pyramid，`--rcn --dwp` 都開，val 挑 epoch 155（之後 val 略降）| 0.6882 | **0.8149** | +0.127 | 0.0038% | 71⁴ | 2.40 | 0.642 |
+| TransMorph-diff（另一專案 mixv2）⁵ | 官方 TransMorphDiff 照官方訓練方式（機率式 SVF、MSE＋KL、Adamax、lr 遞減、三向翻轉），只把訓練量改成 2.5 萬步，val 挑 epoch 75 | 0.6882 | **0.7143** | +0.026 | 0.916% | 17,101 | 3.83 | 2.342 |
 | **mix_exp8** | 同 mix_exp6，**訓練時也用標籤**（γ 0.5），val 挑 epoch 250（還在上升）| 0.6882 | **0.8995**³ | +0.211 | 0.0018% | 34 | 1.54³ | 0.607 |
 | **mix_exp9** | 同上，γ 5，val 挑 epoch 245（還在上升）| 0.6882 | **0.9290**³ | +0.241 | 0.077% | 1,481 | 1.44³ | 1.181 |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0%² | 0 | 1.69² | 0.317² |
@@ -91,6 +94,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 HD95、SDlogJ（2026-10-07 加）：`test_dice.py --surface` → `surface_<epoch>.csv`，定義與結果見手冊 §26。
 ³ **標籤項用的就是評估的 30 個結構，Dice、HD95 不能跟非監督的模型直接比**；沒參與訓練的結構（Accumbens、Inf-Lat-Vent、胼胝體）Dice：mix_exp6 0.653 → mix_exp8 0.665、mix_exp9 **0.442**（affine 0.475），見下面第 8 點與手冊 §27。
 ⁴ 由粗到細系列腦內只有個位數到幾十個，但**腦外背景每位約 1 萬（pyramid）～5 萬（cascade_pyramid）個**，全在影像最外圈 0～4 格：合成形變時 grid_sample 補 0 造成，推論改 `padding_mode='border'` 就消失、Dice 不變（手冊 §28.4）。用整張影像的 `jneg_pct` 會很難看，一律報腦內。
+⁵ **舊設定**（10-28 使用者：「之前跑過的實驗就註記是用舊設定完成的」）：cascade／pyramid 系列是照原作的**機制**自己實作，底層網路與訓練設定對齊 mix_exp6（SVF、局部 NCC、λ 1、lr 固定、25,000 步）；TransMorph 兩顆的訓練量是 25,000 步，tm_mixv2 另外對齊 mix_exp3（lr 固定、不翻轉）。使用者決定新方法**第一步先照原作程式重現**，只改逼不得已的（資料、atlas、影像大小、評估、環境），見手冊 §31。
 ¹ 舊定義、未重算（SVF 版近 0，兩種定義都約 0）。² tigerbx 是在筆電上 09-19 更新後的資料算的（29 顆改成不轉正，test 有 2 位；模型當初是在 AI 上舊版評估的，見手冊 §20.9）。
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
@@ -162,6 +166,8 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 程式 `mixv2/train_mixv2_diff.py`（新檔）、`verify_diff.py`（筆電全部通過），操作單 `mixv2/指令_AI_訓練_diff.md`，排在 rcn_dwp 三顆之後；細節在該專案 README「TransMorph-diff」一節。
 ⚠️ 它跟 tm_mixv2 的訓練方式不同，兩顆 TransMorph 的差距不能全算在「位移場 vs 微分同胚」上。
 🟡 **tm_mixv2 是舊設定**（使用者 10-24：「不一定要特別和 mix_exp3 一樣」「先不用重練，註記 tm_mixv2 是舊設定就好」）：`train_mixv2.py` 預設改成官方訓練方式（Adam amsgrad、lr 遞減、三向翻轉），舊設定（對齊 mix_exp3）留成 `--legacy`。引用 tm_mixv2 的數字時要寫「訓練方式對齊 mix_exp3」。
+🔴 **10-28 兩支都再改成照官方的「每輪 = 全部訓練資料洗牌跑一次」、預設 500 輪**（以前每輪隨機抽 100 位、250 輪；手冊 §31.6）。
+舊做法 = `--epochs 250 --steps-per-epoch 100`（tm_diff_mixv2 就是這樣練的）；該專案舊的操作單指令本來就寫了這兩個參數，照抄仍是舊做法。
 
 ---
 
@@ -256,7 +262,11 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_cascade_pyramid.md     # mix_cascade_pyramid（串兩顆＋由粗到細疊在一起，2 × 2 最後一格），Drive 傳輸站\reg\script\mix_cascade_pyramid\ 也有一份
 │   ├── 指令_mix_pyramid_500.md         # mix_pyramid 接著訓練到 500 輪（新實驗名 mix_pyramid_500，免得蓋掉原本的 log；等 cascade_pyramid 跑完）
 │   ├── 指令_mix_cascade_pyramid_500.md # mix_cascade_pyramid 從第 250 輪接著訓練到 500 輪（⏸ 10-21 暫停：舊版本程式）
-│   ├── 指令_mix_rcn_dwp.md             # ⭐ 照原作程式重跑三顆：mix_pyramid_dwp → mix_cascade_rcn → mix_cascade_pyramid_rcn_dwp（手冊 §29；等 TransMorph 跑完）
+│   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
+│   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
+│   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
+│   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
+│   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
 │   ├── subjects_final.txt              # 🟡 舊的 ASD 清單（08-23 版）；現行清單是 data\ASD_data\fs_stats\subjects.txt（164）
 │   ├── atlas_out\                      # atlas 的 FreeSurfer aseg（256³）與驗證圖
 │   ├── fs_check\                       # --only 單顆驗證輸出
@@ -885,6 +895,9 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 - **下一顆（10-16 使用者決定）**：mix_pyramid 接著訓練到 500 輪 = **mix_pyramid_500**（val 最佳在第 245／250 輪，可能還沒練完）。操作單 `ASD/指令_mix_pyramid_500.md`；等 mix_cascade_pyramid 跑完再開始。筆電實測從 0245.pt 接著練正常（第一步 loss −0.2406，跟原本最後一輪同水準；顯存實際 9.6 GB）。⚠️ `run_train.py --resume` 會用寫入模式重開 `log\<實驗名>.txt`，用原本的名字續跑會蓋掉舊 log → 一律換新名字
 - 🔴 **10-21 照原作程式補細節、重跑三顆**（手冊 §29；使用者：「要先看過他們原始碼再寫自己程式」「該重跑就重跑」）：讀了 RCN、DWP（Jian et al., github.com/BailiangJ/rethink-reg）、Dual-PRNet++ 的程式。**我們的 pyramid 結構上是 DWP**（共用 encoder＋帶上一層特徵的 decoder），不是 Dual-PRNet → 引用改成「採 DWP，概念源自 Dual-PRNet」。補上：cascade 照 RCN（每顆輸出 ×1/n、串接的 warp 取邊界值，`--rcn`）；pyramid 照 DWP（合成時 δ detach、粗的層 1/16、1/8、1/4 也算影像項＋平滑項、權重 1/16～1/4，`--dwp`）；backbone、loss、λ、SVF 維持 mix_exp6。新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，舊的三顆保留；`verify_rcn_dwp.py` 驗證舊模型改前改後逐 voxel 相同。📌 回來後換掉 10/28 簡報的三顆：改 `ASD/slides_src/2026-10-28_redpen/deck_models.json`，照同一夾的 `換模型.md` 補算、重跑，標題結論與講稿數字要人工重看
 - 📌 **10-12 對照過原論文的程式**（RCN、Dual-PRNet，只讀；手冊 §25.5）：核心設計都對上；差異是 RCN 每段輸出乘 1/n、Dual-PRNet warp 特徵時切斷梯度與訓練技巧（暖身、梯度裁剪）。使用者決定程式先不改
+- 🔴 **10-28 新方法的第一步改成「照原作程式重現」**（使用者：「第一步是去重現他們的程式，之後熟悉了再去加入我們自己的想法」「逼不得已要改的設定，我們才去動他們的原始碼」；手冊 §31）：
+  DWP（期刊版 γ = 0）、RCN（翻成 PyTorch）、TransMorph、TransMorph-diff 都寫好、筆電試跑過，`ASD/指令_reproduce.md`。上面這些 mix_cascade／mix_pyramid 系列是舊設定（照原作機制、訓練對齊 mix_exp6）。
+  合併模型、對齊 mix_exp6 的比較屬第二步。RCN 要跑時，底層網路與顆數再跟使用者確認（操作單先用 VTN 3 顆）
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

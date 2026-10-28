@@ -1,0 +1,20 @@
+# DWP 原作環境（rethink-reg @97175ff 的 requirements.txt），版本照抄，只有兩處不同：
+#   1. torch 用 CUDA 12.1 版：AI 那台驅動最高 CUDA 12.2。torch 要先另外裝：
+#        pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
+#   2. mmcv → mmcv-lite：Windows 沒有 mmcv 2.2.0 編譯好的版本；DWP 只在 import 時用到 mmcv.cnn.ConvModule，
+#      用不到 mmcv 的 CUDA ops
+# 原作還有 reorient-nii==1.0.0（整理 LUMIR 資料用），我們讀自己的 npz，沒裝
+monai==1.5.0
+mmengine==0.10.7
+mmcv-lite==2.2.0
+numpy==2.0.1
+scipy==1.15.2
+pandas==2.3.3
+nibabel==5.3.2
+SimpleITK==2.5.2
+scikit-image==0.25.2
+timm==1.0.19
+einops==0.8.1
+wandb==0.22.1
+matplotlib==3.10.6
+ConfigArgParse==1.7.1

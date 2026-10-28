@@ -174,7 +174,9 @@ PAT = re.compile(r'epoch: (\d+)\s+step: \d+/\d+\s+time: ([\d.]+) sec\s+loss: (-?
 
 
 def loss_by_epoch(name):
-    raw = open(J('models', 'tm_mixv2', 'train_log.txt') if name == 'tm_mixv2' else J('log', name + '.txt'), 'rb').read()
+    # TransMorph 兩顆是另一個專案練的，log 複製到 models\<實驗>\train_log.txt（tm_diff_mixv2 的 10-28 帶回）；其他在 log\<實驗>.txt
+    pm = J('models', name, 'train_log.txt')
+    raw = open(pm if os.path.exists(pm) else J('log', name + '.txt'), 'rb').read()
     t = None
     for enc in ('utf-8', 'utf-16', 'cp950'):
         try:
@@ -418,15 +420,22 @@ bot.set_xlabel('epoch', fontsize=10)
 bot.tick_params(labelsize=9)
 bot.text(0.97, 0.04, '縱軸另計', transform=bot.transAxes, ha='right', fontsize=8.5, color=MUTED)
 top.set_title('TransMorph-diff\n（SVF，MSE）', fontsize=9.5, fontweight='bold', color=SLATE_L)
-top.text(0.5, 0.5, '訓練 log 未帶回\n相似度為 MSE，\n不可與 NCC 比較', transform=top.transAxes, ha='center', va='center', fontsize=9, color=MUTED)
-top.set_yticks([])
+# 10-28 log 帶回：上排畫相似度項 MSE/σ²（σ = 0.01，官方的機率式 loss；跟 −NCC 不能比 → 縱軸另計，刻度放左邊的空白）
+Lt = loss_by_epoch('tm_diff_mixv2')
+lt = sorted(Lt)
+top.plot(lt, [Lt[k][0] for k in lt], color=SLATE_L, lw=1.3)
+top.set_ylim(min(v[0] for v in Lt.values()) * 0.9, Lt[10][0])    # 前 10 輪降得太快（72 → 22），縱軸從第 10 輪的值開始
+top.tick_params(labelleft=True, labelsize=9)
+top.text(0.97, 0.95, '縱軸另計\nMSE/σ²（σ = 0.01）', transform=top.transAxes, ha='right', va='top', fontsize=8, color=MUTED)
 for ax in (top, bot):
     clean(ax, 'both')
 wt = lambda a, b: float(np.mean([v for k, v in Vt.items() if a <= k <= b]))
-OUT_D['train']['tm_diff_mixv2'] = {'val_win': {'150-200': wt(150, 200), '200-250': wt(200, 250)}, 'best': [bt, Vt[bt]]}
+OUT_D['train']['tm_diff_mixv2'] = {'val_win': {'150-200': wt(150, 200), '200-250': wt(200, 250)}, 'best': [bt, Vt[bt]],
+                                   'img': {str(k): Lt[k][0] for k in (10, 50, 150, 200, 250)},          # MSE/σ²，不是 −NCC
+                                   'hours': sum(v[1] for v in Lt.values()) / 3600}
 TOP['mix_exp6'].set_ylabel('訓練損失之相似度項\n（−NCC，訓練集；↓）', fontsize=10)
 BOT['mix_exp6'].set_ylabel('val Dice（30 結構；↑）\n★ = 選定之 epoch', fontsize=10)
-fig.suptitle('上：訓練集（每 epoch 100 步之平均）　下：validation 51 位（每 5 epochs；縱軸自 0.76 起，TransMorph-diff、半監督另計）',
+fig.suptitle('上：訓練集（每 epoch 100 步之平均；TransMorph-diff 為 MSE，縱軸另計）　下：validation 51 位（每 5 epochs；縱軸自 0.76 起，TransMorph-diff、半監督另計）',
              fontsize=10, color=MUTED, x=0.07, ha='left')
 save(fig, '1028_train_curves.png')
 with open(os.path.join(HERE, 'deck_data_arch.json'), 'w', encoding='utf-8') as fh:    # OUT_D['train'] 是畫圖時才算的，再寫一次

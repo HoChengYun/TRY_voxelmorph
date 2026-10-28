@@ -3376,4 +3376,101 @@ p11、p13、p14 的標題改成依數字判斷（`build.js` 的 `MBEST`、`DN`�
 
 **公式核對與講稿**（10-28 晚）：使用者問「p11 p12 公式都是對的嗎」→ 式 (1)～(4) 逐項對過 `ASD/arch.py`（`stage_flows`、`VxmCascade.forward`、`VxmPyramid.fields`）與 `ASD/train_arch.py`（loss、`dwp_sublevel_loss`），全部一致。投影片「其中」補上哪些是本研究之設定：exp（SVF）、局部 NCC、λ = 1；RCN 原文（§3.2、§4.1）子網路直接輸出位移場、相似度為 correlation coefficient、每一級的 flow 都罰 L2 variation；DWP 原文（Implementation Details）位移場、最細一層 1/2 解析度、λ = 0.5、另有 Dice loss（γ = 0.5，半監督）。🔴 更正：DWP 的子層 loss 論文本文就有寫（「at level 4 … 2^-4 (L_sim + λL_reg)」、[1/16, 1/8, 1/4]），只有合成時 detach 是程式才有；講稿與 `文獻/cascade與pyramid原理筆記.md` §7.1 已改。
 p14 訓練過程加半監督兩欄：上排相似度項跟其他模型同一縱軸（γ = 0.5／5 在 epoch 250 為 −0.227／−0.207，高於 mix_exp6 −0.235），下排 val Dice 另計縱軸（使用者「保留」縱軸另計）；`make_arch_res.py` 的 log 解析式允許第三項（標籤項）。γ = 5 在 epoch 138～139 有一段不穩定，兩個 epoch 內恢復。
+TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log.txt`）：p14 上排補上 MSE/σ² 曲線（縱軸另計）；72（第 1 輪）→ 22（第 10 輪）→ 9.8（第 250 輪）一路下降，val Dice 卻在第 25 輪左右就停在 0.70～0.71；25,000 步約 15.9 小時。
+跟 TransMorph 原論文比（官方 repo IXI benchmark，atlas → 受試者）：TransMorph 0.753 vs VoxelMorph-1 0.729／-2 0.732；我們 0.814 vs mix_exp3 0.806／mix_wide 0.811，方向一樣、差距較小；可能原因是訓練量約 1/8、tm_mixv2 沒有翻轉且 lr 固定、本資料 affine 起點高，以及論文沒有比 cascade／pyramid（講稿 p13 備忘）。
 報告沒有雙螢幕：`make_script.py` 由 `講稿.md`＋投影片縮圖（`script_thumbs/`）產生 `講稿_10-28.pdf`（A4，每頁縮圖＋要講的話，【備忘】放灰框；第一頁流程總覽，正文約 17 分鐘、附錄約 4 分鐘）。Edge headless 在 Claude 的 bash 沙箱裡開不起來，要從 PowerShell 跑。
+
+
+---
+
+## 31. 照原作程式重現：DWP、RCN、TransMorph（2026-10-28）
+
+使用者 10-28：「我認為第一步是去重現他們的程式，之後熟悉了再去加入我們自己的想法」「有哪些是逼不得已要改的設定，我們才去動他們的原始碼，否則我覺得我們都還在第一步先不要自己去改」。
+先前的 cascade／pyramid 系列（§25、§29）是照原作的**機制**自己寫，底層網路與訓練設定對齊 mix_exp6；tm_mixv2、tm_diff_mixv2 的訓練量（與 tm_mixv2 的 lr、翻轉）對齊我們的模型 → 都註記為**舊設定**（CLAUDE.md 表上的 ⁵），保留不動。合併模型（cascade＋pyramid）兩篇原作都沒有，屬第二步。
+
+### 31.1 使用者的決定
+
+| 問題 | 決定 |
+|---|---|
+| RCN、DWP、TransMorph 那些「之前改了、但其實不必改的」 | 先照原作 |
+| RCN 原作是 TensorFlow 1.4 | 忠實翻成 PyTorch |
+| 方向（TransMorph 官方是 atlas → 受試者）| 受試者 → atlas |
+| DWP 用哪一版（WBIR 有 Dice loss γ = 0.5；期刊版 γ = 0）| γ = 0（非監督）|
+| 訓練量 | 不必照原作；「我也不確定之後有沒有機會重新跑這些實驗，但我希望之後做的一些創意是可以從原作出發，所以你可以測試一下你的程式是否可執行」|
+
+→ 程式的預設＝原作（含訓練量），要縮短用參數改；10-28 只做到「筆電試跑、評估跑通」，**沒有正式訓練**。操作單 `ASD/指令_reproduce.md`。
+
+### 31.2 逼不得已改的
+
+| | DWP（rethink-reg @97175ff）| RCN（Recursive-Cascaded-Networks @0709490）| TransMorph、-diff（官方 IXI）|
+|---|---|---|---|
+| 程式 | 原作不改、只 import（`ASD/reproduce/train_dwp.py`）| TF 1.4 → PyTorch 逐行翻（`rcn_torch.py`，§31.3 驗證）| 官方不改、只 import（TransMorph 專案 `mixv2/`）|
+| 資料 | 原作 LUMIR 500 顆兩兩隨機配 → 每一步 [受試者, atlas] | 原作 h5（0～255）→ 我們的 npz（[0, 1]）| 我們的 npz |
+| 方向 | 受試者 → atlas | 受試者 → atlas（**原作的腦部實驗本來就是 atlas 配準**：`brain.json` 的 atlas = LPBA S01，論文「the first scan in LPBA is fixed as the atlas」）| 受試者 → atlas（官方 atlas → 受試者）|
+| 影像大小 | 160×192×224 → 192×224×192（設定檔每個 image_size）| 128³ → 192×224×192：affine stem 最後一層 kernel 2³ → 3×4×3；隨機形變照數學定義（§31.3 ②）| Swin 視窗 (5, 6, 7) → (6, 7, 6) |
+| 環境 | 原作版本（torch 2.5.1、monai 1.5.0…），mmcv → mmcv-lite（Windows 沒有編譯版、DWP 用不到 CUDA ops）| 1 張卡：原作 batch 4 = 4 張卡各 1 對、梯度平均 → 依序算 4 對、梯度平均 | — |
+| 評估、存檔 | 原作 val_iter（LUMIR）不跑；每輪存、我們的 val Dice 挑 | 原作每 100 步的 LPBA validation 不跑；每 5,000 步存、val 挑 | 每 5 輪存、val 挑（官方每輪看 val、留 8 顆）|
+| 記錄 | 原作 wandb.log 改寫進 train_log.txt | TensorBoard → train_log.txt | — |
+
+評估一律是我們的（`eval_repro.py`、TransMorph 專案 `eval_mixv2.py`，算法同 `test_dice.py`：30 個結構、標籤最近鄰、腦內 folding、HD95、SDlogJ）。
+
+### 31.3 RCN 翻譯的驗證（`ASD/reproduce/verify_rcn_port.py`，vxm_env 的 TF 2.21）
+
+把原作的 `.py` 原封不動讀進來執行，只把 tflearn 的 conv_3d／conv_3d_transpose 換成 tf.nn 的版本（TF 自己的 'SAME'），權重從 PyTorch 模型搬過去，同一組輸入比輸出。**全部通過**：
+
+| 項目 | 最大差（數值大小）|
+|---|---|
+| warp（Dense3DSpatialTransformer）輸出／對影像的梯度／對位移的梯度（±4 格、很多點超出範圍）| 2.3e-6（0.97）／1.9e-5（21.9）／6.0e-6（5.0）|
+| VTN／VoxelMorph／VTNAffineStem forward（96×112×96：112 → … → 7 → 4 → 2，有奇數）| 4.8e-6（13.9）／3.2e-7（0.12）／5.7e-9（1.9e-3）；W、b、det、ortho 相同 |
+| 串接 affine＋2 顆（VTN、VoxelMorph）：總 loss、每顆的 loss（相似度、平滑、det、ortho）、合成位移、搬好的 moving | loss 0～7.6e-6（105）；VTN 合成位移 3.4e-4（26.8，float32）|
+| B-spline 隨機形變、B-spline 基底、sample_power | 8.3e-7、3.0e-8、6.0e-8 |
+| tflearn uniform_scaling 初始化 | 範圍、標準差都對 |
+
+讀原作時發現、翻譯時要特別處理的：
+1. **warp 的邊界**：原作把超出範圍的取樣點夾到邊界（clip，權重用夾過的點算）＝ grid_sample 的 padding_mode='border'，值與梯度都一樣
+2. 🔴 **隨機形變（transform.py free_form_fields）**：原作最後的 reshape 把輸出的前兩個空間軸跟控制點的軸對調了，只有 X = Y 時跑得動（他們都是 128³）。控制點是 i.i.d. 亂數，對調不改變形變的分佈 → 我們照數學定義寫（三個軸各自三次 B-spline），192×224×192 才跑得動；128³ 時跟原作只差這個對調（驗證第 4 項）
+3. **TF 'SAME'**：stride 2 遇到偶數大小只補後面（PyTorch padding=1 前後各一，取樣位置差半格）；轉置卷積的輸出大小由編碼器那層決定，224 那條軸會遇到 7 → 4 → 7 → 先不補零做完整的轉置卷積、再照 TF 裁
+4. **初始化**：tflearn uniform_scaling（fan = k³·cin；轉置卷積 k³·cout）；VTN 輸出 ×20，初始位移很大 → 一開始的平滑項約 50～65、Dice 低（試跑 3 步 0.05），是原作本來的行為；VoxelMorph 底的最後一層 N(0, 1e-5)，一開始幾乎不動
+5. Adam：TF 的 ε 加在沒校正的 v 上（PyTorch 加在校正後的），只差在 ε = 1e-8，可忽略
+沒翻的：Fast3DTransformer（要另外編 TF 1.4 的自訂 op，原作預設不用）、landmark／Dice 等記錄用的輸出。
+
+### 31.4 DWP
+
+- 設定檔 `tasks/brainmri/configs/vxm_dualpyd_cfg.py`（README 表上的 DWP）：`VXMPlus_DualWarpPy`，我們的大小 1,886,796 個參數；每一步用原作 `run_iter`（雙向、沿第一軸翻轉 50%、1/16、1/8、1/4 各層的相似度＋平滑、fp16）
+- 翻轉的軸：LUMIR 轉成 LIA、我們 MNI152 RAS，第一軸都是左右 → 意思相同
+- 原作的 NCC（`models/losses/lncc.py` 的 'ncc'）公式同 VoxelMorph（cross² / (var·var + 1e-5)）；試跑第一步 −0.073，跟 mix_exp6 第一步 −0.082、affine 時 −0.07～−0.085 一致
+- 🟡 原作設 `cudnn.deterministic = True`：筆電反向傳播 9.9 秒 vs 不設 1.8 秒（5.6 倍）。只影響速度與逐位元可重現 → 預設照原作，`--nondeterministic` 可關
+- 筆電試跑（3 位 × 2 輪）：每步 12 秒、顯存實際 5.2 GB；`eval_repro.py --method dwp` 跑通
+- 環境：`venv_dwp`（筆電 `D:\MyHome\MRI\orig_repos\venv_dwp`），`ASD/reproduce/requirements_dwp.txt`；wandb 會印 pydantic 的警告，無害
+
+### 31.5 RCN
+
+- 論文 §4.1：batch 4、4 張 TITAN Xp、10⁵ 步、Adam、lr 10⁻⁴ 在 6×10⁴、8×10⁴ 步各減半；相似度 correlation coefficient、正則比例同 VTN（det 0.1、ortho 0.1、平滑 1）
+- 訓練時 moving 加隨機 B-spline 形變（控制點 5×5×5、±0.4 × 影像大小/4，集中在 0 附近），fixed 不動
+- 參數：VTN × 1 4,259 萬、× 3 9,909 萬；VoxelMorph × 2 1,494 萬（affine stem 就占 1,434 萬）
+- 筆電試跑（全尺寸）：VTN × 1 batch 1 每步 0.27 秒、3.0 GB；VTN × 2 batch 4 每步 1.9～2.2 秒、5.1 GB；VTN × 3 batch 2 每步 2.4～2.9 秒、7.0 GB（筆電顯存快滿，偏慢）；VoxelMorph × 2 要 11.3 GB，筆電放不下（每步 82 秒），AI 放得下
+- 底層網路與顆數原作可選（預設 VTN、1 顆）；論文放出的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 操作單用 **VTN 3 顆**（VoxelMorph 5 顆在我們的大小估計要 24 GB 以上）。正式要跑時再跟使用者確認
+- 縮短訓練量：`--round 5000`（2.5 萬步，lr 在 1.5 萬、2 萬步減半，排程形狀不變）
+
+### 31.6 TransMorph（TransMorph 專案 `mixv2/`）
+
+- 10-24 已改：Adam amsgrad、poly、三向翻轉（`train_mixv2.py` 預設；`train_mixv2_diff.py` 本來就照官方）
+- 10-28 再改：**每輪 = 全部訓練資料洗牌、每位一次**（官方 DataLoader(shuffle=True)；以前是每輪隨機抽 100 位、可重複），**預設 500 輪**（官方）。
+  舊做法 = `--epochs 250 --steps-per-epoch 100`（亂數順序不變）；`--legacy` 另外把 lr、優化器、翻轉也改回 tm_mixv2 的設定。
+  回歸測試（筆電、同 seed、裁 128×160×128）：`--legacy`、TransMorph-diff 的舊做法跟改之前那版第一步完全相同，之後只差第 6 位（GPU 運算不確定性）；官方模式每輪 418 步、跑得動
+- `train_mixv2_diff.py` 加了 UTF-8 輸出：Windows 主控台 cp950 印不出「σ²」的「²」，以前在筆電一啟動就中斷
+- 仍跟官方不同（逼不得已）：影像大小與視窗、受試者 → atlas、存檔與挑 epoch
+
+### 31.7 檔案
+
+| 檔案 | 用途 |
+|---|---|
+| `ASD/reproduce/requirements_dwp.txt` | DWP 環境（原作版本，兩處不同見檔頭）|
+| `ASD/reproduce/train_dwp.py` | DWP 訓練（原作程式 import，只換資料）|
+| `ASD/reproduce/rcn_torch.py` | RCN 的 PyTorch 翻譯（MIT，`LICENSE_RCN.txt`）|
+| `ASD/reproduce/train_rcn.py` | RCN 訓練（對照原作 train.py、framework.py、brain.py）|
+| `ASD/reproduce/verify_rcn_port.py` | RCN 翻譯 vs 原作 TF 程式逐項比對 |
+| `ASD/reproduce/eval_repro.py` | DWP、RCN 的評估（同 `test_dice.py`，CSV 格式也同）|
+| `ASD/指令_reproduce.md` | AI 操作單（四顆，照原作／縮短兩種訓練量）|
+
+原作 repo 不放進我們的 repo：筆電 `D:\MyHome\MRI\orig_repos\`、AI `D:\chengyun\orig_repos\`（操作單 0-1 固定 commit）。
