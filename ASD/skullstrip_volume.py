@@ -29,6 +29,13 @@
 用法
   python ASD\\skullstrip_volume.py --scan --analyze --r 5      # 170 位約 10 分鐘
   python ASD\\skullstrip_volume.py --show sub-0043
+
+tigerbx 版（2026-10-22，老師 10/14 紅字 p12「換乾淨的 tbet（ex tigerbx）看 Dice 差多少」；使用者：「看 tigerbx 那一套跑出來的效果」）：
+  --data tigerbx：影像、標籤換成 data\\tigerbx_preprocessed_v2（tigerbx 的 tbet＋aseg43），球用 tigerbx 的標籤補；
+  Dice 用 tigerbx 標籤（atlas 用 atlas_mni152_09c_v3_seg_tigerbx.npz），affine 起點與配準後都在 skullstrip_check\\cohorts\\ 用現在的資料重算
+  （dice_tiger_baseline_<test|val>.csv、dice_tiger_exp3_0210_<test|val>.csv）。只有 test、val（MRS 沒有 tigerbx），同樣排除 A0131、FSS_A001。
+  輸出檔名多 _tigerbx：residue_volume_tigerbx_r5.csv、_near.json、_summary.csv。
+  python ASD\\skullstrip_volume.py --data tigerbx --scan --analyze --r 5
 """
 import os
 import sys
@@ -46,8 +53,24 @@ from skullstrip_label_dice import NAME, EVAL, MIN_SHARE
 from skullstrip_label_dice_pooled import COHORTS, EXCLUDE, N_NEAR, read
 
 SK = os.path.join(ROOT, 'models', 'skullstrip_check')
-OUT_CSV = lambda r: os.path.join(SK, 'residue_volume_r%d.csv' % r)
-OUT_NEAR = lambda r: os.path.join(SK, 'residue_volume_r%d_near.json' % r)
+TAG = ''                                                   # '' = FreeSurfer（原本的）；'_tigerbx' = tigerbx 版（use('tigerbx')）
+OUT_CSV = lambda r: os.path.join(SK, 'residue_volume%s_r%d.csv' % (TAG, r))
+OUT_NEAR = lambda r: os.path.join(SK, 'residue_volume%s_r%d_near.json' % (TAG, r))
+SUMMARY = lambda r: os.path.join(SK, 'residue_volume%s_r%d_summary.csv' % (TAG, r))
+_J = lambda *p: os.path.join(ROOT, *p)
+TIGER_COHORTS = [  # 同 COHORTS 的格式：(名字, 殘留 CSV（取 split）, split, 配準前, 配準後, 影像資料夾)
+    ('test', os.path.join(SK, 'skullstrip_all520.csv'), 'test', os.path.join(SK, 'cohorts', 'dice_tiger_baseline_test.csv'),
+     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_test.csv'), _J('data', 'tigerbx_preprocessed_v2', 'test')),
+    ('val', os.path.join(SK, 'skullstrip_all520.csv'), 'val', os.path.join(SK, 'cohorts', 'dice_tiger_baseline_val.csv'),
+     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_val.csv'), _J('data', 'tigerbx_preprocessed_v2', 'val')),
+]
+
+
+def use(data):
+    """切換資料：'freesurfer'（預設）或 'tigerbx'。"""
+    global COHORTS, TAG
+    if data == 'tigerbx':
+        COHORTS, TAG = TIGER_COHORTS, '_tigerbx'
 REGIONS = [('top', '顱頂'), ('base', '顱底'), ('back', '枕部'), ('front', '額部'), ('side', '兩側')]
 BANDS = [(0, 2), (2, 5), (5, 10), (10, 999)]          # 離腦表面的距離（mm）：(lo, hi]
 CLOSE_R = 5                                            # 「球」的 closing 半徑（mm）
@@ -91,7 +114,7 @@ def measure_volume(vol, seg, r=CLOSE_R):
 
 
 def subjects():
-    """test、val、MRS 三批（同 skullstrip_label_dice_pooled.py，排除 A0131、FSS_A001）。"""
+    """test、val、MRS 三批（同 skullstrip_label_dice_pooled.py，排除 A0131、FSS_A001）；tigerbx 版只有 test、val。"""
     out = []
     for name, res_csv, split, before, after, npz in COHORTS:
         R, B, A = read(res_csv, 'subject'), read(before), read(after)
@@ -184,7 +207,7 @@ def analyze(rad):
         print('    合起來 r=%+.2f p=%.2g（n=%d）｜殘留最多 1/4：%.3f → %.3f（%+.3f）；最少 1/4：%.3f → %.3f（%+.3f）；組間 p=%.2g'
               % (rho, p, len(rows), res['dirty_before'], res['dirty_after'], res['dirty_gain'],
                  res['clean_before'], res['clean_after'], res['clean_gain'], res['mw_p']))
-    p = os.path.join(SK, 'residue_volume_r%d_summary.csv' % rad)
+    p = SUMMARY(rad)
     with open(p, 'w', encoding='utf-8', newline='') as f:
         w = csv.DictWriter(f, fieldnames=list(out[0]))
         w.writeheader()
@@ -222,7 +245,7 @@ def show(subject, r=CLOSE_R):
                  '黃線＝FreeSurfer seg；藍線＝球（seg 補起腦溝、正中縫）；紅色＝殘留' % (subject, m['res_total'] / 1000, r),
                  fontsize=12.5)
     fig.tight_layout()
-    p = os.path.join(SK, 'residue_volume_%s_r%d.png' % (subject, r))
+    p = os.path.join(SK, 'residue_volume%s_%s_r%d.png' % (TAG, subject, r))
     fig.savefig(p, dpi=120, facecolor='#FAFAF8')
     print('->', p)
 
@@ -233,7 +256,9 @@ if __name__ == '__main__':
     ap.add_argument('--analyze', action='store_true')
     ap.add_argument('--show')
     ap.add_argument('--r', type=int, default=CLOSE_R, help='「球」的 closing 半徑（mm）')
+    ap.add_argument('--data', default='freesurfer', choices=['freesurfer', 'tigerbx'])
     a = ap.parse_args()
+    use(a.data)
     if a.scan:
         scan(a.r)
     if a.analyze:

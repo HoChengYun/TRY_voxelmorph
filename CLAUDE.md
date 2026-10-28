@@ -1,7 +1,16 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-21**（🔴 照原作程式補細節、重跑三顆：cascade 照 RCN（輸出 ×1/n、邊界取邊界值）、pyramid 照 **DWP**（Jian et al.；我們的 pyramid 結構上是 DWP，不是 Dual-PRNet）——合成時 δ detach、粗的層也算相似度；新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，手冊 §29。10-18～21：mix_cascade_pyramid **0.8192**、mix_pyramid_500 0.8185（約 300 輪後持平）、ANTs SyN 0.8043 ≈ mix_exp3（跟論文關係一致）；由粗到細的腦外 folding 是合成時 grid_sample 補 0 造成、全在影像最外圈（手冊 §28.4））
+> 最後更新：**2026-10-28**（🔴 照原作補齊的三顆＋官方 TransMorph-diff 帶回（手冊 §30.6）：mix_cascade_rcn **0.8166**、mix_pyramid_dwp **0.8162**（單獨的都比舊版 +0.001）、
+> 但合併 mix_cascade_pyramid_rcn_dwp **0.8149**（舊版 0.8192，只有 3/51 位較高；低於單獨兩顆，差在第 1 級）；TransMorph-diff **0.7143**（官方 MSE 碰上 MNI152 atlas 亮度跟受試者不同，小腦低於 affine）。
+> 10/28 簡報換成新三顆、多兩頁，共 24 頁；標題結論改成依數字判斷。TransMorph-diff 加進所有比較圖；🔴 使用者決定 Dice／HD95 只用論文 30 個結構（不放「未參與訓練之結構」），
+> 多項指標頁加半監督兩列（標 *）；全份減字（每頁 ≤ 3 條、每條一行、註腳一行，細節放講稿備忘）。
+> 同晚再改成 26 頁：⑥ 前加 RCN、DWP 兩篇原作之原理（原文圖＋編號公式，`make_principle.py`）、p11／p21 加半監督、依原作補齊細節移到最後（手冊 §30.6）。
+> 公式核對（p11、p12）：跟 arch.py／train_arch.py 一致；標明 exp（SVF）、局部 NCC、λ = 1 是我們的設定（RCN 原文：位移場＋全域相關係數；DWP 原文：位移場、λ = 0.5、另有 Dice loss γ = 0.5）；更正：DWP 子層 loss 論文 Implementation Details 有寫，只有 detach 是程式才有。p14 加半監督（上排同軸、下排另計）。報告沒有雙螢幕 → `make_script.py` 出 `講稿_10-28.pdf`（縮圖＋講稿＋備忘，A4，Edge 列印要從 PowerShell 跑）。
+> 10-23：AI 帶回 TransMorph（mixv2，46.8 M 參數）test **0.8139**：比對齊的 mix_exp3 高 0.008，但低於 cascade／pyramid／cascade_pyramid（只有 3/51 位贏 cascade_pyramid），手冊 §30.3。
+> 10/14 紅字 p12 做完：tigerbx 的殘留約 FreeSurfer 的 43%，兩套的配準都沒有因殘留變差（§30.1）。挑 epoch 照舊用 val Dice（VoxelMorph 論文、TransMorph 官方程式同做法，§30.2）；
+> `test_dice.py` 掃曲線多一欄 val 的 `ncc_loss`。10/28 簡報不放 ΔDice、一律直接比 Dice，16 頁＋論文常見視覺化試作 4 頁（§30.4）；10-27 加第三套工具 SynthStrip＋SynthSeg：殘留五個位置那三頁多一列、標籤 2 頁接在後面，共 22 頁，不算 Dice（§30.5））
+> 10-21：（🔴 照原作程式補細節、重跑三顆：cascade 照 RCN（輸出 ×1/n、邊界取邊界值）、pyramid 照 **DWP**（Jian et al.；我們的 pyramid 結構上是 DWP，不是 Dual-PRNet）——合成時 δ detach、粗的層也算相似度；新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，手冊 §29。10-18～21：mix_cascade_pyramid **0.8192**、mix_pyramid_500 0.8185（約 300 輪後持平）、ANTs SyN 0.8043 ≈ mix_exp3（跟論文關係一致）；由粗到細的腦外 folding 是合成時 grid_sample 補 0 造成、全在影像最外圈（手冊 §28.4））
 > 10-15：（AI 帶回 mix_pyramid **0.8149**：跟 mix_cascade 打平、參數少 1/3，但 folding 大多在腦外背景（手冊 §28.1）；mix_cascade_pyramid 在 AI 上跑。10/14 meeting 老師紅字（p12、p16、p18，手冊 §28.2）：殘留改用體積（seg 補成「球」、球外非零都算），**配準後的 Dice 跟殘留體積無關，五個模型都一樣**（手冊 §28.3）；下次簡報 `ASD/slides_src/2026-10-28_redpen/` 3 頁）
 > 10-11：AI 帶回 mix_cascade 與 mix_exp8／9：🔴 mix_cascade **0.8156**（+0.0105，51/51；沒訓練過的結構、影像 NCC 也都變好）；半監督 mix_exp8／9 Dice 0.900／0.929，但**標籤項＝評估的 30 個結構**，γ = 5 時沒訓練過的結構反而低於 affine（手冊 §27）；10/14 簡報 49 頁（10-12 加參考文獻頁、與原論文實作之比較 2 頁、Step 2 decoder 方塊特寫 1 頁）。
 > 10-07：🔴 折疊率跟論文比較改用 folding voxel 數（論文百分比的分母是固定 5.2 M voxel，跟我們不同）；新增 HD95、SDlogJ（`test_dice.py --surface`，手冊 §26）；
@@ -65,6 +74,11 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_cascade_pyramid** | 串兩顆＋每顆由粗到細（2 × 2 最後一格；參數 0.82 M），val 挑 epoch 140 | 0.6882 | **0.8192** | +0.131 | 0.0036% | 67⁴ | **2.31** | 0.614 |
 | **mix_pyramid_500** | mix_pyramid 從第 250 輪接著練到 500 輪，val 挑 epoch 335 | 0.6882 | **0.8185** | +0.130 | 0.0003% | 5⁴ | **2.31** | 0.547 |
 | ANTs SyN（傳統方法）| 論文 §V-A-3 參數，`ASD/ants_syn_baseline.py`；每位 37 分鐘（CPU）| 0.6882 | **0.8043** | +0.116 | 0% | 0 | — | — |
+| TransMorph（另一專案 mixv2）| 設定同 mix_exp3（位移場、λ 1、250 輪），只換成 TransMorph 基本版（46.8 M 參數，155 倍），val 挑 epoch 205 | 0.6882 | **0.8139** | +0.126 | 0.841% | 15,704 | 2.38 | 1.975 |
+| **mix_cascade_rcn** | 同 mix_cascade，照 RCN 原作補細節（`--rcn`：每顆輸出 ×1/n、串接取邊界值），val 挑 epoch 195 | 0.6882 | **0.8166** | +0.128 | 0.0012% | 22 | **2.33** | 0.559 |
+| **mix_pyramid_dwp** | 同 mix_pyramid，照 DWP 原作補細節（`--dwp`：合成時 δ detach、粗的三層也算 loss），val 挑 epoch 205 | 0.6882 | **0.8162** | +0.128 | 0.0006% | 10⁴ | **2.34** | 0.555 |
+| **mix_cascade_pyramid_rcn_dwp** | 同 mix_cascade_pyramid，`--rcn --dwp` 都開，val 挑 epoch 155（之後 val 略降）| 0.6882 | **0.8149** | +0.127 | 0.0038% | 71⁴ | 2.40 | 0.642 |
+| TransMorph-diff（另一專案 mixv2）| 官方 TransMorphDiff 照官方訓練方式（機率式 SVF、MSE＋KL、Adamax、lr 遞減、三向翻轉），只把訓練量改成 2.5 萬步，val 挑 epoch 75 | 0.6882 | **0.7143** | +0.026 | 0.916% | 17,101 | 3.83 | 2.342 |
 | **mix_exp8** | 同 mix_exp6，**訓練時也用標籤**（γ 0.5），val 挑 epoch 250（還在上升）| 0.6882 | **0.8995**³ | +0.211 | 0.0018% | 34 | 1.54³ | 0.607 |
 | **mix_exp9** | 同上，γ 5，val 挑 epoch 245（還在上升）| 0.6882 | **0.9290**³ | +0.241 | 0.077% | 1,481 | 1.44³ | 1.181 |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0%² | 0 | 1.69² | 0.317² |
@@ -120,6 +134,14 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
    👉 **目前分數最高（跟 mix_wide 打平）又不擠爆的就是這顆。**
    ✅ **10-11 mix_cascade（串兩顆）更好**：0.8156，比 mix_wide_vel 高 0.0045（49/51）、比 Step 0（mix_exp6 連跑兩次）高 0.0020（41/51）；沒訓練過的結構 +0.026、影像 NCC +0.025（都是 51/51，相對 mix_exp6）；代價 SDlogJ 0.49 → 0.56、folding 每位 23 個（手冊 §27.1）。
    ✅ **10-13 mix_pyramid（由粗到細）跟 mix_cascade 打平**：0.8149（−0.0007，p = 0.03，實際上打平），比 mix_exp6 +0.0099（51/51）、比 mix_wide_vel +0.0038（50/51）；沒訓練過的結構 0.680、影像 NCC 0.259 都跟 cascade 一樣或略高，參數只有 cascade 的 2/3、SDlogJ 0.53（手冊 §28.1）。👉 **改架構比單純加寬有效。**
+   ✅ **10-23 TransMorph**（另一專案，設定同 mix_exp3、參數 155 倍）0.8139：比 mix_exp3 +0.0077（48/51），但低於 cascade −0.0017、pyramid −0.0011、cascade_pyramid −0.0053（只有 3/51 位較高）（手冊 §30.3）。
+   👉 **換成更大的方塊（Transformer）不如對位專用的設計**；⚠️ 架構那幾顆是 10-06 的自己實作（§29），照原作補齊的三顆回來要再比一次。
+   ✅ **10-28 照原作補齊的三顆帶回**（手冊 §30.6）：cascade_rcn 0.8166、pyramid_dwp 0.8162（各比舊版 +0.001，34／35 位較高；兩者 p = 0.16 打平），
+   但**合併的 cascade_pyramid_rcn_dwp 掉到 0.8149**（舊版 0.8192，3/51 位較高），比單獨兩顆都低（15/51）、HD95 2.40 跟 mix_exp6 打平（小腦白質變差）。
+   拆兩級（`make_stage_diag.py`）：差在第 1 級（Dice 0.796 → 0.791），第 1 級位移變多、第 2 級變少；推測是 DWP 的子層 loss 只加在第 2 級。沒做消融（只開 --rcn／只開 --dwp）確認。
+   👉 **舊版「合併最好、部分可加成」只在舊實作成立**；TransMorph vs 新三顆：低於 cascade、pyramid（13/51），跟合併打平（p = 0.12）。
+   🔴 **TransMorph-diff（官方訓練方式）0.7143**，51/51 低於 tm_mixv2、小腦低於 affine（白質 0.717 → 0.500）：官方相似度是 MSE，MNI152 atlas 的小腦比受試者亮（0.87 vs 0.73）。TransMorph 論文 §5.2 在 IXI 也看到同樣的事（TransMorph-diff 0.594 vs TransMorph 0.754，用 MSE 的方法都偏低，作者歸因於 atlas 與受試者腦溝的亮度差異）；以前寫的「官方 atlas 是同批受試者平均、沒這問題」沒有根據，10-28 更正。
+   官方積分前沒有除以 2^7（`TransMorph_diff.py:470`），腦內 folding 每位 17,101。要公平比 SVF 版 TransMorph 得改成 NCC＋除以 2^7。
 8. 🔴 **半監督（mix_exp8／9）的 Dice 不能直接跟其他模型比**（§27.2）：標籤項（`train_semisup.py`）用的就是 Dice 評估的同一組 30 個結構，等於「訓練目標＝評估指標」。要另外看**沒參與訓練的結構**（`ASD/check_semisup.py`：Accumbens 26/58、Inf-Lat-Vent 5/44、胼胝體 251～255）與**搬過去的影像跟 atlas 的局部 NCC**。γ 0.5：沒訓練過的結構 +0.012（p = 0.002）、NCC 略降；γ 5：沒訓練過的結構 **−0.212，44/51 位低於 affine**，搬過去的影像深部結構變成均勻色塊（標籤內部被放大、邊界被擠成細帶），SDlogJ 1.18、folding 每位 1,481 個。跟論文 §V-G（Fig. 9、10、Table IV）一致；論文建議的 γ = 0.01 對應我們的 0.5（γ／λ 比例相同）。
 作者的預訓練模型（`models/vxm_dense_brain_T1_3D_mse.h5`，不是 Table I 那顆）已搬進 PyTorch，
 在 4 位 OASIS 上 0.598 → 0.753，見手冊 §19。
@@ -134,6 +156,12 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 官方程式不改，只加 `mixv2/`：基本版 TransMorph 跑在 mixed_v2 上，資料、訓練量（25,000 步、lr 固定、不翻轉）、評估（算法同 `ASD/test_dice.py`）都跟 mix_exp3 對齊，只差架構；
 影像 192×224×192 → Swin 視窗 (6, 7, 6)；參數 4,679 萬（mix_exp3 的 155 倍）。環境是專案裡自己的 `venv/`（筆電 torch 2.10.0+cu130；AI 2.11.0+cu126，AI 驅動最高 CUDA 12.2）。
 說明與操作單在該專案的 `mixv2/README_mixv2.md`、`mixv2/指令_AI_訓練.md`；排在 cascade_pyramid 之後，跟 mix_pyramid_500 擇一先跑。
+✅ **10-23 帶回**（手冊 §30.3）：val 挑第 205 輪，test **0.8139**、folding 每位 15,704、訓練 17.6 小時。CSV 與 log 複製到 `models\tm_mixv2\` 給簡報程式讀；
+該專案 `mixv2/eval_mixv2.py` 加了 `--surface`（HD95、SDlogJ）、`--heldout`（沒參與訓練的結構、影像 NCC），`mixv2/export_vis.py` 給簡報的形變並排圖。
+📌 **10-24 下一顆：官方 TransMorph-diff**（微分同胚版；老師比較喜歡 SVF）。使用者選「照官方」：機率式輸出、MSE＋KL、Adamax、lr 遞減、三個方向隨機翻轉都照官方 `IXI/TransMorph/train_TransMorph_diff.py`（Org-Res 設定，全解析度），**只有訓練量改成 2.5 萬步**（同其他模型）。
+程式 `mixv2/train_mixv2_diff.py`（新檔）、`verify_diff.py`（筆電全部通過），操作單 `mixv2/指令_AI_訓練_diff.md`，排在 rcn_dwp 三顆之後；細節在該專案 README「TransMorph-diff」一節。
+⚠️ 它跟 tm_mixv2 的訓練方式不同，兩顆 TransMorph 的差距不能全算在「位移場 vs 微分同胚」上。
+🟡 **tm_mixv2 是舊設定**（使用者 10-24：「不一定要特別和 mix_exp3 一樣」「先不用重練，註記 tm_mixv2 是舊設定就好」）：`train_mixv2.py` 預設改成官方訓練方式（Adam amsgrad、lr 遞減、三向翻轉），舊設定（對齊 mix_exp3）留成 `--legacy`。引用 tm_mixv2 的數字時要寫「訓練方式對齊 mix_exp3」。
 
 ---
 
@@ -198,12 +226,12 @@ C:\Users\h4524\claude_cheng\
 │   ├── check_skullstrip.py             # ⭐ 去顱骨殘留：頭頂／顱底／後腦杓掃描 + 對照圖 + 算法說明圖（手冊 §21、§24.3）；--labels 3 42 = 對照圖改用老師的算法（只算皮質，§24.2）
 │   ├── skullstrip_label_dice.py        # ⭐ 只平均殘留旁邊的結構的 Dice（老師要的做法，手冊 §24.2）
 │   ├── skullstrip_local_dice.py        # 只算殘留附近 25mm 框內的體素（第一版、切空間，§24.2 補充）
-│   ├── skullstrip_volume.py            # ⭐ 殘留改用體積（10/14 紅字）：seg closing＋補洞成「球」B，B 外非零 voxel 都算；--scan --analyze --r 5、--show（手冊 §28.3）
+│   ├── skullstrip_volume.py            # ⭐ 殘留改用體積（10/14 紅字）：seg closing＋補洞成「球」B，B 外非零 voxel 都算；--scan --analyze --r 5、--show（手冊 §28.3）；--data tigerbx 換成 tigerbx 那一套（10-22，§30.1）
 │   ├── check_top_residue.py            # 頭頂的「殘留」是貼在皮質外面的東西還是漏標的皮質：放大圖、亮度剖面（手冊 §24.2 最後）
 │   ├── check_folding.py                # 擠爆（|J|≤0）的點落在哪：熱圖、按區域、離腦表面多遠、放大一團（手冊 §24.1）
 │   ├── check_bg_folding.py             # 由粗到細系列「腦外背景」的 folding：位置、每一層拆解、推論改 padding_mode='border' 驗證（10-18；接位移時 grid_sample 補 0 造成，全在影像最外圈，不影響 Dice）
 │   ├── ants_syn_baseline.py            # 傳統方法對照：ANTs SyN（論文 §V-A-3 參數）對 test 51 位，Dice、folding 跟 test_dice.py 同算法；--subjects --save-dir 存視覺化用的結果
-│   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）；--surface 另算 HD95、SDlogJ、論文定義折疊率（手冊 §26）
+│   ├── test_dice.py                    # ⭐ Dice 評估（--test-dir / --exp-name / --atlas-seg）；--surface 另算 HD95、SDlogJ、論文定義折疊率（手冊 §26）；--model-dir 掃曲線多一欄 val 的 ncc_loss（同訓練的影像項，10-22，§30.2）；CPU 可跑但慢 8～24 倍
 │   ├── check_semisup.py                # 半監督的檢查：沒參與訓練的結構 Dice、搬過去的影像 NCC（手冊 §27.2）；加寬版加 --gpu -1
 │   ├── test_multipass.py               # 改架構第 0 步：不訓練，同一顆模型連跑 2～3 次、位移接起來再算 Dice（待辦 5）
 │   ├── arch.py                         # 改架構用的網路：VxmCascade（串 n 顆，RCN；stage='pyramid' = 每一顆都由粗到細）、VxmPyramid（由粗到細）＋ load_model()（評估腳本都改用它讀 .pt，舊模型照舊）
@@ -235,11 +263,14 @@ C:\Users\h4524\claude_cheng\
 │   └── slides_src\                     # meeting 簡報原始碼：舊 25 頁 .dc.html；2026-09_mix_tigerbx\ 是 29 頁 pptx 的產生器；
 │                                       #   2026-09-20_cross\ 是 09-30 meeting 那份 31 頁（gather.py 出數字、make_*.py 出圖、build.js 組版）；
 │                                       #   2026-10-14_redpen\ 是 10/14 回覆老師紅字的 49 頁（同一套做法＋make_method.py 畫公式頁＋make_arch.py 畫架構圖＋make_metrics.py 畫指標定義＋make_semisup.py 畫 cascade／半監督＋講稿.md 寫進每頁備忘稿，-> meeting報告\ASD_老師紅字回覆_20261014.pptx；⚠️ 10-13 起有老師紅字，不能覆蓋）；
-│                                       #   2026-10-28_redpen\ 是下次 meeting（日期暫定）回覆 10/14 紅字，目前 3 頁殘留體積（make_resvol.py 出數字與圖、build.js、講稿.md）
+│                                       #   2026-10-28_redpen\ 是下次 meeting（日期暫定）回覆 10/14 紅字，16 頁：③ 殘留 8 頁（含 tigerbx 5 頁：對照 1 頁、同一人冠狀／矢狀／橫切各 5 個位置 3 頁、SVF 配準 1 頁）、⑥ 架構 3 頁（含訓練過程）、⑧ ANTs 5 頁（形變並排冠狀、矢狀、水平各一頁，11 個方法＋各結構 Dice 一頁）、第三套 SynthStrip＋SynthSeg（第 5～7 頁第三列＋標籤 2 頁，make_synthseg.py，只有 sub-0043）；最後 4 頁是論文常見視覺化試作（箱形圖、λ 曲線、誤差圖＋網格＋位移場 RGB（10-27 加，VoxelMorph Fig. 6，各方法同一刻度 ±8 mm）、C2F 各層，make_paper_vis.py，SHOW_TRY）；
+│                                       #   TransMorph 併入既有的圖；不放 ΔDice（手冊 §30.4）。make_resvol.py、make_arch_res.py、make_ants_vis.py、make_paper_vis.py 出數字與圖，build.js、講稿.md；三個架構修改模型集中在 deck_models.json，換模型照 換模型.md；10-28 換成照原作的三顆、加 p12 依原作補齊細節（make_stage_diag.py）、p15 TransMorph-diff（make_tmdiff.py），共 24 頁（手冊 §30.6）；make_principle.py（p11、p12 原文圖與公式，原文 PDF 在 文獻/reference）；make_script.py（報告用講稿 PDF）
 ├── data\                               # ⭐ **所有資料集**（.gitignore 整個擋掉）
 │   ├── ASD_data\  DGM_data\  VNT_data\ # FreeSurfer 產物：fs_for_vxm\{norm,aseg}\ + fs_stats\subjects.txt
 │   ├── tigerbx_data\                   # tigerbx 產物，沿用同樣目錄名（norm 其實是 _tbet，見其 README.txt）
 │   ├── tigerbx\atlas\                  # tigerbx 對 atlas 的分割（256³）
+│   ├── synthseg_preprocessed_v1\       # 上面那一位照 tigerbx 做法前處理（--n4，test\sub-0043.npz），只給簡報殘留圖用
+│   ├── synthseg\test\{norm,aseg}\      # 第三套：SynthStrip 去顱骨＋SynthSeg 2.0 分割（10-27，目前只有 sub-0043；原始空間 192×256×256、原始強度、沒前處理；手冊 §30.5）
 │   ├── ASD_preprocessed_v1\            # train 148 / test 16
 │   ├── DGM_preprocessed_v1\            # train 49 / test 5（54 個掃描 = 52 人）
 │   ├── VNT_preprocessed_v1\            # train 61 / test 7
@@ -277,6 +308,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── visualize_reg_oasis.py          plot_epoch_curve.py
 ├── models\                             # 所有訓練權重（.gitignore，不進 git）
 │   ├── exp1\  exp2_IXI\  exp3_IXI\  exp4\ … exp8\
+│   ├── tm_mixv2\                           # TransMorph（另一專案）帶回的 CSV、train_log.txt 與筆電補算的 surface／semisup_check（沒有 .pt，.pt 在該專案 runs\tm_mixv2\）
 │   ├── asd_exp1\  mix_exp1~9\  mix_wide\  mix_wide_vel\  mix_cascade\  mix_pyramid\  tiger_exp1~3\   # ASD 線（mix_exp2\cross_mix_tiger_exp2_exp3\ 是交叉評估）：最佳 .pt + dice_curve / dice_baseline / dice_<epoch>.csv + vis_*\
 │   ├── deck_charts\                        # meeting 簡報用的圖（slides_src\2026-09-20_cross\make_*.py 產生；1014_*.png 是 2026-10-14_redpen\make_charts.py，1014_method_*.png 是同一夾的 make_method.py，1014_arch_{cascade,pyramid}.png 與 1014_arch_*_eq.png 是 make_arch.py；1028_resvol_*.png 是 2026-10-28_redpen\make_resvol.py）
 │   ├── skullstrip_check\                   # 去顱骨殘留：520 顆的 CSV + 對照圖（手冊 §21）＋框內 Dice、後腦杓（§24）＋殘留體積 residue_volume_r*（§28.3）；cohorts\ 是各模型對 val、MRS 的 Dice
@@ -475,6 +507,9 @@ FreeSurfer 組、tigerbx 組、作者模型的完整指令見 `ASD/ASD相關手�
 | **HD95** | 越低越好（mm）| 2026-10-07 加。每個結構兩個標籤邊界的 95% Hausdorff distance（兩方向各取第 95 百分位、取較大者），30 個結構平均。`test_dice.py --surface`（手冊 §26）|
 | **SDlogJ** | 越低越平滑 | 2026-10-07 加。log\|J\| 在 atlas 非背景內的標準差（\|J\| ≤ 0 截為 1e-9）。folding 都是 0 時仍能分出形變多劇烈；位移場版主要被 folding voxel 拉高（log 1e-9 = −20.7）|
 
+📌 **挑 epoch：val Dice 最高的那一輪，test 只跑一次**（ASD 線從 mixed_v2 起）。VoxelMorph 論文原文、TransMorph 官方程式都這樣做（10-22 查證，手冊 §30.2）；
+「先平滑 val 曲線再挑」配準論文沒人這樣做，只當穩定性檢查。訓練用 loss，報成績與挑 epoch 用 Dice（loss 低不等於 Dice 高）。
+
 ### ⚠️ 報表的 NCC 是會飽和的弱指標
 
 `test_ixi.py:61` 的 `ncc()` 是**整顆 volume 的全域 Pearson 相關，含背景**。
@@ -639,7 +674,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 | `--check-only` 通過，開跑還是爆 | 它**只印出卡有多大，不會真的建模型試跑**；警告門檻 7.5 GB 是為預設寬度設的 | 加寬版要自己拿卡的容量對手冊 §23 的表 |
 | 視覺化 / 推論卡住很久 | 沒加 `--gpu 0`，走 CPU 跑 3D U-Net | 一律加 `--gpu 0` |
 | `test_oasis.py` 讀 `atlas['seg']` 報 KeyError | IXI atlas 沒有 seg | 改用 `test_ixi.py` |
-| NCC loss 報 CUDA 錯誤 | `losses.py:28` 的 `sum_filt` 寫死 `.to("cuda")` | NCC 訓練必須有 GPU |
+| NCC loss 報 CUDA 錯誤 | `losses.py:28` 的 `sum_filt` 寫死 `.to("cuda")` | NCC 訓練必須有 GPU；評估用 `test_dice.py` 的 `ncc_loss()`（同算法、跟著輸入裝置，10-22）|
 | TF Keras 版本衝突 | neurite 預設走 TF backend | 腳本最前面加 `os.environ['NEURITE_BACKEND'] = 'pytorch'` |
 | 模型在 CPU 上跑 | 忘了搬到 GPU | `model.to(device)` 要放在 `model.eval()` 之前 |
 | antspynet TF GPU warning（Windows）| TF ≥2.11 原生 Windows 無 GPU | 可忽略，去顱骨走 CPU 不影響結果 |
@@ -656,6 +691,7 @@ for enc in ('utf-16', 'utf-8', 'cp950'):
 - 這是 **Windows 原生環境**，路徑用 `\`，指令用 PowerShell 語法（換行用反引號 `` ` ``）。
 - **動 git 之前先問使用者。** 文件與 ASD 程式都已進版控（2026-09 起工作樹是乾淨的）。
 - **折疊率跟論文比較一律用 folding voxel 數**（論文百分比的分母是固定 5.2 M，跟我們不同）。百分比的分母用 atlas 非背景 voxel（`test_dice.py` 的 `jneg_fg_pct`），只比我們自己的模型；`check_folding.py`、`test_multipass.py` 的百分比是舊定義（分母：整個影像），簡報只用它們的 voxel 數。
+- **給老師的簡報不放 ΔDice（Dice 變化），一律直接比 Dice**（2026-10-22 使用者）：每位受試者的 Dice、affine／配準後兩組數值；「幾位較高」可以寫。
 - **AI 那台的操作單只放 repo 的 `ASD/指令_*.md`**（AI 用 `git pull` 取得）。2026-10-07 起不再複製到 Google Drive；
   目錄樹裡寫「Drive 傳輸站\reg\script\… 也有一份」的是舊副本，可能落後 repo，以 repo 為準。
 - **ASD 腳本一律直接給資料路徑**（2026-09-13 起沒有 `--dataset`）：例如 `--test-dir data\mixed_preprocessed_v1\test`。
@@ -727,11 +763,11 @@ Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`m
 | p12、p18 | seg 以外都當顱骨、看殘留體積；用體積估計；為何只有顱底是體積 | ✅ 10-13 殘留改用體積（`ASD/skullstrip_volume.py`，手冊 §28.3）：seg 補成「球」（closing 半徑 5 mm＋補洞），球外非零都算，不設門檻 |
 | p18 | 區域體積圖 | ⏸ 使用者：老師想要一起看，先不分區 |
 | p16 | 下次放 dice 數值圖 | ✅ affine、配準後的 Dice 散佈圖 |
-| p18 | 不同 model 的效果 | ✅ 10-14 五個模型都做：配準後 Dice 跟殘留無關（r = +0.08～+0.12），ΔDice r = −0.16～−0.21 |
-| p12 | 換乾淨的 tbet（tigerbx）看 Dice 差多少 | ⏳ 使用者：之後再說 |
+| p18 | 不同 model 的效果 | ✅ 10-14 五個模型都做：配準後 Dice 跟殘留無關（r = +0.08～+0.12），ΔDice r = −0.16～−0.21。10-23 補 cascade_pyramid、TransMorph 共七個：cascade_pyramid 配準後 r = **+0.26**（p < 0.001，殘留多的人略高，三批同方向），簡報改說「皆未因殘留而變差」（手冊 §30.4）|
+| p12 | 換乾淨的 tbet（tigerbx）看 Dice 差多少 | ✅ 10-22（手冊 §30.1）：用 tigerbx 那一套比。殘留中位數 173 vs 391 cm³（43%），100/100 位較少；mix_exp2 vs tiger_exp2（同設定的 SVF）配準都沒有因殘留變差；兩套 Dice 絕對值不能直接比（標籤不同）|
 | p18 | FreeSurfer label 有沒有細分皮質 | ✅ 10-21 回答「有」：`aparc+aseg.mgz`（DK，每側 34 區）等三種，我們交付的 aseg 皮質只有一塊；殘留分析不分區，先不匯出（使用者決定，手冊 §28.2）|
 
-🔴 **殘留的整體結論**（10-15）：影響很小、只在局部——顱頂殘留讓附近皮質配準後的 Dice 低約 0.005（厚度 r = −0.20）；整顆腦的殘留體積、30 個結構平均都看不出影響；ΔDice 的負相關有一部分是起點效應（殘留多的人 affine 起點略高）。都是相關，因果要等 tbet 對照。
+🔴 **殘留的整體結論**（10-15）：影響很小、只在局部——顱頂殘留讓附近皮質配準後的 Dice 低約 0.005（厚度 r = −0.20）；整顆腦的殘留體積、30 個結構平均都看不出影響；ΔDice 的負相關有一部分是起點效應（殘留多的人 affine 起點略高）。都是相關，因果要等 tbet 對照。10-22 tigerbx 對照（§30.1）：殘留少一半以上，結論一樣。
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
@@ -847,7 +883,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   顯存 19.0 GB（`set ...:0.9`；不夠就加 `--grad-checkpoint`，數字一樣、顯存一半、慢 1.24 倍），約 37 小時。
   **建議等 mix_cascade、mix_pyramid 都有進步再跑** → 兩顆都有進步，📌 **10-15 使用者確認已在 AI 上跑**
 - **下一顆（10-16 使用者決定）**：mix_pyramid 接著訓練到 500 輪 = **mix_pyramid_500**（val 最佳在第 245／250 輪，可能還沒練完）。操作單 `ASD/指令_mix_pyramid_500.md`；等 mix_cascade_pyramid 跑完再開始。筆電實測從 0245.pt 接著練正常（第一步 loss −0.2406，跟原本最後一輪同水準；顯存實際 9.6 GB）。⚠️ `run_train.py --resume` 會用寫入模式重開 `log\<實驗名>.txt`，用原本的名字續跑會蓋掉舊 log → 一律換新名字
-- 🔴 **10-21 照原作程式補細節、重跑三顆**（手冊 §29；使用者：「要先看過他們原始碼再寫自己程式」「該重跑就重跑」）：讀了 RCN、DWP（Jian et al., github.com/BailiangJ/rethink-reg）、Dual-PRNet++ 的程式。**我們的 pyramid 結構上是 DWP**（共用 encoder＋帶上一層特徵的 decoder），不是 Dual-PRNet → 引用改成「採 DWP，概念源自 Dual-PRNet」。補上：cascade 照 RCN（每顆輸出 ×1/n、串接的 warp 取邊界值，`--rcn`）；pyramid 照 DWP（合成時 δ detach、粗的層 1/16、1/8、1/4 也算影像項＋平滑項、權重 1/16～1/4，`--dwp`）；backbone、loss、λ、SVF 維持 mix_exp6。新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，舊的三顆保留；`verify_rcn_dwp.py` 驗證舊模型改前改後逐 voxel 相同
+- 🔴 **10-21 照原作程式補細節、重跑三顆**（手冊 §29；使用者：「要先看過他們原始碼再寫自己程式」「該重跑就重跑」）：讀了 RCN、DWP（Jian et al., github.com/BailiangJ/rethink-reg）、Dual-PRNet++ 的程式。**我們的 pyramid 結構上是 DWP**（共用 encoder＋帶上一層特徵的 decoder），不是 Dual-PRNet → 引用改成「採 DWP，概念源自 Dual-PRNet」。補上：cascade 照 RCN（每顆輸出 ×1/n、串接的 warp 取邊界值，`--rcn`）；pyramid 照 DWP（合成時 δ detach、粗的層 1/16、1/8、1/4 也算影像項＋平滑項、權重 1/16～1/4，`--dwp`）；backbone、loss、λ、SVF 維持 mix_exp6。新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，舊的三顆保留；`verify_rcn_dwp.py` 驗證舊模型改前改後逐 voxel 相同。📌 回來後換掉 10/28 簡報的三顆：改 `ASD/slides_src/2026-10-28_redpen/deck_models.json`，照同一夾的 `換模型.md` 補算、重跑，標題結論與講稿數字要人工重看
 - 📌 **10-12 對照過原論文的程式**（RCN、Dual-PRNet，只讀；手冊 §25.5）：核心設計都對上；差異是 RCN 每段輸出乘 1/n、Dual-PRNet warp 特徵時切斷梯度與訓練技巧（暖身、梯度裁剪）。使用者決定程式先不改
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可

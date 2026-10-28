@@ -1,7 +1,7 @@
 # ASD 資料集：FreeSurfer 產物 → VoxelMorph 訓練實作手冊
 
 何承運 · 2026
-建立日期：**2026-08-23**　·　最後更新：**2026-09-13**
+建立日期：**2026-08-23**　·　最後更新：**2026-10-23**（§30）
 
 ---
 
@@ -2992,7 +2992,7 @@ val 挑 epoch 245（0.8128；200 輪之後在 0.806～0.813 波動，跟 mix_cas
 | p18 | 下次要看區域體積圖 | 使用者 10-13：「老師想要一起看，先不要分區」→ 以整體呈現（分區程式留著）| ⏸ |
 | p16 | 下次放 dice 數值圖 | Dice 數值（affine、配準後）的散佈圖（§28.3）| ✅ 10-13 |
 | p18 | 想看不同 model 做出來的效果 | 五個模型重做（§28.3）| ✅ 10-14 |
-| p12 | 換去的乾淨的 tbet（ex tigerbx）去看看做完後 dice 差多少 | 同一人、同一模型，有殘留 vs 乾淨的影像各跑一次 | ⏳ 使用者：之後再說 |
+| p12 | 換去的乾淨的 tbet（ex tigerbx）去看看做完後 dice 差多少 | 使用者 10-22：看 tigerbx 那一套（tbet＋自己的標籤）跟 FreeSurfer 的差別：同一套殘留算法、mix_exp2 vs tiger_exp2 | ✅ 10-22（§30.1）：殘留約 43%、100/100 較少；兩套的配準都沒有因殘留變差 |
 | p18 | 看 freesurfer label 有沒有細分 cortex 區域 | 有：recon-all 的 `mri/` 底下有 `aparc+aseg.mgz`（Desikan-Killiany，每側 34 區）、`aparc.DKTatlas+aseg.mgz`（31 區）、`aparc.a2009s+aseg.mgz`（Destrieux，74 區），皮質下部分跟 aseg 逐 voxel 相同。我們交付的是 `aseg.mgz`，皮質只有左右各一塊（3、42）。原始輸出在 Ubuntu 那台，要用的話重新匯出即可，不用重跑 recon-all | ✅ 10-21 先口頭回答老師「有細分」；殘留分析目前不分區，**先不匯出、不動資料**（使用者決定）|
 
 簡報：`ASD/slides_src/2026-10-28_redpen/`（下次 meeting，日期暫定 10/28；使用者：「先做這一 part 就好」，目前 3 頁：定義、結果、不同模型）。
@@ -3159,3 +3159,221 @@ p18「FreeSurfer label 有沒有細分皮質」：有（aparc，§28.2），使�
 | `mix_cascade_pyramid_rcn_dwp` | `--arch cascade --n-cascades 2 --stage pyramid --rcn --dwp` | 約 30 小時 |
 
 依序跑，等 TransMorph 跑完再開始；`指令_mix_cascade_pyramid_500.md` 暫停（舊版本程式）。結果回來後跟舊的三顆逐人配對比，舊 vs 新的差就是「實作細節的影響」。
+
+## 30. tigerbx 的殘留、怎麼挑 epoch、TransMorph 結果、10/28 簡報的調整（2026-10-22～23）
+
+### 30.1 換成去顱骨較乾淨的 tigerbx（10/14 紅字 p12「換乾淨的 tbet 看 Dice 差多少」）
+
+使用者 10-22：「老師是想看 tigerbx 那一套跑出來的效果跟 FreeSurfer 差別」→ 不另外重做影像，直接用現成的 tigerbx 那一套
+（`data\tigerbx_preprocessed_v2`：tbet＋N4、自己的 affine、aseg43 標籤；同樣 520 位、同一個切分），用 §28.3 同一個殘留體積的算法。
+
+- 程式：`ASD/skullstrip_volume.py --data tigerbx --scan --analyze --r 5`（球改用 tigerbx 自己的標籤補）→ `models\skullstrip_check\residue_volume_tigerbx_r5{,_near.json,_summary}.csv`
+- 只有 test、val（MRS 沒有 tigerbx），同樣排除 A0131、FSS_A001 → **100 位**
+- tigerbx 的 Dice 在筆電上用現在的資料、tigerbx 的 atlas 分割（`IXI\atlas_mni152_09c_v3_seg_tigerbx.npz`）重算：
+  `models\skullstrip_check\cohorts\dice_tiger_{baseline,exp2_0250,exp3_0210}_{test,val}.csv`；mix_exp2 的 val 另算 `dice_mix_exp2_0240_val.csv`
+- 鄰近結構一樣是左右大腦皮質、左右小腦皮質
+
+**殘留量**：同一位受試者，tigerbx 的殘留中位數 **173 cm³**（128～233），FreeSurfer 391 cm³ → **約 43%**；**100/100 位 tigerbx 較少**；
+兩套的殘留量正相關（r = +0.39，p < 0.001）。sub-0043：FreeSurfer 484、tigerbx 184 cm³。
+tigerbx 剩下的主要是腦表面外一薄層腦脊髓液；FreeSurfer 的腦外層較厚，顱底還留有組織。
+
+**配準**：用設定完全相同、只差資料的兩顆速度場模型（mix_exp2 ↔ tiger_exp2：int_steps 7、int_downsize 2、λ 1、250 輪；使用者：「老師比較喜歡速度場，拿 exp2 比」）
+
+| | 殘留中位數 | affine → 配準後（鄰近結構）| 殘留 vs 配準後 Dice | 殘留 vs affine Dice | 配準前後之差 vs 殘留 |
+|---|---|---|---|---|---|
+| FreeSurfer（mix_exp2）| 391 cm³ | 0.672 → 0.804 | r = +0.05（p = 0.65）| +0.11 | r = −0.13（p = 0.18）|
+| tigerbx（tiger_exp2）| 173 cm³ | 0.711 → 0.852 | **r = −0.50（p < 0.001）** | −0.14（p = 0.16）| r = −0.06（p = 0.57）|
+| tigerbx（tiger_exp3，位移場）| | 0.711 → 0.879 | r = −0.37 | −0.14 | r = +0.02（p = 0.87）|
+
+- tigerbx 配準後的 Dice 隨殘留下降，但 **affine 已經是同方向的斜率**（每 100 cm³：affine −0.010、配準後 −0.016），
+  配準後每個人的分數更接近（SD 0.021 → 0.009），同樣的斜率就變得顯著；**配準前後之差跟殘留無關**（p = 0.57）
+- 殘留多的人腦體積較小（r = −0.27），配準後的 Dice 跟腦體積正相關（r = +0.38）→ 比較像受試者本身的差異，不是殘留影響配準；幅度約 0.016（殘留 130 → 230 cm³）
+- 🔴 **兩套的 Dice 絕對值不能直接比**：標籤不同，affine 起點就差 0.039（同 §20.8）
+- 👉 **結論**：殘留少一半以上的 tigerbx，配準的結果一樣沒有因殘留變差，跟 FreeSurfer 的結論一致。§20.10 的交叉評估（換去顱骨工具只掉 0.002～0.008）也是同一個方向
+
+圖（`make_resvol.py`）：`1028_resvol_demo_compare.png`（同一人上下兩排）、`1028_resvol_fs_vs_tigerbx.png`（同一人兩套的殘留）、
+`1028_resvol_exp2_compare.png`（mix_exp2 vs tiger_exp2）、`1028_resvol_models_tigerbx.png`（tiger_exp2、exp3；沒放簡報）。
+
+### 30.2 怎麼挑 epoch（10-22 查證）、val 的影像項、CPU 與 GPU 的時間
+
+**挑法照舊：val Dice 最高的那一輪，test 只跑一次**。使用者 10-22 問「別人是不是也這樣做」，查了原作：
+
+| 論文／程式 | 怎麼挑 | 看的是 |
+|---|---|---|
+| **VoxelMorph**（TMI 2019）| 訓練不用標籤；「select the network that optimizes Dice score on our validation set」，再報 test | 論文原文 |
+| VoxelMorph 官方 `train.py` | 只定期存檔，程式裡不驗證 | 本機程式 |
+| **TransMorph** 官方程式 | 每輪在 Val 算 Dice，檔名就是 Dice（`dsc0.xxx.pth.tar`），只留最高的 8 個；`infer_TransMorph.py` 載入最高的 | `IXI/TransMorph/train_TransMorph.py`、`infer_TransMorph.py` |
+| TransMorph 微調（LUMIR 2024）| val **loss** 最低 | 搜尋結果 |
+| RCN／DWP／Dual-PRNet | 論文只寫訓練長度（10⁵ iterations／100 epochs），沒寫怎麼挑 | 論文原文 |
+| SITReg | validation set 選超參數，test 只跑選定的 | 論文原文 |
+
+- 一般深度學習：驗證集挑、存最好的那一輪（Goodfellow §7.8、Keras `restore_best_weights`）、patience 提早停；也有人平均最後幾輪的權重（SWA）
+- 「先把 val 曲線平滑再挑」是一般 ML 的建議，**上面幾篇配準論文都沒有這樣做** → 只當穩定性檢查，不改正式結果。
+  例：mix_pyramid_500 挑的第 335 輪（0.8166）前後兩輪只有 0.811，平滑後最好的是第 345 輪附近；mix_cascade_pyramid 的第 140 輪也是單獨跳高，平滑後在第 235 輪附近
+- 訓練用 loss（NCC＋λ 平滑項）、報成績與挑 epoch 用 Dice：loss 裡有平滑項，NCC 只比亮度，loss 低不等於 Dice 高
+
+**val 的影像項**（10-22，`ASD/test_dice.py`）：`--model-dir` 掃曲線時，`dice_curve<_split>.csv` 最後多一欄 `ncc_loss`
+＝NCC(atlas, 搬好的受試者)，跟訓練 log 括號裡第一個數同一個算法；只算影像項（總 loss 跨模型不能比：cascade 每一顆都罰平滑、`--dwp` 另有粗的層）。
+VoxelMorph 的 NCC 把 `sum_filt` 寫死 `.to("cuda")`，所以在 `test_dice.py` 裡另寫一份 `ncc_loss()`（跟著輸入的裝置）：
+mix_exp6 一位 val，GPU 上跟原版 **完全相同**（差 0），CPU 差 3e-6。舊程式都用欄名讀，加在最後一欄不受影響。
+用途：下次的訓練過程圖上排可以 train、val 兩條線放一起（使用者：「分開放，train 和 val 放一起」）。
+
+**CPU 與 GPU 的時間**（筆電，3 位 val、一個存檔；含 CPU 上算的 Jacobian）：
+
+| 模型 | GPU（RTX 4060 Laptop）| CPU | 倍數 |
+|---|---|---|---|
+| mix_exp6 | 每位 1.9 秒 | 45.4 秒 | 24 |
+| mix_cascade | 4.5 秒 | 51.7 秒 | 11 |
+| mix_pyramid | 2.2 秒 | 47.7 秒 | 22 |
+| mix_cascade_pyramid | 6.9 秒 | 54.7 秒 | 8 |
+
+→ 一顆模型整條 val 曲線（51 個存檔 × 51 位）：GPU 約 1.5～5 小時、CPU 約 32～40 小時。**val 曲線用 GPU 掃**（AI 訓練完，或把每 5 輪的 `.pt` 全部帶回筆電）。
+
+### 30.3 TransMorph（mixv2）結果（10-23 帶回）
+
+TransMorph 專案 `D:\MyHome\MRI\Transmorph_NewArchitecture\mixv2\`（設定跟 mix_exp3 對齊，只差架構，見該資料夾 README）；
+AI 帶回 `runs\tm_mixv2\`（`0205.pt`、`dice_0205.csv`、`dice_curve_val.csv`、`train_log.txt`），CSV 與 log 複製到 `models\tm_mixv2\` 給簡報程式讀。
+
+- 參數 46,789,555（mix_exp3 的 155 倍、mix_cascade_pyramid 的 57 倍）；位移場；訓練 17.6 小時（TITAN RTX，每步約 2.2～2.5 秒）
+- val 每 5 輪：約第 85 輪後持平，最高 **第 205 輪 0.8108**（照 §30.2 的挑法）
+- 訓練的影像項（第 250 輪平均）−0.253，mix_exp3 −0.236
+
+**test 51 位**（配對 Wilcoxon）：
+
+| 模型 | 形變 | 參數 | Dice | TransMorph − 它 | TransMorph 較高 |
+|---|---|---|---|---|---|
+| mix_exp3（對齊的那顆）| 位移場 | 0.30 M | 0.8062 | **+0.0077** | 48/51 |
+| mix_exp6 | SVF | 0.30 M | 0.8051 | +0.0088 | 49/51 |
+| mix_wide | 位移場 | 1.2 M | 0.8114 | +0.0024 | 40/51 |
+| mix_wide_vel | SVF | 1.2 M | 0.8111 | +0.0028 | 44/51 |
+| **TransMorph** | 位移場 | **46.8 M** | **0.8139** ± 0.0124 | — | — |
+| mix_pyramid | SVF | 0.41 M | 0.8149 | −0.0011 | 17/51 |
+| mix_cascade | SVF | 0.60 M | 0.8156 | −0.0017 | 17/51 |
+| mix_cascade_pyramid | SVF | 0.82 M | 0.8192 | **−0.0053** | **3/51** |
+
+p 都 < 0.01。folding（腦內）每位 **15,704** 個（0.841%），跟 mix_exp3 的 16,420 差不多（位移場版本來就會有；論文 VoxelMorph (CC) 19,077）。
+各結構（相對 mix_exp3）：脈絡叢右 +0.034、左 +0.015，左右大腦皮質約 +0.013；沒有結構明顯變差（最差 −0.002）。
+
+**其他指標**（筆電補算，10-23；筆電重算的 Dice 跟 AI 的逐人最多差 0.0001，GPU 的非決定性）：
+
+| | mix_exp3 | mix_exp6 | mix_wide_vel | **TransMorph** | mix_cascade | mix_pyramid | mix_cascade_pyramid |
+|---|---|---|---|---|---|---|---|
+| HD95（mm）| 2.45 | 2.39 | 2.36 | **2.38** | 2.33 | 2.33 | 2.31 |
+| SDlogJ | 1.98 | 0.49 | 0.49 | **1.98** | 0.56 | 0.53 | 0.61 |
+| 沒參與訓練的結構 | — | 0.653 | 0.677 | **0.681** | 0.679 | 0.680 | 0.690 |
+| 搬過去的影像 NCC | — | 0.232 | 0.243 | **0.249** | 0.257 | 0.259 | 0.265 |
+
+（affine：HD95 3.32、沒參與訓練的結構 0.475；mix_exp3 沒算 `check_semisup.py`。）配對 Wilcoxon：
+- HD95：跟 mix_exp6 **打平**（p = 0.48），比 mix_wide_vel 差（19/51 位較好，p = 0.014），比三顆架構修改都差（3～5/51 位較好）
+- 沒參與訓練的結構：比 mix_wide_vel 高（37/51，p = 0.004），跟 cascade、pyramid **打平**（p = 0.16、0.29），低於 cascade_pyramid（9/51）
+- 影像 NCC：高於 mix_wide_vel（51/51），低於三顆架構修改（0/51）
+- SDlogJ、folding 跟 mix_exp3 幾乎一樣（位移場、λ 1 就是這個量級）
+
+👉 Dice、影像 NCC 介於加寬與架構修改之間；HD95 沒有比原本的 VoxelMorph 好。10/28 簡報 p8 原本寫「Dice、未參與訓練之結構、HD95 介於 2× width 與架構修改之間」，核對後 HD95、未參與訓練的結構都不對，已改。
+
+👉 **解讀**：155 倍參數的 Transformer 比 VoxelMorph 多 0.008；我們的 cascade_pyramid 只多 2.7 倍參數就多 0.013，51 位裡只有 3 位輸給 TransMorph。
+跟文獻筆記（`文獻/對位模型文獻筆記.md` §3、§7）一致：換成更大的方塊幫助有限，重複修正、由粗到細這類對位專用的設計比較有效。
+⚠️ TransMorph 是位移場、架構修改那幾顆是 SVF；同樣寬度下兩種版本只差 0.0004～0.0011（§20.5、§23.9），不影響結論。
+⚠️ 架構修改那幾顆是 10-06 的版本（參考 RCN、DWP 概念的自己的實作，§29）；照原作補齊的三顆回來後要再比一次。
+
+**補算**（筆電，TransMorph 專案的 venv）：`mixv2\eval_mixv2.py` 10-23 加 `--surface`（HD95、SDlogJ → `surface_0205.csv`）、
+`--heldout`（沒參與訓練的結構、搬過去的影像跟 atlas 的 NCC → `semisup_check_0205.csv`），算法、欄位照抄 `test_dice.py`、`check_semisup.py`；
+另對 val、MRS 算 Dice（`models\skullstrip_check\cohorts\dice_tm_mixv2_0205_{val,MRS}.csv`，給 §28.3 殘留的模型對照）。
+`mixv2\export_vis.py`：單一受試者的形變後影像與 Jacobian 存成 npz（`models\deck_charts\1028_vis_cache_T054_tm_mixv2.npz`），給 `make_ants_vis.py` 畫並排圖（vxm_env 沒有 timm）。
+
+### 30.4 10/28 簡報的調整（10-22～23）
+
+- **不放 ΔDice，一律直接比 Dice**（使用者 10-22：「簡報不用再放 Dice 變化了，希望可以用 Dice 來比較」）：
+  2 × 2 那頁改成每位受試者的 Dice（同一人細線相連）；殘留那幾頁拿掉 ΔDice 那一排、只留 affine／配準後的 Dice；
+  ANTs 那頁表格拿掉括號裡的增量、「VoxelMorph − ANTs」改成「VxM 較高者 39/51 位」。
+  原本用 ΔDice 講的「配準前後之差跟殘留無關」改寫成「affine 與配準後的斜率之差不顯著（p = …）」，計算方式寫在講稿備忘
+- 加 tigerbx 兩頁（§30.1）
+- tigerbx 對照頁之後加三頁：**同一位受試者（sub-0043）每個方向切 5 個位置**，上 FreeSurfer、下 tigerbx，右邊小圖標切面位置（使用者 10-23：「可以再多不同座標的」）。
+  `make_resvol.py` → `1028_resvol_slices_{cor,sag,ax}.png`，`build.js` 的 `SHOW_TG_SLICES`。位置用 affine 後的 MNI 座標：冠狀 y = +40、+10、−20、−50、−80；矢狀 x = −50、−30、−2（同 ⑧ 的矢狀面）、+30、+50；橫切 z = −40、−15、+10、+35、+60 mm。
+  看圖：FreeSurfer 包住整個腦表面、顱底（顳葉與小腦之間、下方）最厚，顱頂也較厚；tigerbx 只剩一薄層，z = −40 幾乎沒有
+  - ⚠️ **v3 atlas 的 nii 檔頭 y 原點差 4 mm**：v3 是 MNI152 2009c 在 y 方向前面裁掉 2 層（跟原始 MNI 逐 voxel 比對 r = 0.9999），真正的 MNI 座標是 x = i − 96、y = j − 130、z = k − 78；
+    檔頭寫 y = j − 134，是 `make_atlas.py` 裁切時把 `crop_front` 直接加到 ANTs 的原點（LPS，y 方向是負的）。配準都在 voxel 空間做，不影響任何結果；只有要報物理座標時要注意，檔頭先不改
+- 加「訓練過程」一頁（使用者：「loss 和 train 的圖可以放簡報」「分開放，train 和 val 放一起」「這次先放舊的」）：每個模型一欄，上 訓練損失的影像項、下 val Dice＋★選定的 epoch。
+  四個模型到第 250 輪都還在緩慢改善（200～250 輪的 val 平均都比 150～200 高），沒有 overfitting。沒有直接貼舊的 `dice_curve_analysis.png`：它的 folding 那格拿我們的百分比跟論文的 0.366% 比（分母不同，§26）
+- TransMorph **不另開一頁，併入現有的圖**（使用者 10-23）：殘留×模型（同時補上漏掉的 cascade + coarse-to-fine，共 7 個模型）、每位 Dice、訓練過程、多項指標、ANTs 長條圖與表、形變並排。
+  多項指標那張 TransMorph 的 folding（約 1.6 萬）會把其他長條壓扁 → 超出範圍的長條畫到邊界、標實際數字
+- 🔴 **殘留×模型補上 cascade_pyramid 之後，「配準後 Dice 跟殘留無關」不再全部成立**：七個模型裡六個 r = +0.08～+0.12（不顯著），
+  **mix_cascade_pyramid r = +0.26（p < 0.001）**，方向是殘留多的人配準後略高；test、val、MRS 分開看都同方向（+0.13、+0.10、+0.28），不是某一批的問題；
+  配準前後之差跟殘留無關（r = −0.13，p = 0.09），affine 本來就是 r = +0.17。p3 標題、條列從「無關」改成「**皆未因殘留而變差**」（跟 tigerbx 那頁同一個說法）
+  TransMorph r = +0.11（p = 0.15），跟其他模型一樣
+- 拿掉「延長訓練」那頁（使用者：「P9 好像也不用了，給老師講太多頁老師會眼花」）：`build.js` 的 `SHOW_P500 = false`，內容在 §28.4
+- 架構修改那幾顆先用舊的（10-06 版）；照原作補齊的三顆（§29.5）來得及就換
+- 形變並排改成**冠狀、矢狀、水平各一頁＋各結構 Dice 一頁**（使用者 10-23：「放一下好了（單獨 cascade、coarse-to-fine）」「再放 VoxelMorph 速度場」「還有半監督」「把 table 放到其他 page」「同方向 log|J| 和形變後影像放一頁」；矢狀面：老師說不要切正中間，「應該是偏 2、3 個 voxel 那種」；水平面：「這方向也可以做」；「區域結構可以放更多」）。`make_ants_vis.py` 一次出三張圖＋`1028_ants_vis_dice.json`：每張 4 列 × 6 欄，分兩段，每段上列形變後影像、下列同一方法的 log|J|；第 1 段 Fixed、Moving、ANTs、VoxelMorph（disp.，mix_exp3）、VoxelMorph（SVF，mix_exp6）、TransMorph；第 2 段 cascade、coarse-to-fine、合併、半監督 γ 0.5（mix_exp8）、γ 5（mix_exp9）。格子大小由投影片高度決定（約 1～1.2 吋），左右會留白。切面：冠狀經過視丘；矢狀 atlas 中線 x ≈ 95.9（左右成對結構中心的中點平均）往左 2 voxels（x = 94）；水平在殼核與視丘中心高度的中間（z = 81）；三個方向都是受試者左側在影像左側（很多看圖軟體是放射科慣例、左右相反）。輪廓都是 30 個評估結構（冠狀 6、矢狀 7、水平 6 個），同一個結構同一種顏色；大腦皮質、白質到處都是不畫；胼胝體不在 30 個結構內不畫。Dice 表：11 個結構＋30 結構平均（左右平均），粗體為最高（不含 affine、半監督），半監督灰色、標 *。T054：架構修改每一列都最高（合併模型 12 列中 8 列）；半監督的 log|J| 在深部結構內大片負值、邊界正值，γ 5 腦內 folding 1,460。推論快取 `1028_vis_cache_T054.npz` 現在有 7 個 VoxelMorph 系列模型（缺哪個才補算）。一開始矢狀面誤切成左半腦經過海馬（距中線 26 mm），已改。folding 位置圖使用者決定不另開頁（10/14 已給過 5 種設定的分布）。p10 註腳與講稿更正：合併模型 folding 少主要是因為它是 SVF（mix_exp6 每位 0.1），架構修改反而增加到 67，原本寫成「架構修改後 folding 大幅減少」會誤導
+- **論文常見之視覺化（試作，簡報最後 4 頁，`build.js` 的 `SHOW_TRY`）**（使用者 10-23：「每一個都蠻值得嘗試，先記起來…這幾個先試看看」；清單與出處對過原文圖說）：`make_paper_vis.py` → `1028_try_*.png`、`1028_try.json`。① 每個結構的 Dice 箱形圖（VoxelMorph Fig. 5：test 51 位、左右合併、依 ANTs 平均排序）：大腦皮質差最多（ANTs 0.763、VoxelMorph 0.771／0.766、TransMorph 0.784、cascade／C2F 0.803、合併 0.815），脈絡叢 ANTs 反而最高；② λ 曲線（VoxelMorph Fig. 7，用 test）：SVF λ 0.5／1／2 = 0.8047／0.8050／0.8026，displacement λ 1／2 = 0.8061／0.8005、folding 15,864 → 4,231；③ 誤差圖＋變形網格（DWP Fig. 2，T054 冠狀）：腦內 MAE affine 0.192 → 架構修改 0.086～0.096；平均位移 ANTs 4.03 mm、學習式 1.9～3.3 mm；④ coarse-to-fine 各層（Dual-PRNet++ Fig. 6，mix_pyramid）：用 `VxmPyramid.fields(keep_levels=True)`，各層總形變放大到原尺寸，Dice 0.697 → 0.715 → 0.741 → 0.763 → 0.786 → 0.811（最後一層等於 test 正式結果，程式裡有對答案）。TransMorph 的 `export_vis.py` 10-23 起多存 `flow`（float16），給網格用。還沒做的兩項（RGB 位移場、cascade 次數曲線）記在記憶裡
+- **換模型的準備**（使用者 10-23：「之後 mix_rcn_dwp 回來換掉目前的會不會很累」）：三個架構修改模型集中在 `deck_models.json`，make_resvol／make_arch_res／make_ants_vis／make_paper_vis.py 與 build.js 都讀它；延長訓練、腦外 folding 兩頁（已關）照舊寫死舊名稱。改前改後各跑一次比對：JSON 數字與 17 頁截圖逐位元相同。步驟清單（帶回哪些檔、筆電補算指令、要人工重看的標題與講稿數字）在 `換模型.md`
+
+### 30.5 第三套工具 SynthStrip＋SynthSeg（10-27，只看一位）
+
+使用者另外用 SynthStrip 去顱骨＋SynthSeg 分割，放在 `data/synthseg/test/{norm,aseg}/`，目前只有 **sub-0043**（mixed_v2 的 test，也是 §28.3、§30.1 殘留圖那一位）。
+使用者：「給老師看看切出來的樣子」「比 dice 就不用放了，他也還沒跑模型」→ 10/28 簡報（同天使用者改排法：「p17 可以併到 p5 6 7」「p18 p19 放到上面去講」「為啥沒有 freesurfer 的」）：
+  - 殘留五個位置那三頁（第 5～7 頁，`make_resvol.py` 的 `1028_resvol_slices_*.png`）多一列 **SynthStrip**：先照 tigerbx 的做法前處理這一位
+    （`preprocess_fs.py --img-dir data\synthseg\test\norm --seg-dir data\synthseg\test\aseg --n4 --split-from data\mixed_preprocessed_v2\mixed_manifest.json --only sub-0043`
+    → `data\synthseg_preprocessed_v1\test\sub-0043.npz`，33 個標籤都在）；殘留同 §28.3，但**補球的 S 不含 24（CSF）**，否則腦外腦脊髓液整片被算進球裡。
+    sub-0043：FreeSurfer 484、tigerbx 184、**SynthStrip 324 cm³**
+  - 標籤並排、深部放大＋各結構體積（cm³，三套都畫；大結構含 CSF、小結構兩格）接在後面（第 8、9 頁，`make_synthseg.py` → `deck_data_ss.json`、`1028_ss_{label,zoom,volume}.png`，原始空間）
+
+- **格式**：192×256×256、1 mm、RAS，affine 跟 tigerbx 完全相同（同一個原始掃描）；norm 是 int16 原始強度（**跟 tigerbx 的 _tbet 重疊處逐 voxel 相同**，沒做偏場校正），aseg 是 int32。前處理時要跟 tigerbx 一樣加 `--n4`
+- **去顱骨範圍**（非零 voxel）：FreeSurfer 1,616、tigerbx 1,398、SynthSeg 1,539 cm³。SynthSeg 的遮罩跟它的標籤（含 CSF）幾乎重合（遮罩有、標籤沒有 31,549 voxels；反過來 9,052）；遮罩是 **SynthStrip**（另一個 session 10-27 說明：FreeSurfer 7.4.1，`mri_synthstrip -i rawavg.mgz -o img -m mask` → `mri_synthseg --i img --o seg --vol --qc --cpu --threads 4`，SynthSeg 2.0 一般版，無 --robust／--parc／--crop，沒先 conform）。標籤表在 `data/synthseg/標籤表.tsv`（44 行，標明 SynthSeg 有沒有）；SynthSeg 自己的 QC：白質 0.85、灰質 0.75、CSF 0.88、小腦 0.91、腦幹 0.87、視丘 0.87、殼核＋蒼白球 0.90、海馬＋杏仁核 0.87。虛擬機 7.7 GB RAM：要 swap 16 GB ＋ `export TF_MKL_ALLOC_MAX_BYTES=21474836480`，一顆約 3 分 45 秒
+- **標籤**：32 個，編號同 FreeSurfer aseg。沒有脈絡叢（31、63 → 側腦室）、胼胝體（251～255 → 白質，89%）、血管、WM-hypointensities、視交叉
+- 🔴 **CSF（24）意義不同**：SynthSeg 313 cm³（96% 落在 FreeSurfer 沒標的地方：腦溝、腦表面外），FreeSurfer／tigerbx 約 1 cm³。之後若用 SynthSeg 標籤算 Dice：30 個結構缺脈絡叢 2 個、CSF 不能跟 FreeSurfer 版比；§28.3 的殘留體積（標籤補成球）也會因為 CSF 被算進球裡而變得很小，定義要另外想
+- **各結構體積**（以 FreeSurfer 為 100%）：SynthSeg 大腦皮質 111%、小腦皮質 112%、白質 98%；蒼白球 70%；殼核 117%、尾核 114%、杏仁核 129%、依核 155%。tigerbx 除依核 124% 外都在 ±15% 內
+
+### 30.6 照原作補齊的三顆、官方 TransMorph-diff 帶回（10-28）
+
+AI 帶回 §29 的三顆（`指令_mix_rcn_dwp.md`）與 TransMorph 專案的 `tm_diff_mixv2`（`mixv2/train_mixv2_diff.py`）。筆電補算照 `slides_src/2026-10-28_redpen/換模型.md`：
+HD95／SDlogJ（`surface_<epoch>.csv`）、沒參與訓練的結構（`semisup_check_<epoch>.csv`）、val／MRS 的 Dice（`skullstrip_check/cohorts/`）；TransMorph-diff 用該專案的 `eval_mixv2.py --surface --heldout`，CSV 複製到 `models/tm_diff_mixv2/`。重算的 test Dice（`dice_<epoch>_recheck.csv`）跟 AI 的一致。
+
+| | 先前實作（10-06）| 照原作（10-21）| 照原作較高者 | HD95（mm）| SDlogJ | 腦內 folding／位 | 沒參與訓練的結構 |
+|---|---|---|---|---|---|---|---|
+| cascade | mix_cascade 0.8156 | mix_cascade_rcn **0.8166**（epoch 195）| 34/51（p < 0.001）| 2.33 | 0.559 | 22 | 0.680 |
+| coarse-to-fine | mix_pyramid 0.8149 | mix_pyramid_dwp **0.8162**（epoch 205）| 35/51（p = 0.001）| 2.34 | 0.555 | 10 | 0.679 |
+| 合併 | mix_cascade_pyramid 0.8192 | mix_cascade_pyramid_rcn_dwp **0.8149**（epoch 155）| **3/51**（p < 0.001）| 2.40 | 0.642 | 71 | 0.683 |
+
+- **單獨的兩顆略升、合併的下降**：合併比 cascade 低（合併較高者 15/51，p = 0.001）、比 coarse-to-fine 低（15/51，p = 0.003）；cascade vs coarse-to-fine p = 0.16（打平）。
+  若兩項完全相加應為 0.828，實測 0.815 → **舊版「合併最好、部分可加成」只在舊實作成立**
+- 合併模型的其他指標也比舊版差：沒參與訓練的結構 0.690 → 0.683（12/51）、HD95 2.31 → 2.40（6/51 位較好；小腦白質左 2.48 → 3.10、右 2.60 → 3.39）；
+  但影像 NCC 相同（0.265）、訓練的相似度項五顆最低（−0.270）→ 影像對得比較像，標籤沒有對得比較準
+- 合併模型 val Dice 最高在第 155 輪，200～250 的平均（0.8102）略低於 150～200（0.8109）；其他四顆都還在升
+- **拆兩級**（`slides_src/2026-10-28_redpen/make_stage_diag.py` → `deck_data_stage.json`，只推論，筆電約 25 分鐘）：
+
+  | 合併模型 | 第 1 級後 Dice | 第 1 級平均位移 | 第 2 級後 Dice | 第 2 級平均位移 | 總位移 |
+  |---|---|---|---|---|---|
+  | 舊版 mix_cascade_pyramid | 0.7964 | 2.80 mm | 0.8192 | 0.79 mm | 3.18 mm |
+  | 照原作 mix_cascade_pyramid_rcn_dwp | **0.7905**（46/51 位較低）| **3.04 mm** | 0.8150 | **0.66 mm** | 3.36 mm |
+
+  差距在第 1 級就出現；第 1 級做得比較多、對得比較差，第 2 級補得比較少（位移為 atlas 腦內平均）。
+  推測：DWP 的子層 loss（1/16～1/4）在合併模型裡只加在第 2 級，RCN 只對最後一級算相似度 → 負責細部的第 2 級多了約束、第 1 級沒有任何中間監督；兩個原作都沒有這種組合。
+  **沒做消融確認**（要的話：合併模型只開 `--rcn`、只開 `--dwp` 各訓練一顆，約 28 小時／顆）
+- 殘留（§28.3、§30.4）：配準後 Dice 與殘留 r = +0.16（cascade，p = 0.04）、+0.23（coarse-to-fine，p = 0.003）、+0.32（合併，p < 0.001；test／val／MRS 各 +0.20／+0.22／+0.38）；都是正的，「皆未因殘留而變差」照舊
+- TransMorph（tm_mixv2）vs 新三顆：低於 cascade、coarse-to-fine（13/51，p < 0.001），跟合併打平（20/51，p = 0.12）；沒參與訓練的結構跟三顆都沒有顯著差異（p = 0.47、0.14、0.40）
+
+**TransMorph-diff**（官方 `TransMorphDiff`，Org-Res；46.79 M 參數；只把訓練量改成 2.5 萬步，val 挑 epoch 75）：
+- test **0.7143**（affine 0.6882，42/51 位較高；51/51 低於 tm_mixv2）、HD95 3.83、SDlogJ 2.34、腦內 folding 每位 17,101、沒參與訓練的結構 0.575、影像 NCC 0.244
+- 🔴 **小腦低於 affine**：白質 0.717 → 0.500、皮質 0.806 → 0.597（`make_tmdiff.py` → `1028_tmdiff.png`，搬過去的小腦變成均勻亮色）。
+  原因：官方相似度是 **MSE**，而 MNI152 atlas 的亮度跟受試者不一樣（test 51 位平均／atlas：小腦白質 0.73／0.87、小腦皮質 0.52／0.68、側腦室 0.24／0.09；大腦白質、皮質相近）。
+  我們其他模型都用局部 NCC。🔴 10-28 更正：以前寫「官方 IXI 的 atlas 是同批受試者平均、亮度一致，所以官方沒這個問題」沒有根據——TransMorph 論文 §4.1.2 只寫 atlas 取自 Kim et al. (2021)，而且 §5.2 自己就報告同樣的現象：IXI（atlas → 受試者）上 TransMorph-diff 0.594、TransMorph 0.754，用 MSE 的方法（SyN、NiftyReg、LDDMM、VoxelMorph-diff、TransMorph-diff）Dice 都偏低，作者歸因於 atlas 與受試者腦溝的亮度差異（MSE 把 atlas 的腦溝填掉）。我們看到的是小腦，機制相同
+- 官方積分（`IXI/TransMorph/models/TransMorph_diff.py:470`）平方之前**沒有除以 2^int_steps**，不保證微分同胚（腦內 folding 跟位移場同量級）
+- 推論用 `flow_mean`（不抽樣）
+- 👉 要公平比「SVF 版 TransMorph」：保留網路、相似度改 NCC、積分先除以 2^7。tm_mixv2 的訓練方式對齊 mix_exp3，兩顆 TransMorph 的差距不能全算在版本上
+
+**10/28 簡報**（24 頁）：`deck_models.json` 換成新三顆；多 p12「依原作程式補齊細節」（新舊對照＋拆兩級）、p15「TransMorph-diff」；
+p11、p13、p14 的標題改成依數字判斷（`build.js` 的 `MBEST`、`DN`）。講稿同步。
+同天使用者再要求三件事：
+- 「很多一起比較的圖沒有補上 transmorph diff」→ TransMorph-diff 加進 p3（殘留，val／MRS 用 TransMorph 專案的 `eval_mixv2.py` 補算 → `cohorts/dice_tm_diff_mixv2_0075_*.csv`）、
+  p11（後來併回同一個縱軸）、p13（只有 val Dice；訓練 log 沒帶回）、p14、p16（長條）、p17～20（形變並排、T054 表）、p21（箱形圖，上排縱軸自 0.68 起）、p23（誤差圖）。
+  殘留：配準後 r = +0.36（p < 0.001），跟其他模型一樣沒有隨殘留下降。誤差圖：TransMorph-diff 的腦內 MAE 0.052 全部最低、Dice 卻最低（MSE 只顧亮度一致）
+- 「就拿論文裡 30 個結構就好」「把半監督的數字加進來看」→ p14 拿掉「未參與訓練之結構」，改成 4 項（Dice、HD95、SDlogJ、腦內 folding），最後加兩列半監督（標 *）。
+  半監督腦內 folding：mix_exp9 每位 1,441（CLAUDE.md 表上的 1,481 是整張影像）
+- 「字好多，要不要減肥一下」→ 每頁條列 ≤ 3 條、每條約一行、註腳一行；拿掉的細節都在講稿的【備忘】；p16 表格不再重複 TransMorph 兩列（左圖已有）
+
+同天晚上（26 頁）：「p12 可以到最後」→ 依原作補齊細節移到附錄最後一頁；「p11 p21 可以加上半監督」→ 每位受試者 Dice 圖多兩欄半監督（一度各開一軸；使用者「右邊的不能整合在一塊嗎」→ TransMorph-diff、半監督都併回同一個縱軸 0.63～0.97，半監督淡紫底色）、箱形圖多兩組（半監督除大腦皮質 0.776／0.792 低於架構修改 0.804～0.812 外，幾乎每個結構最高）；「在 p11 前加上 cascade 和 pyramid 那兩篇的論文核心原理」「結構圖也可以考慮用原文的」→ ⑥ 前加兩頁（`make_principle.py`：RCN Fig. 3、DWP Fig. 1 由 `文獻/reference/` 的 PDF 以 PyMuPDF 裁切，存 `models/deck_charts/1028_pr_*.png`，不進版控；式 (1)～(4) 含原作程式之 ×1/n、detach、子層 loss）。
+📌 簡報裡所有模型的平均 Dice 都是論文的 30 個結構（`labels.npz`；`test_dice.py`、`ants_syn_baseline.py`、TransMorph 專案 `mixv2/common.py`、`make_stage_diag.py`、`make_paper_vis.py` 都讀同一組）；例外是殘留那幾頁（p2、p3、p10），照 9/30 老師的意見只平均大腦皮質、小腦皮質（左右，標籤 3、42、8、47）。
+
+**公式核對與講稿**（10-28 晚）：使用者問「p11 p12 公式都是對的嗎」→ 式 (1)～(4) 逐項對過 `ASD/arch.py`（`stage_flows`、`VxmCascade.forward`、`VxmPyramid.fields`）與 `ASD/train_arch.py`（loss、`dwp_sublevel_loss`），全部一致。投影片「其中」補上哪些是本研究之設定：exp（SVF）、局部 NCC、λ = 1；RCN 原文（§3.2、§4.1）子網路直接輸出位移場、相似度為 correlation coefficient、每一級的 flow 都罰 L2 variation；DWP 原文（Implementation Details）位移場、最細一層 1/2 解析度、λ = 0.5、另有 Dice loss（γ = 0.5，半監督）。🔴 更正：DWP 的子層 loss 論文本文就有寫（「at level 4 … 2^-4 (L_sim + λL_reg)」、[1/16, 1/8, 1/4]），只有合成時 detach 是程式才有；講稿與 `文獻/cascade與pyramid原理筆記.md` §7.1 已改。
+p14 訓練過程加半監督兩欄：上排相似度項跟其他模型同一縱軸（γ = 0.5／5 在 epoch 250 為 −0.227／−0.207，高於 mix_exp6 −0.235），下排 val Dice 另計縱軸（使用者「保留」縱軸另計）；`make_arch_res.py` 的 log 解析式允許第三項（標籤項）。γ = 5 在 epoch 138～139 有一段不穩定，兩個 epoch 內恢復。
+報告沒有雙螢幕：`make_script.py` 由 `講稿.md`＋投影片縮圖（`script_thumbs/`）產生 `講稿_10-28.pdf`（A4，每頁縮圖＋要講的話，【備忘】放灰框；第一頁流程總覽，正文約 17 分鐘、附錄約 4 分鐘）。Edge headless 在 Claude 的 bash 沙箱裡開不起來，要從 PowerShell 跑。

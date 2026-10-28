@@ -137,6 +137,7 @@ if args.step != 1 and not args.model_dir:
     print('[!] --step 只在搭配 --model-dir 時有作用，本次會被忽略。')
 
 import torch
+import torch.nn.functional as F
 import voxelmorph as vxm
 from scipy import ndimage
 from arch import load_model    # 2026-10-06：新架構（串接等）也讀得到；舊模型照舊是 VxmDense.load
@@ -262,6 +263,21 @@ def dice(a, b, lab):
     return 2.0 * (x & y).sum() / s
 
 
+def ncc_loss(I, J, win=9):
+    """訓練用的影像項（局部 NCC，窗格 9，回傳 −mean(cc)），算法逐行照抄 voxelmorph/torch/losses.py 的 NCC。
+    2026-10-22 加（使用者：「train 和 val 放一起」）：原版把 sum_filt 寫死 .to("cuda")，CPU 會報錯 → 這裡改跟著輸入的裝置。"""
+    sum_filt = torch.ones([1, 1, win, win, win], device=I.device)
+    pad = win // 2
+    I2, J2, IJ = I * I, J * J, I * J
+    I_sum, J_sum, I2_sum, J2_sum, IJ_sum = (F.conv3d(t, sum_filt, stride=1, padding=pad) for t in (I, J, I2, J2, IJ))
+    n = float(win ** 3)
+    u_I, u_J = I_sum / n, J_sum / n
+    cross = IJ_sum - u_J * I_sum - u_I * J_sum + u_I * u_J * n
+    I_var = I2_sum - 2 * u_I * I_sum + u_I * u_I * n
+    J_var = J2_sum - 2 * u_J * J_sum + u_J * u_J * n
+    return float(-torch.mean(cross * cross / (I_var * J_var + 1e-5)))
+
+
 def evaluate(model_path):
     if model_path.endswith('.h5'):
         # 作者釋出的 Keras 模型：這台的 TF 載不起來，搬進 PyTorch 用（見 author_model.py）
@@ -306,6 +322,9 @@ def evaluate(model_path):
                 'jneg_pct': 100 * jacobian_negative_ratio(fl, det),      # 舊定義（分母：整個影像）
                 'jneg_fg_pct': 100 * folding_fg(det),                    # 分母：atlas 非背景 ← 報告用這個（比我們自己的模型）
                 'per': per,
+                # 跟訓練 log 括號裡第一個數（影像項）同一個算法：NCC(atlas, 搬好的受試者)。只算影像項，不含平滑項——
+                # 總 loss 跨模型不能比（cascade 每一顆都罰平滑、--dwp 另有粗的層的 loss），影像項可以
+                'ncc_loss': ncc_loss(atlas_t, moved.float()),
             }
             if args.surface:
                 add_surface(r, seg_w, det)
@@ -488,16 +507,20 @@ else:
     curve = []
     for p in pts:
         ep = int(os.path.basename(p)[:-3])
+        t0 = time.time()
         rows = evaluate(p)
         dm, jn, jf = summarize(rows, 'epoch %04d' % ep)
-        curve.append((ep, dm, jn, jf))
+        nc = float(np.mean([r['ncc_loss'] for r in rows]))
+        print('  %-14s 影像項（NCC loss）%.6f   %.0f 秒（每位 %.1f 秒）' % ('', nc, time.time() - t0, (time.time() - t0) / len(rows)))
+        curve.append((ep, dm, jn, jf, nc))
 
     import csv
     out = args.out_csv or os.path.join(md, 'dice_curve%s.csv' % _split_suffix(args.test_dir))
     with open(out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.writer(fh)
-        w.writerow(['epoch', 'dice_mean', 'jneg_pct', 'jneg_fg_pct'])
-        w.writerows([[e, '%.6f' % d, '%.6f' % j, '%.6f' % jf] for e, d, j, jf in curve])
+        # ncc_loss（2026-10-22 加）放最後一欄：舊程式都用欄名讀，不受影響
+        w.writerow(['epoch', 'dice_mean', 'jneg_pct', 'jneg_fg_pct', 'ncc_loss'])
+        w.writerows([[e, '%.6f' % d, '%.6f' % j, '%.6f' % jf, '%.6f' % nc] for e, d, j, jf, nc in curve])
     print()
     print('  CSV -> %s' % out)
 
