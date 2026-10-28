@@ -3,7 +3,7 @@
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
 > 最後更新：**2026-10-28 晚**（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
 > RCN 從 TF 1.4 逐行翻成 PyTorch（`rcn_torch.py`，`verify_rcn_port.py` 直接執行原作 TF 程式比對，全部相同；RCN 的腦部實驗本來就是 atlas 配準）；TransMorph 兩支改成每輪全部資料洗牌、預設 500 輪（官方）。
-> 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）。
+> 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）；舊設定跟原作逐項差在哪見手冊 §31.9。兩個 repo 已 push（`228dd12`、TransMorph 專案 `a7f42ca`）。
 > 同日稍早：照原作補齊的三顆＋官方 TransMorph-diff 帶回（手冊 §30.6）：mix_cascade_rcn **0.8166**、mix_pyramid_dwp **0.8162**（單獨的都比舊版 +0.001）、
 > 但合併 mix_cascade_pyramid_rcn_dwp **0.8149**（舊版 0.8192，只有 3/51 位較高；低於單獨兩顆，差在第 1 級）；TransMorph-diff **0.7143**（官方 MSE 碰上 MNI152 atlas 亮度跟受試者不同，小腦低於 affine）。
 > 10/28 簡報換成新三顆、多兩頁，共 24 頁；標題結論改成依數字判斷。TransMorph-diff 加進所有比較圖；🔴 使用者決定 Dice／HD95 只用論文 30 個結構（不放「未參與訓練之結構」），
@@ -94,7 +94,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 HD95、SDlogJ（2026-10-07 加）：`test_dice.py --surface` → `surface_<epoch>.csv`，定義與結果見手冊 §26。
 ³ **標籤項用的就是評估的 30 個結構，Dice、HD95 不能跟非監督的模型直接比**；沒參與訓練的結構（Accumbens、Inf-Lat-Vent、胼胝體）Dice：mix_exp6 0.653 → mix_exp8 0.665、mix_exp9 **0.442**（affine 0.475），見下面第 8 點與手冊 §27。
 ⁴ 由粗到細系列腦內只有個位數到幾十個，但**腦外背景每位約 1 萬（pyramid）～5 萬（cascade_pyramid）個**，全在影像最外圈 0～4 格：合成形變時 grid_sample 補 0 造成，推論改 `padding_mode='border'` 就消失、Dice 不變（手冊 §28.4）。用整張影像的 `jneg_pct` 會很難看，一律報腦內。
-⁵ **舊設定**（10-28 使用者：「之前跑過的實驗就註記是用舊設定完成的」）：cascade／pyramid 系列是照原作的**機制**自己實作，底層網路與訓練設定對齊 mix_exp6（SVF、局部 NCC、λ 1、lr 固定、25,000 步）；TransMorph 兩顆的訓練量是 25,000 步，tm_mixv2 另外對齊 mix_exp3（lr 固定、不翻轉）。使用者決定新方法**第一步先照原作程式重現**，只改逼不得已的（資料、atlas、影像大小、評估、環境），見手冊 §31。
+⁵ **舊設定**（10-28 使用者：「之前跑過的實驗就註記是用舊設定完成的」）：cascade／pyramid 系列是照原作的**機制**自己實作，底層網路與訓練設定對齊 mix_exp6（SVF、局部 NCC、λ 1、lr 固定、25,000 步）；TransMorph 兩顆的訓練量是 25,000 步，tm_mixv2 另外對齊 mix_exp3（lr 固定、不翻轉）。使用者決定新方法**第一步先照原作程式重現**，只改逼不得已的（資料、atlas、影像大小、評估、環境），見手冊 §31（舊設定 vs 原作逐項對照 §31.9）。
 ¹ 舊定義、未重算（SVF 版近 0，兩種定義都約 0）。² tigerbx 是在筆電上 09-19 更新後的資料算的（29 顆改成不轉正，test 有 2 位；模型當初是在 AI 上舊版評估的，見手冊 §20.9）。
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
@@ -179,6 +179,7 @@ mixed_v2 起切分不做歸戶，每個掃描各自算一位受試者。
 - **TensorFlow**：`2.21.0` — 只有 antspynet 去顱骨會用到；**Windows 原生 TF ≥ 2.11 不支援 GPU，去顱骨走 CPU，正常現象**
 - **關鍵套件**：`antspyx==0.6.3`、`antspynet==0.3.2`、`neurite==0.2`、`nibabel==5.4.2`、`numpy==2.2.6`
 - **GPU 檢查**：`python cuda_cheak.py`
+- **另一個環境 venv_dwp**（`D:\MyHome\MRI\orig_repos\venv_dwp`，不進 git）：**只給 DWP 照原作重現用**（原作程式要 monai／mmengine／mmcv／wandb，原作指定的版本 numpy 2.0.1、torch 2.5.1+cu121 跟 vxm_env 不同，裝進來可能動到 VoxelMorph 那邊）；RCN 重現用 vxm_env、TransMorph 用該專案的 venv（手冊 §31.8）
 
 ```powershell
 cd C:\Users\h4524\claude_cheng

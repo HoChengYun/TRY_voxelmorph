@@ -3441,7 +3441,7 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 - 原作的 NCC（`models/losses/lncc.py` 的 'ncc'）公式同 VoxelMorph（cross² / (var·var + 1e-5)）；試跑第一步 −0.073，跟 mix_exp6 第一步 −0.082、affine 時 −0.07～−0.085 一致
 - 🟡 原作設 `cudnn.deterministic = True`：筆電反向傳播 9.9 秒 vs 不設 1.8 秒（5.6 倍）。只影響速度與逐位元可重現 → 預設照原作，`--nondeterministic` 可關
 - 筆電試跑（3 位 × 2 輪）：每步 12 秒、顯存實際 5.2 GB；`eval_repro.py --method dwp` 跑通
-- 環境：`venv_dwp`（筆電 `D:\MyHome\MRI\orig_repos\venv_dwp`），`ASD/reproduce/requirements_dwp.txt`；wandb 會印 pydantic 的警告，無害
+- 環境：`venv_dwp`（筆電 `D:\MyHome\MRI\orig_repos\venv_dwp`），`ASD/reproduce/requirements_dwp.txt`；為什麼另開、哪些實驗用見 §31.8。wandb 會印 pydantic 的警告，無害
 
 ### 31.5 RCN
 
@@ -3473,4 +3473,78 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 | `ASD/reproduce/eval_repro.py` | DWP、RCN 的評估（同 `test_dice.py`，CSV 格式也同）|
 | `ASD/指令_reproduce.md` | AI 操作單（四顆，照原作／縮短兩種訓練量）|
 
-原作 repo 不放進我們的 repo：筆電 `D:\MyHome\MRI\orig_repos\`、AI `D:\chengyun\orig_repos\`（操作單 0-1 固定 commit）。
+原作 repo 不放進我們的 repo：筆電 `D:\MyHome\MRI\orig_repos\`、AI `D:\chengyun\orig_repos\`（操作單 0-1 固定 commit；§31.8）。
+10-28 已 commit、push：本 repo `228dd12`、TransMorph 專案 `a7f42ca`。
+
+### 31.8 orig_repos 與 venv_dwp（10-28 使用者問「為啥他需要環境、是哪個實驗要用他」）
+
+`orig_repos`（筆電 `D:\MyHome\MRI\orig_repos\`、AI `D:\chengyun\orig_repos\`）不在我們的 GitHub repo，原作程式留在原作的 repo、固定在讀過的版本：
+
+| 資料夾 | 內容 | 用途 |
+|---|---|---|
+| `rethink-reg\` | DWP 原作（@97175ff）| `train_dwp.py`、`eval_repro.py --method dwp` 直接 import 這裡的程式（模型、loss、每一步的 `run_iter`）→ 原作程式一個字都不改；在那個資料夾 `git status` 是乾淨的 |
+| `Recursive-Cascaded-Networks\` | RCN 原作（@0709490，TF 1.4）| 不拿來訓練（這台裝不了 TF 1.4）；對照用，`verify_rcn_port.py` 讀它的原始檔比對翻譯 |
+| `venv_dwp\` | DWP 專用的 Python 環境 | 見下 |
+
+哪個實驗用哪個環境：
+
+| 實驗 | 環境 |
+|---|---|
+| DWP 照原作（`orig_dwp`）的訓練與評估 | **venv_dwp** |
+| RCN 照原作（`rcn_torch.py`）的訓練與評估 | vxm_env（只要 torch、numpy）|
+| `verify_rcn_port.py` | vxm_env（要它的 TF 2.21 執行原作的 TF 程式）|
+| TransMorph、TransMorph-diff | TransMorph 專案的 `venv\` |
+| 舊設定那幾顆（mix_cascade_rcn、mix_pyramid_dwp…）| vxm_env（我們自己的程式）|
+
+為什麼 DWP 要另一個環境：原作程式用到 vxm_env 沒有的套件——模型用 **monai** 的卷積層組成；設定檔與模型註冊靠 **mmengine**，`import models` 時還會載入 **mmcv**；記錄用 **wandb**；另有 einops、configargparse。
+裝進 vxm_env 會改掉版本（原作指定 numpy 2.0.1、torch 2.5.1，vxm_env 是 2.2.6、2.10.0），可能影響 VoxelMorph 那邊（含去顱骨用的 TensorFlow、antspyx）。
+分開裝：vxm_env 完全不動；venv_dwp 用原作作者驗證過的版本（也是照原作的一部分）。唯一不同：mmcv → mmcv-lite（Windows 沒有 mmcv 2.2.0 完整版可裝；DWP 用不到 mmcv 的 CUDA ops，只在 import 時需要）。
+torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
+
+### 31.9 舊設定 vs 原作（逐項；10-28 meeting 前整理）
+
+簡報上的模型都是**舊設定**：核心機制已照原作（表中「相同」那幾列），差在底層網路與訓練方式。舊設定刻意跟 mix_exp6 同一套訓練方式 → 比的是「訓練條件相同、只換架構機制」。照原作的版本尚未訓練、沒有數字。
+兩邊都一樣、重現時也不改的（逼不得已）：我們的資料（418／51／51）、MNI152 atlas、受試者 → atlas、影像 192×224×192、我們的評估。
+
+**Cascade：mix_cascade_rcn vs RCN 原作**
+
+| 項目 | 舊設定 | RCN 原作 |
+|---|---|---|
+| 子網路 | 我們的 VoxelMorph（同 mix_exp6），SVF | VTN（預設）或 VoxelMorph（RCN 自己的 TF 版），位移場 |
+| 最前面的 affine 級 | 沒有 | 有一顆可訓練的 affine 網路（VTNAffineStem）|
+| 串幾顆 | 2 | 預設 1；論文公開的腦部模型：VTN 3、10 顆，VoxelMorph 5 顆 |
+| 相似度 | 局部 NCC（窗格 9）| 全域相關係數（整張影像，1 − r）|
+| 正則 | 每顆平滑，λ = 1 | 每顆平滑 × 1，affine 另加 det、ortho 各 0.1 |
+| 每顆輸出 ×1/n、串接取邊界值、相似度只算最後一顆 | 相同 | 相同 |
+| 訓練 | batch 1、25,000 步、lr 固定 | batch 4、10 萬步、lr 在 6 萬、8 萬步各減半 |
+| 資料增強 | 無 | 受試者加隨機 B-spline 形變 |
+| 方向 | 受試者 → atlas | 相同（原作腦部實驗就是 atlas 配準）|
+
+**Coarse-to-fine：mix_pyramid_dwp vs DWP 原作（期刊版，γ = 0）**
+
+| 項目 | 舊設定 | DWP 原作 |
+|---|---|---|
+| 網路 | 自己寫的 `VxmPyramid`：VoxelMorph 的通道數、最近鄰放大、沒有 normalization，0.41 M 參數 | `VXMPlus_DualWarpPy`：編碼 8～64、解碼 128～32、InstanceNorm、transposed conv 放大，1.89 M 參數 |
+| 形變 | 每一層都是 SVF，一路算到原尺寸 | 位移場，最細到 1/2 解析度再放大 |
+| 合成時 δ detach、粗的三層（1/16、1/8、1/4）也算 loss | 相同 | 相同 |
+| 雙向訓練 | 沒有 | 有（兩個方向的 loss 各半）|
+| λ | 1 | 0.5 |
+| 訓練 | Adam、lr 固定、25,000 步、單精度 | Adam amsgrad、lr 每輪 × 0.996、100 輪、混合精度 fp16 |
+| 資料增強 | 無 | 左右翻轉 50% |
+| 配對 | 受試者 → atlas | 兩兩隨機配（LUMIR）；重現時只能改成受試者 → atlas |
+
+**合併模型**（cascade＋pyramid）：兩篇原作都沒有，是我們自己的想法，屬第二步。
+
+**TransMorph：tm_mixv2 vs 官方**
+
+| 項目 | 舊設定 | 官方 |
+|---|---|---|
+| 網路、損失（NCC＋λ 1）| 相同 | 相同 |
+| 優化器、lr | Adam、lr 固定 | Adam amsgrad、lr poly 遞減 |
+| 資料增強 | 無 | 三個方向各 50% 翻轉 |
+| 訓練量 | 每輪隨機抽 100 位、250 輪 = 25,000 步 | 每輪全部資料洗牌、500 輪，約 21 萬步 |
+| 方向 | 受試者 → atlas | atlas → 受試者（重現時照使用者決定，用受試者 → atlas）|
+
+**TransMorph-diff：tm_diff_mixv2**：方法與訓練方式 10-24 起就照官方（MSE＋KL、Adamax、poly、三向翻轉），只差訓練量（25,000 步，官方約 21 萬步）。
+
+跟老師說明時：「目前的結果是在跟 VoxelMorph（mix_exp6）相同的訓練設定下，只比較架構機制；照原作程式完整重現的版本已寫好、驗證過，下一步再訓練。」
