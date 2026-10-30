@@ -11,7 +11,7 @@
 > | TransMorph-diff | 官方 IXI 的 `train_TransMorph_diff.py` | TransMorph 專案 `mixv2\train_mixv2_diff.py`（預設＝官方）| 同上 |
 >
 > **訓練量不必照原作**（使用者 10-28）。下面每一顆都給兩種：照原作的量，或縮短成跟其他模型一樣約 2.5 萬步；學習率排程照原作的形狀跟著總步數縮（DWP 例外，見 A 節）。
-> 跑的機器：**AI**。🔴 **一次只跑一顆**。指令全部是 **cmd（命令提示字元）** 語法。最後更新：2026-10-30（DWP 訓練量定案：60 輪＋`--nondeterministic`；RCN 定案 VoxelMorph × 2 顆、2.5 萬步）；10-28 筆電四支都試跑過、評估跑通
+> 跑的機器：**AI**。🔴 **一次只跑一顆**。指令全部是 **cmd（命令提示字元）** 語法。最後更新：2026-10-30（DWP 訓練量定案：60 輪＋`--nondeterministic`；RCN 定案 VoxelMorph × 2 顆、6,250 步（`--round 1250`））；10-28 筆電四支都試跑過、評估跑通
 
 ---
 
@@ -159,19 +159,19 @@ deactivate
 
 ## B. RCN（`models\orig_rcn_vxm2`）
 
-**底層網路與顆數、訓練量（10-30 使用者決定）：VoxelMorph × 2 顆，縮短成 2.5 萬步**
+**底層網路與顆數、訓練量（10-30 使用者決定）：VoxelMorph × 2 顆，6,250 步（`--round 1250`）**
 
 - 原作可以選底層網路與顆數（`-b`、`-n`），論文放出來的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆。VoxelMorph 每顆約 4～5 GB，5 顆在我們的影像大小放不進 24 GB
 - 用 2 顆：跟 mix_cascade、mix_cascade_rcn 一樣串兩顆，可以直接比「原作程式 vs 我們自己寫的」。RCN 的 VoxelMorph 是它自己寫的 VoxelMorph-2（編碼 16-32-32-32、解碼 32-32-32-32-32-16-16，位移場、不積分），每顆大小跟 mix_exp6 一樣；前面另有原作的 affine 網路
 
 | | 用這個 |
 |---|---|
-| 訓練量 | batch 4 × 2.5 萬步（`--round 5000`）；lr 1e-4，1.5 萬、2 萬步各減半。原作 10 萬步、6 萬／8 萬步減半，形狀一樣、整個縮成 1/4 |
+| 訓練量 | batch 4 × 6,250 步（`--round 1250`）= 25,000 對，看過的影像對數同其他模型（25,000 步 × 1 對）；lr 1e-4，3,750、5,000 步各減半。原作 10 萬步、6 萬／8 萬步減半，形狀一樣、整個縮成 1/16 |
 | 顯存 | 筆電實測 11.3 GB（batch 4 的 4 對是依序算、梯度平均，顯存跟 1 對一樣）|
-| 時間 | 估計單獨跑約 3～4 天（一步 4 對；用 mix_cascade 在 AI 上每對約 3.5 秒推的，沒實測）；跟 DWP 同時跑會更久 |
+| 時間 | 10-30 跟 DWP 同時跑，實測每步 8.17 秒（每對約 2 秒）→ 約 14 小時 |
 
-`--round 5000`：原作把訓練分成 5 段，每段 `--round` 步（預設 20,000），lr 在第 3、4 段開頭各減半；改成 5,000 就是總共 2.5 萬步。
-`--save-every 1000`：每 1,000 步存一顆 `NNNNNN.pt`（預設 5,000 步，縮短後只會有 5 顆可挑），約 60 MB，共 25 顆；
+`--round 1250`：原作把訓練分成 5 段，每段 `--round` 步（預設 20,000），lr 在第 3、4 段開頭各減半；改成 1,250 就是總共 6,250 步。代價：權重只更新 6,250 次，是原作的 1/16，分數偏低時可能是練不夠、不一定是方法差。
+`--save-every 250`：每 250 步存一顆 `NNNNNN.pt`（預設 5,000 步，縮短後只會有 2 顆可挑），約 60 MB，共 25 顆；
 `last.pt` 是最新的一顆加上 Adam 狀態，中斷了可以用 `-c models\orig_rcn_vxm2\last.pt` 接著練。
 
 **B-1 訓練**（開一個新的 cmd）：
@@ -192,10 +192,11 @@ set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.6
 ```
 
 ```bat
-python ASD\reproduce\train_rcn.py -b VoxelMorph -n 2 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm2 --round 5000 --save-every 1000 -g 0
+python ASD\reproduce\train_rcn.py -b VoxelMorph -n 2 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm2 --round 1250 --save-every 250 -g 0
 ```
 
-- 第二行要看到 `VoxelMorph × 2 顆（＋affine），rep 1，共 14939414 個參數；影像 192x224x192；batch 4；25000 步（lr 0.0001，15000、20000 步後各減半）`
+- 第二行要看到 `VoxelMorph × 2 顆（＋affine），rep 1，共 14939414 個參數；影像 192x224x192；batch 4；6250 步（lr 0.0001，3750、5000 步後各減半）`
+- 之後每行的 `step: N/250` 是「這一段 250 步裡的第 N 步」（每 250 步存一次檔，共 25 段），`epoch` 是第幾段
 - 跳出 `CUDA out of memory` 的話，上限改成 `0.65` 再跑一次
 - 兩顆都開跑後看一下 `nvidia-smi`：顯存合計要在 24 GB 以內；DWP 的 log 每步如果變成 10 幾秒，就是顯存溢位，先停掉 RCN
 

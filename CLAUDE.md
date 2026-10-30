@@ -924,7 +924,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 - 📌 **10-12 對照過原論文的程式**（RCN、Dual-PRNet，只讀；手冊 §25.5）：核心設計都對上；差異是 RCN 每段輸出乘 1/n、Dual-PRNet warp 特徵時切斷梯度與訓練技巧（暖身、梯度裁剪）。使用者決定程式先不改
 - 🔴 **10-28 新方法的第一步改成「照原作程式重現」**（使用者：「第一步是去重現他們的程式，之後熟悉了再去加入我們自己的想法」「逼不得已要改的設定，我們才去動他們的原始碼」；手冊 §31）：
   DWP（期刊版 γ = 0）、RCN（翻成 PyTorch）、TransMorph、TransMorph-diff 都寫好、筆電試跑過，`ASD/指令_reproduce.md`。DWP 訓練量 10-30 定案：60 輪（25,080 步 ≈ 原作 25,000 步）＋`--nondeterministic`（不設 cudnn.deterministic，約 25 小時）。上面這些 mix_cascade／mix_pyramid 系列是舊設定（照原作機制、訓練對齊 mix_exp6）。
-  合併模型、對齊 mix_exp6 的比較屬第二步。RCN 10-30 定案：VoxelMorph 2 顆（同 mix_cascade 串兩顆）、縮短 2.5 萬步（`models\orig_rcn_vxm2`），跟 DWP 同時在 AI 上跑
+  合併模型、對齊 mix_exp6 的比較屬第二步。RCN 10-30 定案：VoxelMorph 2 顆（同 mix_cascade 串兩顆）、`--round 1250 --save-every 250` = 6,250 步 × batch 4 = 2.5 萬對（看過的影像對數同其他模型；權重更新只有原作 10 萬步的 1/16）（`models\orig_rcn_vxm2`），跟 DWP 同時在 AI 上跑，約 14 小時（手冊 §31.5）
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

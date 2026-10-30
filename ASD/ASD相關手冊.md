@@ -3452,8 +3452,10 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 - 訓練時 moving 加隨機 B-spline 形變（控制點 5×5×5、±0.4 × 影像大小/4，集中在 0 附近），fixed 不動
 - 參數：VTN × 1 4,259 萬、× 3 9,909 萬；VoxelMorph × 2 1,494 萬（affine stem 就占 1,434 萬）
 - 筆電試跑（全尺寸）：VTN × 1 batch 1 每步 0.27 秒、3.0 GB；VTN × 2 batch 4 每步 1.9～2.2 秒、5.1 GB；VTN × 3 batch 2 每步 2.4～2.9 秒、7.0 GB（筆電顯存快滿，偏慢）；VoxelMorph × 2 要 11.3 GB，筆電放不下（每步 82 秒），AI 放得下
-- 底層網路與顆數原作可選（預設 VTN、1 顆）；論文放出的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 操作單原本用 VTN 3 顆。✅ **10-30 使用者決定 VoxelMorph × 2 顆、縮短 2.5 萬步**（`models\orig_rcn_vxm2`）：跟 mix_cascade、mix_cascade_rcn 一樣串兩顆，可以直接比原作程式與我們的實作；14,939,414 個參數、顯存 11.3 GB（VoxelMorph 5 顆在我們的大小估計要 24 GB 以上）。跟 DWP 同時在 AI 上跑，RCN 視窗設 `per_process_memory_fraction:0.6`（DWP 的 torch 2.5.1 不認得這個設定，設了會報錯）
+- 底層網路與顆數原作可選（預設 VTN、1 顆）；論文放出的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 操作單原本用 VTN 3 顆。✅ **10-30 使用者決定 VoxelMorph × 2 顆**（`models\orig_rcn_vxm2`；訓練量實際用 `--round 1250`，見下）：跟 mix_cascade、mix_cascade_rcn 一樣串兩顆，可以直接比原作程式與我們的實作；14,939,414 個參數、顯存 11.3 GB（VoxelMorph 5 顆在我們的大小估計要 24 GB 以上）。跟 DWP 同時在 AI 上跑，RCN 視窗設 `per_process_memory_fraction:0.6`（DWP 的 torch 2.5.1 不認得這個設定，設了會報錯）
 - 縮短訓練量：`--round 5000`（2.5 萬步，lr 在 1.5 萬、2 萬步減半，排程形狀不變）
+- 🔴 **10-30 實際開跑用 `--round 1250 --save-every 250`**（使用者決定）：6,250 步 × batch 4 = **25,000 對**，看過的影像對數＝其他模型（25,000 步 × 1 對）；但權重只更新 6,250 次，是原作 10 萬步的 **1/16**，分數偏低時可能是練不夠、不一定是方法差。lr 在 3,750、5,000 步各減半；每 250 步存一顆，共 25 顆。操作單 B 節同（10-30 改）
+- 10-30 跟 DWP 同時在 AI 上跑：RCN 每步 8.17 秒（一步 4 對，每對約 2 秒）→ 約 14 小時；DWP 每步 6.15 秒（RCN 跑完後會變快，估計共 1.3～1.5 天）。工作管理員：專屬 GPU 記憶體 23.0／24.0 GB、共用 0.2 GB（沒溢位）、GPU 86 °C
 
 ### 31.6 TransMorph（TransMorph 專案 `mixv2/`）
 
@@ -3573,7 +3575,7 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 | 相似度 | 全域相關係數（只算最後一顆）| ＝原作 | 局部 NCC（只算最後一顆）|
 | 正則 | 每顆罰平滑；affine 級另加 det、ortho（各 0.1）| ＝原作 | 每顆罰平滑，λ 1 |
 | 每顆輸出 ×1/n、超出邊界取邊界值 | 有 | ＝原作 | ＝原作 |
-| 訓練 | batch 4、10 萬步、lr 在 6 萬、8 萬步各減半 | ＝原作（1 張卡依序算 4 對；可縮短成 2.5 萬步）| batch 1、2.5 萬步、lr 固定 |
+| 訓練 | batch 4、10 萬步、lr 在 6 萬、8 萬步各減半 | batch 4（1 張卡依序算 4 對）、**6,250 步**（`--round 1250`，10-30）、lr 在 3,750、5,000 步各減半 | batch 1、2.5 萬步、lr 固定 |
 | 資料增強 | 隨機 B-spline 形變 | ＝原作 | 無 |
 | 方向 | 受試者 → atlas | ＝原作 | ＝原作 |
 | 結果（test Dice）| — | 還沒訓練 | 0.8166 |
