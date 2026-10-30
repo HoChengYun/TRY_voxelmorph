@@ -1,7 +1,8 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-10-28 晚**（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
+> 最後更新：**2026-10-30**（10-30：三種去顱骨那份資料 745 位正在虛擬機上跑，輸入 `orig.mgz`；IXI 等 FreeSurfer 跑完再併進 v3；筆電的 FSS_A001 已刪，見待辦 0c；🔴 10-29 meeting 老師紅字 4 頁記在待辦 0c、手冊 §32（p3 p 值定義、p8 只換去頭殼工具各訓練一顆、p15 加參數量、p17 細分標籤看殘留影響哪一區）；RCN、DWP 的原作／重現版／舊設定三方對照記在手冊 §31.10；更正：DWP 原作訓練量其實是 2.5 萬步（每輪 250 步）、平滑實際權重 0.5 × 2 = 1（§31.4、§31.9））
+> 10-28 晚：（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
 > RCN 從 TF 1.4 逐行翻成 PyTorch（`rcn_torch.py`，`verify_rcn_port.py` 直接執行原作 TF 程式比對，全部相同；RCN 的腦部實驗本來就是 atlas 配準）；TransMorph 兩支改成每輪全部資料洗牌、預設 500 輪（官方）。
 > 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）；舊設定跟原作逐項差在哪見手冊 §31.9。兩個 repo 已 push（`228dd12`、TransMorph 專案 `a7f42ca`）。
 > 同日稍早：照原作補齊的三顆＋官方 TransMorph-diff 帶回（手冊 §30.6）：mix_cascade_rcn **0.8166**、mix_pyramid_dwp **0.8162**（單獨的都比舊版 +0.001）、
@@ -94,7 +95,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 HD95、SDlogJ（2026-10-07 加）：`test_dice.py --surface` → `surface_<epoch>.csv`，定義與結果見手冊 §26。
 ³ **標籤項用的就是評估的 30 個結構，Dice、HD95 不能跟非監督的模型直接比**；沒參與訓練的結構（Accumbens、Inf-Lat-Vent、胼胝體）Dice：mix_exp6 0.653 → mix_exp8 0.665、mix_exp9 **0.442**（affine 0.475），見下面第 8 點與手冊 §27。
 ⁴ 由粗到細系列腦內只有個位數到幾十個，但**腦外背景每位約 1 萬（pyramid）～5 萬（cascade_pyramid）個**，全在影像最外圈 0～4 格：合成形變時 grid_sample 補 0 造成，推論改 `padding_mode='border'` 就消失、Dice 不變（手冊 §28.4）。用整張影像的 `jneg_pct` 會很難看，一律報腦內。
-⁵ **舊設定**（10-28 使用者：「之前跑過的實驗就註記是用舊設定完成的」）：cascade／pyramid 系列是照原作的**機制**自己實作，底層網路與訓練設定對齊 mix_exp6（SVF、局部 NCC、λ 1、lr 固定、25,000 步）；TransMorph 兩顆的訓練量是 25,000 步，tm_mixv2 另外對齊 mix_exp3（lr 固定、不翻轉）。使用者決定新方法**第一步先照原作程式重現**，只改逼不得已的（資料、atlas、影像大小、評估、環境），見手冊 §31（舊設定 vs 原作逐項對照 §31.9）。
+⁵ **舊設定**（10-28 使用者：「之前跑過的實驗就註記是用舊設定完成的」）：cascade／pyramid 系列是照原作的**機制**自己實作，底層網路與訓練設定對齊 mix_exp6（SVF、局部 NCC、λ 1、lr 固定、25,000 步）；TransMorph 兩顆的訓練量是 25,000 步，tm_mixv2 另外對齊 mix_exp3（lr 固定、不翻轉）。使用者決定新方法**第一步先照原作程式重現**，只改逼不得已的（資料、atlas、影像大小、評估、環境），見手冊 §31（舊設定 vs 原作逐項對照 §31.9；RCN、DWP 加上重現版的三方對照 §31.10）。
 ¹ 舊定義、未重算（SVF 版近 0，兩種定義都約 0）。² tigerbx 是在筆電上 09-19 更新後的資料算的（29 顆改成不轉正，test 有 2 位；模型當初是在 AI 上舊版評估的，見手冊 §20.9）。
 
 個案見 `D:\MyHome\MRI\FreeSurfer\docs\個案筆記.md`。細節見 `ASD/ASD相關手冊.md` §15（資料把關）、§16（混合訓練）、§17（tigerbx）、§18（跟論文比）、
@@ -264,7 +265,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_pyramid_500.md         # mix_pyramid 接著訓練到 500 輪（新實驗名 mix_pyramid_500，免得蓋掉原本的 log；等 cascade_pyramid 跑完）
 │   ├── 指令_mix_cascade_pyramid_500.md # mix_cascade_pyramid 從第 250 輪接著訓練到 500 輪（⏸ 10-21 暫停：舊版本程式）
 │   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
-│   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
+│   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VoxelMorph 2 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
 │   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
@@ -285,7 +286,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── ASD_preprocessed_v1\            # train 148 / test 16
 │   ├── DGM_preprocessed_v1\            # train 49 / test 5（54 個掃描 = 52 人）
 │   ├── VNT_preprocessed_v1\            # train 61 / test 7
-│   ├── fs_subjects_data\               # 第四包（234 顆，2026-09-16）。⚠️ 沒有 demographics.tsv
+│   ├── fs_subjects_data\               # 第四包（234 顆，2026-09-16；10-30 刪掉 FSS_A001，剩 233）。⚠️ 沒有 demographics.tsv
 │   ├── fs_subjects_preprocessed_v1\    # train 234 / test 0（--test-frac 0）
 │   ├── MRS_data\                       # 第五包：**70 個掃描＝70 人**，FreeSurfer 產物（256³、1mm、LIA），沒有年齡表。還沒前處理。
 │   │                                   #   原本 130 個：同編號帶 -1/-2/-3 假設是同一人，使用者指定**每人只留最後一次掃描**
@@ -780,6 +781,31 @@ Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`m
 
 🔴 **殘留的整體結論**（10-15）：影響很小、只在局部——顱頂殘留讓附近皮質配準後的 Dice 低約 0.005（厚度 r = −0.20）；整顆腦的殘留體積、30 個結構平均都看不出影響；ΔDice 的負相關有一部分是起點效應（殘留多的人 affine 起點略高）。都是相關，因果要等 tbet 對照。10-22 tigerbx 對照（§30.1）：殘留少一半以上，結論一樣。
 
+### 0c. 10/29 meeting 老師的紅字（10/28 簡報；手冊 §32）
+
+老師寫在 `meeting報告\ASD_老師紅字回覆_20261028_p14更新.pptx`（使用者 10-29 11:30 存檔；備份 `..._紅筆備份_20261029.pptx`）。
+⚠️ **這份也不能再用 build.js 的輸出覆蓋。** 只看打字的紅字，手寫筆跡不看。
+
+| 頁 | 老師寫的 | 要做的事 | 狀態 |
+|---|---|---|---|
+| p3 不同模型 | 去弄懂 p 值定義 | p 值定義、Spearman、配對 Wilcoxon、p3 的數字寫在手冊 §32.2 | ✅ 10-29 |
+| p8 SynthSeg | 去頭殼用不同的方法，seg 用 FreeSurfer 切結構去 train，用不同去頭殼方式的 model | 標籤固定 FreeSurfer，只換去頭殼工具（FreeSurfer／tigerbx／SynthStrip），各訓練一顆比 Dice（以前 tigerbx 那套連標籤都換了）；先解決 aseg 怎麼搬到另兩套影像的空間 | 待辦 |
+| p15 多項指標 | 加上 parameter 的大小 | 指標表加參數量一欄 | 待辦 |
+| p17 ANTs | 之後看 FreeSurfer 其他 label 檔（白質切比較細），看殘留體積 vs Dice 比較靠近哪一部分沒切乾淨 | 推測是 `wmparc.mgz`；逐區算殘留與 Dice，要請 FreeSurfer 那邊重新匯出；跟 10/14「區域體積圖」（⏸）是同一件 | 待辦（「之後」）|
+
+📌 **10-29 使用者的下一步**（p8、p17 一起做）：先擴充資料成新的一版 v3，再用三種去顱骨（FreeSurfer／tigerbx／SynthStrip）各訓練一顆，標籤一律用 FreeSurfer（aseg；另匯出 `wmparc.mgz` 看白質分區）。
+- **10-30 FreeSurfer 那邊（虛擬機）正在批次跑 SynthStrip＋SynthSeg**，做法是使用者決定的：
+  - 名單 **745 位**：ASD 164、DGM 54、VNT 68、MRS 70、QUANTA 53（sub-0201～0291）、fs_subjects 233、Quanta_086~0200 103（新的一包，recon-all 7.4.1 都跑完）。**IXI 這批先不做**（FreeSurfer 還沒跑完；虛擬機上原檔只有 301 個，不是 581），但 **IXI 還是要併進 v3**（使用者 10-30）：等拿到跑完 FreeSurfer 的 IXI 再一起併、再切；網路上的資料（ABIDE 等）先不加。併好後只切一次，三套共用
+  - SynthStrip、SynthSeg 2.0 的輸入都是 `mri/orig.mgz`（conform 後、有頭骨、沒偏場校正，0～255）；SynthSeg 不吃 SynthStrip 的結果，不加 `--parc`／`--robust`／`--crop`
+  - 輸出在虛擬機外接硬碟 `/media/cheng/4CCCA1F2CCA1D68C/chengyun/`（還沒傳到筆電）：`synthstrip/norm/`（= orig × SynthStrip 遮罩）、`synthstrip/synthseg/`、`freesurfer_seg/<標籤>/`（aseg、aparc+aseg、aparc.DKTatlas+aseg、aparc.a2009s+aseg、wmparc，只轉格式）、`atlas/<標籤>/`、`orig/`（745 位，逐體素比對過）；全部 256³、1 mm、LIA，跟 FreeSurfer 的 norm／aseg 同一個格子 → **標籤不用搬**
+  - 進度（10-30）：SynthSeg 23/745，一顆 7～9 分鐘，估計 11/3 前後跑完
+- SynthSeg 標籤是使用者的朋友要的；訓練與 Dice 照老師的設計用 FreeSurfer 標籤。SynthSeg（無 `--parc`）33 個標籤、號碼沿用 FreeSurfer LUT；FreeSurfer 有、它沒有的：30／62、31／63、77、85、251～255（胼胝體歸進 2／41）；24（CSF）範圍差很多，互比要排除。標籤表 `data\synthseg\標籤表.tsv`
+- FSS_A001：使用者確認跟 ASD 的 A001 是同一人，外接硬碟上 fs_subjects 的 A001 已刪（剩 233）。10-30 使用者說筆電那份也刪：`data\fs_subjects_data` 的 norm、aseg 丟到資源回收筒，`subjects.txt`、`fs_stats\*.tsv` 刪掉那一列（剩 233）。其他副本（`fs_subjects_preprocessed_v1`、`tigerbx_data`、v2 的兩份 val）還在
+- 還沒決定：
+  - FreeSurfer 這組照舊用 `norm.mgz`（偏場校正＋強度正規化過）的話，跟 SynthStrip 那組（orig × 遮罩）差的不只是遮罩。要只差遮罩：三組都用 `orig.mgz` × 各自的遮罩（FreeSurfer 的遮罩取 `brainmask.mgz` 非零處），再走同一套前處理。→ ✅ **10-30 使用者已請 FreeSurfer 那邊改成 `orig.mgz` × `brainmask.mgz` 的遮罩**，三組都是 orig × 各自的遮罩、只差遮罩（FreeSurfer 組因此跟 v2 的 `norm.mgz` 不同）。⚠️ `orig.mgz` 沒做過偏場校正：我們前處理時三組都要加 `--n4`（三組一起加，條件才一樣）：在筆電做 v3 前處理時，`ASD/run_preprocess.py`（或 `preprocess_fs.py`）多加 `--n4`，線性對位之前先做 `ants.n4_bias_field_correction`（`preprocess_fs.py:523-525`）；不用改程式、不用請 FreeSurfer 那邊做；`tigerbx_preprocessed_v2` 就是這樣做的
+  - tigerbx 那組：現有的只有舊的 520 位（MRS、QUANTA、Quanta_086~0200 沒有），要補跑；遮罩也要在同一個 256³ 格子上
+  - 三組共用同一個 affine 還是各自算
+
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
 > 🔴 **程式已經寫好了，不要重寫。**
@@ -897,8 +923,8 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 - 🔴 **10-21 照原作程式補細節、重跑三顆**（手冊 §29；使用者：「要先看過他們原始碼再寫自己程式」「該重跑就重跑」）：讀了 RCN、DWP（Jian et al., github.com/BailiangJ/rethink-reg）、Dual-PRNet++ 的程式。**我們的 pyramid 結構上是 DWP**（共用 encoder＋帶上一層特徵的 decoder），不是 Dual-PRNet → 引用改成「採 DWP，概念源自 Dual-PRNet」。補上：cascade 照 RCN（每顆輸出 ×1/n、串接的 warp 取邊界值，`--rcn`）；pyramid 照 DWP（合成時 δ detach、粗的層 1/16、1/8、1/4 也算影像項＋平滑項、權重 1/16～1/4，`--dwp`）；backbone、loss、λ、SVF 維持 mix_exp6。新實驗名 mix_pyramid_dwp／mix_cascade_rcn／mix_cascade_pyramid_rcn_dwp，操作單 `ASD/指令_mix_rcn_dwp.md`，舊的三顆保留；`verify_rcn_dwp.py` 驗證舊模型改前改後逐 voxel 相同。📌 回來後換掉 10/28 簡報的三顆：改 `ASD/slides_src/2026-10-28_redpen/deck_models.json`，照同一夾的 `換模型.md` 補算、重跑，標題結論與講稿數字要人工重看
 - 📌 **10-12 對照過原論文的程式**（RCN、Dual-PRNet，只讀；手冊 §25.5）：核心設計都對上；差異是 RCN 每段輸出乘 1/n、Dual-PRNet warp 特徵時切斷梯度與訓練技巧（暖身、梯度裁剪）。使用者決定程式先不改
 - 🔴 **10-28 新方法的第一步改成「照原作程式重現」**（使用者：「第一步是去重現他們的程式，之後熟悉了再去加入我們自己的想法」「逼不得已要改的設定，我們才去動他們的原始碼」；手冊 §31）：
-  DWP（期刊版 γ = 0）、RCN（翻成 PyTorch）、TransMorph、TransMorph-diff 都寫好、筆電試跑過，`ASD/指令_reproduce.md`。上面這些 mix_cascade／mix_pyramid 系列是舊設定（照原作機制、訓練對齊 mix_exp6）。
-  合併模型、對齊 mix_exp6 的比較屬第二步。RCN 要跑時，底層網路與顆數再跟使用者確認（操作單先用 VTN 3 顆）
+  DWP（期刊版 γ = 0）、RCN（翻成 PyTorch）、TransMorph、TransMorph-diff 都寫好、筆電試跑過，`ASD/指令_reproduce.md`。DWP 訓練量 10-30 定案：60 輪（25,080 步 ≈ 原作 25,000 步）＋`--nondeterministic`（不設 cudnn.deterministic，約 25 小時）。上面這些 mix_cascade／mix_pyramid 系列是舊設定（照原作機制、訓練對齊 mix_exp6）。
+  合併模型、對齊 mix_exp6 的比較屬第二步。RCN 10-30 定案：VoxelMorph 2 顆（同 mix_cascade 串兩顆）、縮短 2.5 萬步（`models\orig_rcn_vxm2`），跟 DWP 同時在 AI 上跑
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

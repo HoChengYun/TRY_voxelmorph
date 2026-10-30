@@ -1,7 +1,7 @@
 # ASD 資料集：FreeSurfer 產物 → VoxelMorph 訓練實作手冊
 
 何承運 · 2026
-建立日期：**2026-08-23**　·　最後更新：**2026-10-23**（§30）
+建立日期：**2026-08-23**　·　最後更新：**2026-10-30**（§31、§32）
 
 ---
 
@@ -1617,6 +1617,7 @@ python ASD\test_dice.py --model models\mix_exp3\0240.pt --test-dir data\mixed_pr
 - tigerbx 組的 `FSS_A001` 是直接複製 A001 的原始 T1 跑的；FreeSurfer 組兩個檔案不是逐體素相同。
   → **刪的時候 FreeSurfer 組、tigerbx 組、AI 那台的副本都要刪**
 - 新資料（第五包 MRS 起）到齊後會併進來重切成新的一版（v3），那時就是換資料的時機
+- 🔴 **2026-10-30**：筆電 `data\fs_subjects_data` 的 FSS_A001 已刪（使用者決定；norm、aseg 丟到資源回收筒，`subjects.txt`、`fs_stats\*.tsv` 刪掉那一列 → 233 顆；那包 `README_改名.txt` 原本寫「不是同一個人」，已補更正）。v2 的兩份 val（mixed、tigerbx）、`fs_subjects_preprocessed_v1`、`tigerbx_data` 還在（§32.3）
 
 ### 20.7 tigerbx 組跟上 520 顆：tiger_exp2 / tiger_exp3（前處理）
 
@@ -3398,7 +3399,7 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 | DWP 用哪一版（WBIR 有 Dice loss γ = 0.5；期刊版 γ = 0）| γ = 0（非監督）|
 | 訓練量 | 不必照原作；「我也不確定之後有沒有機會重新跑這些實驗，但我希望之後做的一些創意是可以從原作出發，所以你可以測試一下你的程式是否可執行」|
 
-→ 程式的預設＝原作（含訓練量），要縮短用參數改；10-28 只做到「筆電試跑、評估跑通」，**沒有正式訓練**。操作單 `ASD/指令_reproduce.md`。
+→ 程式的預設＝原作（含訓練量；DWP 的 100 輪是照原作的「輪數」，步數是原作的 1.67 倍，見 §31.4），要縮短用參數改；10-28 只做到「筆電試跑、評估跑通」，**沒有正式訓練**。操作單 `ASD/指令_reproduce.md`。
 
 ### 31.2 逼不得已改的
 
@@ -3439,8 +3440,10 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 - 設定檔 `tasks/brainmri/configs/vxm_dualpyd_cfg.py`（README 表上的 DWP）：`VXMPlus_DualWarpPy`，我們的大小 1,886,796 個參數；每一步用原作 `run_iter`（雙向、沿第一軸翻轉 50%、1/16、1/8、1/4 各層的相似度＋平滑、fp16）
 - 翻轉的軸：LUMIR 轉成 LIA、我們 MNI152 RAS，第一軸都是左右 → 意思相同
 - 原作的 NCC（`models/losses/lncc.py` 的 'ncc'）公式同 VoxelMorph（cross² / (var·var + 1e-5)）；試跑第一步 −0.073，跟 mix_exp6 第一步 −0.082、affine 時 −0.07～−0.085 一致
-- 🟡 原作設 `cudnn.deterministic = True`：筆電反向傳播 9.9 秒 vs 不設 1.8 秒（5.6 倍）。只影響速度與逐位元可重現 → 預設照原作，`--nondeterministic` 可關
+- 🟡 原作設 `cudnn.deterministic = True`：筆電反向傳播 9.9 秒 vs 不設 1.8 秒（5.6 倍）。只影響速度與逐位元可重現 → 預設照原作，`--nondeterministic` 可關（10-30 決定關掉，見下一條）
 - 筆電試跑（3 位 × 2 輪）：每步 12 秒、顯存實際 5.2 GB；`eval_repro.py --method dwp` 跑通
+- 🔴 **訓練量（10-29 更正）**：原作 batch 2 = 兩顆互配成一對（`run_iter` 前一顆當 source、後一顆當 target），LUMIR 前 500 顆 → 每輪 250 步，100 輪 = **25,000 步**。我們每一步 1 位受試者配 atlas、每輪 418 步 → 預設 100 輪 = 41,800 步（原作的 1.67 倍）。`--max-epochs 60`（25,080 步）才是原作的步數，但 lr 每輪 × 0.996 是固定的，60 輪後只降到 0.79 倍（原作 100 輪後 0.67 倍）；要 lr 曲線也一樣，每輪衰減得改成 0.996^(418/250) ≈ 0.9933（要加參數）。→ ✅ **10-30 使用者決定 60 輪＋`--nondeterministic`**（「反正我們資料集和他不一樣」；lr 衰減照原作不改；筆電每步 3.6 秒 → 約 25 小時）
+- **平滑權重（10-29 補）**：設定檔 `reg_weight = 0.5`，但 `GradientDiffusionLoss`（`models/losses/diffusion_regularizer.py`）再乘 `loss_mult = 2.0`（最細的形變場只有 1/2 解析度，同 VoxelMorph 的 int_downsize 慣例）→ 實際權重 **1**；罰的是 1/2 解析度的位移場，雙向的兩個都罰
 - 環境：`venv_dwp`（筆電 `D:\MyHome\MRI\orig_repos\venv_dwp`），`ASD/reproduce/requirements_dwp.txt`；為什麼另開、哪些實驗用見 §31.8。wandb 會印 pydantic 的警告，無害
 
 ### 31.5 RCN
@@ -3449,7 +3452,7 @@ TransMorph-diff 的 train_log.txt 10-28 帶回（`models/tm_diff_mixv2/train_log
 - 訓練時 moving 加隨機 B-spline 形變（控制點 5×5×5、±0.4 × 影像大小/4，集中在 0 附近），fixed 不動
 - 參數：VTN × 1 4,259 萬、× 3 9,909 萬；VoxelMorph × 2 1,494 萬（affine stem 就占 1,434 萬）
 - 筆電試跑（全尺寸）：VTN × 1 batch 1 每步 0.27 秒、3.0 GB；VTN × 2 batch 4 每步 1.9～2.2 秒、5.1 GB；VTN × 3 batch 2 每步 2.4～2.9 秒、7.0 GB（筆電顯存快滿，偏慢）；VoxelMorph × 2 要 11.3 GB，筆電放不下（每步 82 秒），AI 放得下
-- 底層網路與顆數原作可選（預設 VTN、1 顆）；論文放出的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 操作單用 **VTN 3 顆**（VoxelMorph 5 顆在我們的大小估計要 24 GB 以上）。正式要跑時再跟使用者確認
+- 底層網路與顆數原作可選（預設 VTN、1 顆）；論文放出的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 操作單原本用 VTN 3 顆。✅ **10-30 使用者決定 VoxelMorph × 2 顆、縮短 2.5 萬步**（`models\orig_rcn_vxm2`）：跟 mix_cascade、mix_cascade_rcn 一樣串兩顆，可以直接比原作程式與我們的實作；14,939,414 個參數、顯存 11.3 GB（VoxelMorph 5 顆在我們的大小估計要 24 GB 以上）。跟 DWP 同時在 AI 上跑，RCN 視窗設 `per_process_memory_fraction:0.6`（DWP 的 torch 2.5.1 不認得這個設定，設了會報錯）
 - 縮短訓練量：`--round 5000`（2.5 萬步，lr 在 1.5 萬、2 萬步減半，排程形狀不變）
 
 ### 31.6 TransMorph（TransMorph 專案 `mixv2/`）
@@ -3503,6 +3506,8 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 
 ### 31.9 舊設定 vs 原作（逐項；10-28 meeting 前整理）
 
+> RCN、DWP 加上「重現版」的三方對照（原作／重現版／舊設定）見 §31.10。
+
 簡報上的模型都是**舊設定**：核心機制已照原作（表中「相同」那幾列），差在底層網路與訓練方式。舊設定刻意跟 mix_exp6 同一套訓練方式 → 比的是「訓練條件相同、只換架構機制」。照原作的版本尚未訓練、沒有數字。
 兩邊都一樣、重現時也不改的（逼不得已）：我們的資料（418／51／51）、MNI152 atlas、受試者 → atlas、影像 192×224×192、我們的評估。
 
@@ -3528,8 +3533,8 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 | 形變 | 每一層都是 SVF，一路算到原尺寸 | 位移場，最細到 1/2 解析度再放大 |
 | 合成時 δ detach、粗的三層（1/16、1/8、1/4）也算 loss | 相同 | 相同 |
 | 雙向訓練 | 沒有 | 有（兩個方向的 loss 各半）|
-| λ | 1 | 0.5 |
-| 訓練 | Adam、lr 固定、25,000 步、單精度 | Adam amsgrad、lr 每輪 × 0.996、100 輪、混合精度 fp16 |
+| 平滑權重 | λ 1（全解析度 SVF）| 0.5 × loss_mult 2 = 實際 1（1/2 解析度的位移場；10-29 更正，§31.4）|
+| 訓練 | Adam、lr 固定、25,000 步、單精度 | Adam amsgrad、lr 每輪 × 0.996、100 輪 × 250 步 = 25,000 步（步數跟舊設定一樣；10-29 更正）、混合精度 fp16 |
 | 資料增強 | 無 | 左右翻轉 50% |
 | 配對 | 受試者 → atlas | 兩兩隨機配（LUMIR）；重現時只能改成受試者 → atlas |
 
@@ -3542,9 +3547,116 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 | 網路、損失（NCC＋λ 1）| 相同 | 相同 |
 | 優化器、lr | Adam、lr 固定 | Adam amsgrad、lr poly 遞減 |
 | 資料增強 | 無 | 三個方向各 50% 翻轉 |
-| 訓練量 | 每輪隨機抽 100 位、250 輪 = 25,000 步 | 每輪全部資料洗牌、500 輪，約 21 萬步 |
+| 訓練量 | 每輪隨機抽 100 位、250 輪 = 25,000 步 | 每輪全部資料洗牌、500 輪，約 20 萬步（IXI 403 顆；換成我們 418 顆約 21 萬步）|
 | 方向 | 受試者 → atlas | atlas → 受試者（重現時照使用者決定，用受試者 → atlas）|
 
-**TransMorph-diff：tm_diff_mixv2**：方法與訓練方式 10-24 起就照官方（MSE＋KL、Adamax、poly、三向翻轉），只差訓練量（25,000 步，官方約 21 萬步）。
+**TransMorph-diff：tm_diff_mixv2**：方法與訓練方式 10-24 起就照官方（MSE＋KL、Adamax、poly、三向翻轉），只差訓練量（25,000 步，官方約 20 萬步）。
 
 跟老師說明時：「目前的結果是在跟 VoxelMorph（mix_exp6）相同的訓練設定下，只比較架構機制；照原作程式完整重現的版本已寫好、驗證過，下一步再訓練。」
+
+### 31.10 原作 vs 重現版 vs 舊設定（RCN、DWP 三方對照，10-29 使用者要記下來）
+
+- **原作**：作者 GitHub 上的程式與設定（§31.8 的 `orig_repos`）
+- **重現版**：`ASD/reproduce/`（10-28 寫）：DWP 直接 import 原作程式、RCN 逐行翻成 PyTorch；**還沒正式訓練**
+- **舊設定**：`ASD/arch.py`＋`train_arch.py`（`--rcn`／`--dwp`）：照原作的機制自己寫、訓練對齊 mix_exp6；已有結果
+
+重現版、舊設定都跟原作不同的（逼不得已）：資料 418／51／51、MNI152 atlas、影像 192×224×192、評估用我們的；挑模型用 val Dice（DWP、RCN 原作訓練中不靠 val 挑，用訓練完的那顆）。
+
+**Cascade（RCN）**
+
+| 項目 | 原作 | 重現版 | 舊設定（mix_cascade_rcn）|
+|---|---|---|---|
+| 程式 | TensorFlow 1.4 | 逐行翻成 PyTorch，比對過結果相同（§31.3）| 自己寫（`arch.py`）|
+| 子網路 | VTN（也可選 RCN 自己的 VoxelMorph），位移場 | ＝原作 | 我們的 VoxelMorph（同 mix_exp6），SVF |
+| 最前面的 affine 級 | 有，可訓練 | ＝原作 | 沒有 |
+| 串幾顆 | 可選（預設 1）；論文放出的腦部模型是 VTN 3、10 顆，VoxelMorph 5 顆 | VoxelMorph 2 顆（10-30 使用者決定）| 2 顆 |
+| 相似度 | 全域相關係數（只算最後一顆）| ＝原作 | 局部 NCC（只算最後一顆）|
+| 正則 | 每顆罰平滑；affine 級另加 det、ortho（各 0.1）| ＝原作 | 每顆罰平滑，λ 1 |
+| 每顆輸出 ×1/n、超出邊界取邊界值 | 有 | ＝原作 | ＝原作 |
+| 訓練 | batch 4、10 萬步、lr 在 6 萬、8 萬步各減半 | ＝原作（1 張卡依序算 4 對；可縮短成 2.5 萬步）| batch 1、2.5 萬步、lr 固定 |
+| 資料增強 | 隨機 B-spline 形變 | ＝原作 | 無 |
+| 方向 | 受試者 → atlas | ＝原作 | ＝原作 |
+| 結果（test Dice）| — | 還沒訓練 | 0.8166 |
+
+**Coarse-to-fine（DWP，期刊版 γ = 0：三個版本都沒有 Dice loss）**
+
+| 項目 | 原作 | 重現版 | 舊設定（mix_pyramid_dwp）|
+|---|---|---|---|
+| 程式 | PyTorch | 原作程式不改，直接 import | 自己寫（`arch.py`）|
+| 網路 | VXMPlus_DualWarpPy（InstanceNorm、轉置卷積，1.89 M 參數）| ＝原作 | 自己的 VxmPyramid（0.41 M 參數）|
+| 形變 | 位移場，最細到 1/2 解析度再放大 | ＝原作 | 每一層都是 SVF，一路算到原尺寸 |
+| 合成時 δ detach、粗的三層也算 loss | 有 | ＝原作 | ＝原作 |
+| 雙向訓練 | 有 | ＝原作 | 沒有 |
+| 平滑權重 | 0.5 × loss_mult 2 = 實際 1 | ＝原作 | λ 1 |
+| 優化器 | Adam amsgrad、lr 每輪 × 0.996、fp16 | ＝原作 | Adam、lr 固定、fp32 |
+| 訓練量 | 100 輪 × 250 步 = 2.5 萬步 | 60 輪 × 418 步 = 25,080 步（10-30 使用者決定，§31.4；100 輪會是 4.18 萬步）| 2.5 萬步 |
+| 資料增強 | 左右翻轉 50% | ＝原作 | 無 |
+| 配對 | 兩位受試者隨機互配 | 受試者配 atlas（兩個方向都學）| 受試者 → atlas（單向）|
+| 結果（test Dice）| — | 還沒訓練 | 0.8162 |
+
+說明：
+- **平滑權重**：論文與設定檔寫 λ = 0.5，但程式再乘 `loss_mult = 2`（最細的形變場只有 1/2 解析度，同 VoxelMorph 的 int_downsize 慣例）→ 實際權重 1，數字上跟舊設定一樣；但原作罰位移場、舊設定罰 SVF，不完全是同一件事（§31.4）
+- **VTN**（Volume Tweening Network）：RCN 同一組作者之前的配準網路，輸入兩張影像、輸出位移場（同 VoxelMorph）；但縮 6 次（到 1/64，VoxelMorph 4 次）、通道 16 → 512（VoxelMorph 最多 32）、解碼器每一層先出粗的形變再交給下一層修細；每顆約 2,800 萬參數（VoxelMorph 約 30 萬）
+- **雙向訓練**：每一步同時學 A → B 與 B → A：同一個 encoder 抽兩張的特徵、同一個 decoder 跑兩次（第二次對調），兩個方向同一組權重；loss 是兩個方向的相似度平均、兩個形變都罰平滑；不要求互為反函數（inverse consistency 的權重是 0）。重現版因此也學「atlas → 受試者」，評估只用「受試者 → atlas」。四個方法裡只有 DWP 有
+
+## 32. 10/29 meeting 老師的紅字（10/28 簡報，2026-10-29）
+
+老師寫在 `meeting報告\ASD_老師紅字回覆_20261028_p14更新.pptx`（使用者 10-29 11:30 存檔）；備份 `ASD_老師紅字回覆_20261028_p14更新_紅筆備份_20261029.pptx`（`cmp` 一致）。
+⚠️ **這份也不能再用 build.js 的輸出覆蓋。** 只看打字的紅字（依投影片順序抓 run 的 `srgbClr` 偏紅者）；手寫筆跡（ink）不看。`ASD_老師紅字回覆_20261028.pptx`（10-28 20:14）沒有紅字。
+
+### 32.1 紅字清單
+
+| 頁 | 老師寫的（原文）| 做法 | 狀態 |
+|---|---|---|---|
+| p3 不同配準模型之比較 | 去弄懂p值定義 | 見 §32.2 | ✅ 10-29 筆記 |
+| p8 SynthSeg 之分割 | 去頭殼用不同的方法seg用freesurfer切結構去train 用不同去頭殼方式的model | 標籤固定用 FreeSurfer aseg，只換去頭殼工具（FreeSurfer／tigerbx tbet／SynthStrip），每一種各訓練一顆、比 Dice → 差異只來自去頭殼。以前的對照都是標籤跟著換：tigerbx 那一套（§30.1：影像、標籤、affine 都是 tigerbx 的）、交叉評估（§20.10：影像與標籤一起換、模型不重訓）。要先解決：FreeSurfer 的 aseg 怎麼搬到另外兩套影像的空間（同一個 affine，或另外配準），做法之後跟使用者討論 | 待辦 |
+| p15 多項指標 | 加上parameter的大小 | 多項指標表加一欄參數量（用程式數 `sum(p.numel())`，不用估的）| 待辦 |
+| p17 與 ANTs SyN 之比較 | 之後看freesurfer其他label檔(因為其他label白質切比較細可以看附近區域的影響)去看殘留體積vs dice比較靠近哪一部分沒切乾淨 | 「白質切比較細」推測是 `wmparc.mgz`（白質依最近的皮質分區切；`aparc+aseg` 的白質仍是一整塊，§28.2）。逐區算殘留與 Dice，看殘留影響到哪一區。要請 FreeSurfer 那邊重新匯出（recon-all 的標準輸出，原始檔在 Ubuntu 那台，不用重跑）；跟 10/14 紅字「區域體積圖」（§28.2，⏸）是同一件事 | 待辦（老師寫「之後」）|
+
+### 32.2 p 值（p3 紅字「去弄懂p值定義」）
+
+- **定義**：先假設「沒有關係／沒有差別」（虛無假設 H0）；p = 在 H0 成立時，光靠抽樣的運氣，得到跟實際一樣或更極端結果的機率。p < 0.05 → 判定顯著（拒絕 H0）。
+- p **不是**「H0 為真的機率」，也**不是**效果大小：人數多時很弱的關係也會顯著，大小要看 r 或差值。
+- 報告用一句話：「p 是假設兩者無關時，觀察到這麼強相關的機率；小於 0.05 表示相關顯著。」
+
+簡報用到兩種檢定：
+
+| 檢定 | 用在 | H0 | 程式 |
+|---|---|---|---|
+| Spearman 等級相關 | 殘留體積 vs Dice（p2、p3、p10）| 兩者的排名沒有關係（ρ = 0）| `make_resvol.py`（`scipy.stats.spearmanr`，雙尾）|
+| 配對 Wilcoxon signed-rank | 兩個模型對同一批 test 51 位的 Dice（p13、p15 的「p = 0.12」「p = 0.44」這種）| 每位受試者兩模型之差以 0 為中心 | `make_arch_res.py` 的 `paired`（`scipy.stats.wilcoxon`）|
+
+Spearman：兩個量各自排名（第 1～n 名），再算兩組排名的相關係數 r（−1～+1；+1 = 一個越大另一個一定越大，0 = 沒關係）。用排名不用原始值：少數極端值拉不走、不需要是直線關係。
+
+**p3 的數字**（n = 170：test、val、MRS，都沒參與訓練；Dice = 大腦皮質、小腦皮質左右 4 個結構平均；`deck_data.json` 的 `models`）：
+
+| 模型 | 配準後 r | p |
+|---|---|---|
+| mix_exp3 | +0.08 | 0.28 |
+| mix_exp6 | +0.10 | 0.18 |
+| mix_wide_vel | +0.11 | 0.14 |
+| TransMorph（tm_mixv2）| +0.11 | 0.15 |
+| cascade（mix_cascade_rcn）| +0.16 | 0.040 |
+| coarse-to-fine（mix_pyramid_dwp）| +0.23 | 0.003 |
+| 合併（mix_cascade_pyramid_rcn_dwp）| +0.32 | < 0.001（1.7e-5）|
+| TransMorph-diff | +0.36 | < 0.001（1.1e-6）|
+| affine（八欄共用）| +0.17 | 0.028 |
+
+- 顯著的四個 r 都是正的（殘留多的人 Dice 略高）→ 沒有任何模型的 Dice 隨殘留下降，標題「皆未因殘留而變差」
+- affine 本身也是正相關 → 殘留多的人起點就略高，不要講成「殘留讓配準變好」
+- 八個模型各自檢定、沒做多重比較校正：Bonferroni 門檻 0.05 / 8 ≈ 0.006 時 cascade 的 0.040 不顯著，其餘三個仍顯著；結論不變
+
+### 32.3 下一步（10-29 使用者）
+
+📌 **10-29 使用者的下一步**（p8、p17 一起做）：先擴充資料成新的一版 v3，再用三種去顱骨（FreeSurfer／tigerbx／SynthStrip）各訓練一顆，標籤一律用 FreeSurfer（aseg；另匯出 `wmparc.mgz` 看白質分區）。
+- **10-30 FreeSurfer 那邊（虛擬機）正在批次跑 SynthStrip＋SynthSeg**，做法是使用者決定的：
+  - 名單 **745 位**：ASD 164、DGM 54、VNT 68、MRS 70、QUANTA 53（sub-0201～0291）、fs_subjects 233、Quanta_086~0200 103（新的一包，recon-all 7.4.1 都跑完）。**IXI 這批先不做**（FreeSurfer 還沒跑完；虛擬機上原檔只有 301 個，不是 581），但 **IXI 還是要併進 v3**（使用者 10-30）：等拿到跑完 FreeSurfer 的 IXI 再一起併、再切；網路上的資料（ABIDE 等）先不加。併好後只切一次，三套共用
+  - SynthStrip、SynthSeg 2.0 的輸入都是 `mri/orig.mgz`（conform 後、有頭骨、沒偏場校正，0～255）；SynthSeg 不吃 SynthStrip 的結果，不加 `--parc`／`--robust`／`--crop`
+  - 輸出在虛擬機外接硬碟 `/media/cheng/4CCCA1F2CCA1D68C/chengyun/`（還沒傳到筆電）：`synthstrip/norm/`（= orig × SynthStrip 遮罩）、`synthstrip/synthseg/`、`freesurfer_seg/<標籤>/`（aseg、aparc+aseg、aparc.DKTatlas+aseg、aparc.a2009s+aseg、wmparc，只轉格式）、`atlas/<標籤>/`、`orig/`（745 位，逐體素比對過）；全部 256³、1 mm、LIA，跟 FreeSurfer 的 norm／aseg 同一個格子 → **標籤不用搬**
+  - 進度（10-30）：SynthSeg 23/745，一顆 7～9 分鐘，估計 11/3 前後跑完
+- SynthSeg 標籤是使用者的朋友要的；訓練與 Dice 照老師的設計用 FreeSurfer 標籤。SynthSeg（無 `--parc`）33 個標籤、號碼沿用 FreeSurfer LUT；FreeSurfer 有、它沒有的：30／62、31／63、77、85、251～255（胼胝體歸進 2／41）；24（CSF）範圍差很多，互比要排除。標籤表 `data\synthseg\標籤表.tsv`
+- FSS_A001：使用者確認跟 ASD 的 A001 是同一人，外接硬碟上 fs_subjects 的 A001 已刪（剩 233）。10-30 使用者說筆電那份也刪：`data\fs_subjects_data` 的 norm、aseg 丟到資源回收筒，`subjects.txt`、`fs_stats\*.tsv` 刪掉那一列（剩 233）。其他副本（`fs_subjects_preprocessed_v1`、`tigerbx_data`、v2 的兩份 val）還在
+- 還沒決定：
+  - FreeSurfer 這組照舊用 `norm.mgz`（偏場校正＋強度正規化過）的話，跟 SynthStrip 那組（orig × 遮罩）差的不只是遮罩。要只差遮罩：三組都用 `orig.mgz` × 各自的遮罩（FreeSurfer 的遮罩取 `brainmask.mgz` 非零處），再走同一套前處理。→ ✅ **10-30 使用者已請 FreeSurfer 那邊改成 `orig.mgz` × `brainmask.mgz` 的遮罩**，三組都是 orig × 各自的遮罩、只差遮罩（FreeSurfer 組因此跟 v2 的 `norm.mgz` 不同）。⚠️ `orig.mgz` 沒做過偏場校正：我們前處理時三組都要加 `--n4`（三組一起加，條件才一樣）：在筆電做 v3 前處理時，`ASD/run_preprocess.py`（或 `preprocess_fs.py`）多加 `--n4`，線性對位之前先做 `ants.n4_bias_field_correction`（`preprocess_fs.py:523-525`）；不用改程式、不用請 FreeSurfer 那邊做；`tigerbx_preprocessed_v2` 就是這樣做的
+  - tigerbx 那組：現有的只有舊的 520 位（MRS、QUANTA、Quanta_086~0200 沒有），要補跑；遮罩也要在同一個 256³ 格子上
+  - 三組共用同一個 affine 還是各自算
