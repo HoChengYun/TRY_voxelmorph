@@ -294,6 +294,21 @@ def similarity_loss(img1, warped_img2):
     return (1 - pearson_r).sum()
 
 
+def local_ncc_loss(img1, warped_img2, win=9):
+    """不是原作：第二步（11-02）用，net_args 給 sim='ncc' 才會走這裡。
+    局部 NCC，算法同 voxelmorph/torch/losses.py NCC：9×9×9 窗格的 cc² 平均，取負號。"""
+    filt = torch.ones(1, 1, win, win, win).to(img1)
+    conv = lambda t: F.conv3d(t, filt, padding=win // 2)     # noqa: E731
+    I_sum, J_sum = conv(img1), conv(warped_img2)
+    I2_sum, J2_sum, IJ_sum = conv(img1 * img1), conv(warped_img2 * warped_img2), conv(img1 * warped_img2)
+    n = win ** 3
+    u_I, u_J = I_sum / n, J_sum / n
+    cross = IJ_sum - u_J * I_sum - u_I * J_sum + u_I * u_J * n
+    I_var = I2_sum - 2 * u_I * I_sum + u_I * u_I * n
+    J_var = J2_sum - 2 * u_J * J_sum + u_J * u_J * n
+    return -torch.mean(cross * cross / (I_var * J_var + 1e-5))
+
+
 def regularize_loss(flow):
     """recursive_cascaded_networks.py regularize_loss：三個方向相鄰差的 tf.nn.l2_loss（= 平方和 / 2）
     除以每一筆的大小（X·Y·Z·3），batch 加總。"""
@@ -311,8 +326,9 @@ class RecursiveCascadedNetworks(nn.Module):
     default_params = {'weight': 1, 'raw_weight': 1, 'reg_weight': 1}
 
     def __init__(self, base_network, n_cascades, image_size, rep=1,
-                 det_factor=0.1, ortho_factor=0.1, reg_factor=1.0, warp_gradient=True):
+                 det_factor=0.1, ortho_factor=0.1, reg_factor=1.0, warp_gradient=True, sim='cc'):
         super().__init__()
+        self.sim_loss = {'cc': similarity_loss, 'ncc': local_ncc_loss}[sim]     # 預設 'cc' = 原作
         self.det_factor = det_factor
         self.ortho_factor = ortho_factor
         self.reg_factor = reg_factor
@@ -355,11 +371,11 @@ class RecursiveCascadedNetworks(nn.Module):
             if 'W' in stem_result:
                 stem_result['loss'] = stem_result['det_loss'] * self.det_factor + stem_result['ortho_loss'] * self.ortho_factor
                 if params['raw_weight'] > 0:
-                    stem_result['raw_loss'] = similarity_loss(img1, stem_result['warped'])
+                    stem_result['raw_loss'] = self.sim_loss(img1, stem_result['warped'])
                     stem_result['loss'] = stem_result['loss'] + stem_result['raw_loss'] * params['raw_weight']
             else:
                 if params['raw_weight'] > 0:
-                    stem_result['raw_loss'] = similarity_loss(img1, stem_result['warped'])
+                    stem_result['raw_loss'] = self.sim_loss(img1, stem_result['warped'])
                 if params['reg_weight'] > 0:
                     stem_result['reg_loss'] = regularize_loss(stem_result['flow']) * self.reg_factor
                 stem_result['loss'] = sum(stem_result[k] * params[k.replace('loss', 'weight')]

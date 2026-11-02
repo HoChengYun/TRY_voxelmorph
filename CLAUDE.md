@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-11-02**（11-02：照原作重現帶回 RCN **0.7602**（小腦白質低於 affine、被撐大 1.72 倍）、DWP **0.8092**（小腦正常），手冊 §31.11；VoxelMorph 對照組改用論文設定的 mix_exp3；RCN 換真人 atlas 的實驗在跑；10-30：三種去顱骨那份資料 745 位正在虛擬機上跑，輸入 `orig.mgz`；IXI 等 FreeSurfer 跑完再併進 v3；筆電的 FSS_A001 已刪，見待辦 0c；🔴 10-29 meeting 老師紅字 4 頁記在待辦 0c、手冊 §32（p3 p 值定義、p8 只換去頭殼工具各訓練一顆、p15 加參數量、p17 細分標籤看殘留影響哪一區）；RCN、DWP 的原作／重現版／舊設定三方對照記在手冊 §31.10；更正：DWP 原作訓練量其實是 2.5 萬步（每輪 250 步）、平滑實際權重 0.5 × 2 = 1（§31.4、§31.9））
+> 最後更新：**2026-11-02**（11-02：照原作重現帶回 RCN **0.7602**（小腦白質低於 affine、被撐大 1.72 倍）、DWP **0.8104**（val 掃完 60 顆挑第 32 輪；小腦正常），手冊 §31.11；VoxelMorph 對照組改用論文設定的 mix_exp3；RCN 換真人 atlas 的實驗在跑；10-30：三種去顱骨那份資料 745 位正在虛擬機上跑，輸入 `orig.mgz`；IXI 等 FreeSurfer 跑完再併進 v3；筆電的 FSS_A001 已刪，見待辦 0c；🔴 10-29 meeting 老師紅字 4 頁記在待辦 0c、手冊 §32（p3 p 值定義、p8 只換去頭殼工具各訓練一顆、p15 加參數量、p17 細分標籤看殘留影響哪一區）；RCN、DWP 的原作／重現版／舊設定三方對照記在手冊 §31.10；更正：DWP 原作訓練量其實是 2.5 萬步（每輪 250 步）、平滑實際權重 0.5 × 2 = 1（§31.4、§31.9））
 > 10-28 晚：（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
 > RCN 從 TF 1.4 逐行翻成 PyTorch（`rcn_torch.py`，`verify_rcn_port.py` 直接執行原作 TF 程式比對，全部相同；RCN 的腦部實驗本來就是 atlas 配準）；TransMorph 兩支改成每輪全部資料洗牌、預設 500 輪（官方）。
 > 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）；舊設定跟原作逐項差在哪見手冊 §31.9。兩個 repo 已 push（`228dd12`、TransMorph 專案 `a7f42ca`）。
@@ -84,7 +84,7 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_cascade_pyramid_rcn_dwp**⁵ | 同 mix_cascade_pyramid，`--rcn --dwp` 都開，val 挑 epoch 155（之後 val 略降）| 0.6882 | **0.8149** | +0.127 | 0.0038% | 71⁴ | 2.40 | 0.642 |
 | TransMorph-diff（另一專案 mixv2）⁵ | 官方 TransMorphDiff 照官方訓練方式（機率式 SVF、MSE＋KL、Adamax、lr 遞減、三向翻轉），只把訓練量改成 2.5 萬步，val 挑 epoch 75 | 0.6882 | **0.7143** | +0.026 | 0.916% | 17,101 | 3.83 | 2.342 |
 | **orig_rcn_vtn3**（照原作重現）| RCN：affine＋VTN × 3、全域相關係數、batch 4、2.5 萬步（原作 10 萬步），val 挑第 23,000 步 | 0.6882 | **0.7602** | +0.072 | 0.0012% | 22 | 3.12 | 0.500 |
-| **orig_dwp**（照原作重現）| DWP 期刊版：局部 NCC、60 輪 = 25,080 步，val 掃 13 顆挑第 51 輪 | 0.6882 | **0.8092** | +0.121 | 0.31% | 5,794 | 2.35 | 1.257 |
+| **orig_dwp**（照原作重現）| DWP 期刊版：局部 NCC、60 輪 = 25,080 步，val 掃完 60 顆挑第 32 輪（第 51 輪 0.8092）| 0.6882 | **0.8104** | +0.122 | 0.31% | 5,810 | 2.33 | 1.262 |
 | **mix_exp8** | 同 mix_exp6，**訓練時也用標籤**（γ 0.5），val 挑 epoch 250（還在上升）| 0.6882 | **0.8995**³ | +0.211 | 0.0018% | 34 | 1.54³ | 0.607 |
 | **mix_exp9** | 同上，γ 5，val 挑 epoch 245（還在上升）| 0.6882 | **0.9290**³ | +0.241 | 0.077% | 1,481 | 1.44³ | 1.181 |
 | **tiger_exp2** | 同一個 520 切分，tigerbx 標籤，速度場版，val 挑 epoch 250 | 0.7453 | **0.8621** | +0.117 | 0%² | 0 | 1.69² | 0.317² |
@@ -268,6 +268,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_cascade_pyramid_500.md # mix_cascade_pyramid 從第 250 輪接著訓練到 500 輪（⏸ 10-21 暫停：舊版本程式）
 │   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
 │   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
+│   ├── 指令_rcn_ncc.md                 # RCN 只換成局部 NCC（第二步第一顆，`models\rcn_vtn3_ncc`，手冊 §31.11）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
 │   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
@@ -927,8 +928,9 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
 - 🔴 **10-28 新方法的第一步改成「照原作程式重現」**（使用者：「第一步是去重現他們的程式，之後熟悉了再去加入我們自己的想法」「逼不得已要改的設定，我們才去動他們的原始碼」；手冊 §31）：
   DWP（期刊版 γ = 0）、RCN（翻成 PyTorch）、TransMorph、TransMorph-diff 都寫好、筆電試跑過，`ASD/指令_reproduce.md`。DWP 訓練量 10-30 定案：60 輪（25,080 步 ≈ 原作 25,000 步）（`--nondeterministic` 實際沒生效，被原作 `set_seed()` 改回 True，11-02 發現；AI 約 29 小時）。上面這些 mix_cascade／mix_pyramid 系列是舊設定（照原作機制、訓練對齊 mix_exp6）。
   合併模型、對齊 mix_exp6 的比較屬第二步。RCN 10-30 定案：VTN 3 顆（論文放出的腦部模型；先開跑的 VoxelMorph 2 顆停掉）、`--round 5000 --save-every 1000` = 2.5 萬步 × batch 4（權重更新次數同其他模型；看過的影像對數是其他模型的 4 倍、原作的 1/4），實際約 16 小時（`models\orig_rcn_vtn3`）。
-  ✅ **11-02 兩顆帶回（手冊 §31.11，對照組用 mix_exp3）**：RCN 0.7602，51 位全低於 mix_exp3（0.8062），不是練不夠也不是 overfit；只有它的小腦低於 affine（白質 0.717 → 0.640、體積 1.72 倍）。MNI152 的小腦、腦幹比 51 位受試者都亮，推測是亮 atlas 加全域相關係數造成（未驗證）。DWP 0.8092，略高於 mix_exp3（30/51），小腦正常（0.827、體積 1.00 倍），順序跟論文一致。
-  進行中：RCN 換真人 atlas `sub-0036`（操作單 B2）、DWP 60 顆全掃；待做：RCN 程式跑 VoxelMorph（B3）。第二步才換局部 NCC
+  ✅ **11-02 兩顆帶回（手冊 §31.11，對照組用 mix_exp3）**：RCN 0.7602，51 位全低於 mix_exp3（0.8062），不是練不夠也不是 overfit；只有它的小腦低於 affine（白質 0.717 → 0.640、體積 1.72 倍）。MNI152 的小腦、腦幹比 51 位受試者都亮，推測是亮 atlas 加全域相關係數造成（未驗證）。DWP 0.8104（val 掃完 60 顆挑第 32 輪；第 51 輪 0.8092），高於 mix_exp3（37/51，p < 0.001），小腦正常（0.824、體積 1.02 倍），順序跟論文一致。
+  進行中：RCN 換真人 atlas `sub-0036`（操作單 B2）；待做：RCN 程式跑 VoxelMorph（B3）。
+  📌 **11-02 使用者決定第二步先做**：RCN 只把相似度換成局部 NCC（`models\rcn_vtn3_ncc`，操作單 `ASD/指令_rcn_ncc.md`；`rcn_torch.py` 加 `sim` 參數，預設＝原作；改了 loss，論文上不能再叫 RCN）
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

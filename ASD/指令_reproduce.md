@@ -145,7 +145,7 @@ python ASD\reproduce\train_dwp.py data\mixed_preprocessed_v2\train --atlas IXI\a
 python ASD\reproduce\eval_repro.py --method dwp --model-dir models\orig_dwp --step 1 --test-dir data\mixed_preprocessed_v2\val --orig-repo D:\chengyun\orig_repos\rethink-reg --gpu 0
 ```
 
-取 `models\orig_dwp\dice_curve_val.csv` 裡 `dice_mean` 最大的 epoch。第一次跑是 `--step 5`，只掃 13 顆、挑到第 51 輪；11-02 改成 `--step 1` 全部掃。
+取 `models\orig_dwp\dice_curve_val.csv` 裡 `dice_mean` 最大的 epoch。第一次跑是 `--step 5`，只掃 13 顆、挑到第 51 輪；11-02 改成 `--step 1` 全部掃，第 32 輪最高（val 0.8074），test 0.8104。
 
 **A-3 test（只跑一次）**，`NNNN` 換成挑出來的 epoch：
 
@@ -335,7 +335,7 @@ python ASD\reproduce\eval_repro.py --method rcn --model-dir models\orig_rcn_vxm1
 python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vxm1\NNNNNN.pt --test-dir data\mixed_preprocessed_v2\test --surface --gpu 0
 ```
 
-**怎麼看結果**（要帶回 `NNNNNN.pt`，才算得出每個結構的體積）。比較對象：affine 小腦白質 0.717；B 節 RCN 0.640、體積 1.72 倍；DWP 0.827、體積 1.00 倍：
+**怎麼看結果**（要帶回 `NNNNNN.pt`，才算得出每個結構的體積）。比較對象：affine 小腦白質 0.717；B 節 RCN 0.640、體積 1.72 倍；DWP 0.824、體積 1.02 倍：
 
 - 小腦白質接近 0.64、體積也被撐大 → 不是 VTN 的問題，指向全域相關係數配 MNI152 atlas
 - 小腦白質接近 0.82、體積接近 1 倍 → 跟 VTN 或串 3 顆有關（這顆同時換了網路和顆數，分不出是哪一個）
