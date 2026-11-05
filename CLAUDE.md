@@ -272,6 +272,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
 │   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
 │   ├── 指令_rcn_ncc.md                 # RCN 只換成局部 NCC（第二步第一顆，`models\rcn_vtn3_ncc`，手冊 §31.11）
+│   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：A 舊設定再練一次（rep2）→ 看 val 第 150～250 輪平均決定要不要跑 B（只開 --rcn）、C（只開 --dwp）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
 │   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
@@ -936,7 +937,10 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   ✅ **11-03 RCN 換真人 atlas `sub-0036` 帶回**（操作單 B2，手冊 §31.11）：0.6499 → 0.7976（51/51），沒有結構低於 affine；小腦白質 0.736 → 0.819（50/51）、體積中位數 1.12 倍；每多串一顆 Dice 都上升（0.723 → 0.772 → 0.798）。兩顆 RCN 都是受試者小腦越暗（跟大腦白質比）被撐得越大（Spearman r = −0.75／−0.73），MNI152 的小腦比 51 位都相對亮 → 支持「atlas 亮度跟受試者不同＋全域相關係數」的推論；換 atlas 也一起換了形狀與標籤來源，仍不是證明。標準答案不同，不能跟 mix_exp3、DWP 比高低。待做：RCN 程式跑 VoxelMorph（B3）。
   📌 **11-02 使用者決定第二步先做**：RCN 只把相似度換成局部 NCC（`models\rcn_vtn3_ncc`，操作單 `ASD/指令_rcn_ncc.md`；`rcn_torch.py` 加 `sim` 參數，預設＝原作；改了 loss，論文上不能再叫 RCN）
   ✅ **11-04 帶回**（手冊 §31.11）：test **0.7894**（val 挑第 12,000 步），比原作 RCN +0.029（51/51），仍低於 mix_exp3（3/51）、DWP（0/51）。**小腦修好了**：小腦白質 0.640 → 0.810（affine 0.717，0/51 低於 affine）、體積 1.72 → 1.02 倍 → 跟換真人 atlas 那次從兩邊指向同一原因（亮 atlas＋全域相關係數）。剩下的差距在大腦皮質（0.690 vs mix_exp3 0.771）、大腦白質（0.820 vs 0.868），51/51 都較低。訓練不穩：每隔數千步相似度突然掉到接近 0、平滑項與 affine 損失暴增，之後再慢慢回來（val 第 17,000 步 0.339）；每步 4.5 秒、31.7 小時
-  📌 **11-04 使用者決定下一顆**：RCN 原作設定不動，只把 VTN 換成 RCN 程式自己的 VoxelMorph × 3（`models\orig_rcn_vxm3`，操作單 `ASD/指令_reproduce.md` B4；原作本來就有 `-b VoxelMorph`，不用改程式；B3（1 顆）不跑）。RCN 版 VoxelMorph 一顆 300,547 參數，跟 mix_exp3 幾乎同一個網路（差在解碼器第 5 層放在 1/2 解析度、LeakyReLU 0.1）；平滑項同樣權重 1，RCN 罰得是 VoxelMorph 的 1.5 倍（係數 1/2 vs 1/3）
+  📌 **11-04 使用者決定下一顆**：RCN 原作設定不動，只把 VTN 換成 RCN 程式自己的 VoxelMorph × 3（`models\orig_rcn_vxm3`，操作單 `ASD/指令_reproduce.md` B4；原作本來就有 `-b VoxelMorph`，不用改程式）。**同日改成先跑 B3（1 顆，`models\orig_rcn_vxm1`）看會不會壞掉，再跑 B4**。**11-05 B4 改成串 2 顆**（`models\orig_rcn_vxm2`；跟 mix_cascade 同樣顆數，可比原作程式 vs 我們的實作；跟 VTN × 3 同時差網路與顆數；AI 上 10-30 停掉的同名資料夾要先改名）。
+  📌 **11-05 第二步路線暫定「同一套訓練方式的 2 × 2」**（手冊 §31.12）：四格都用 VoxelMorph 原作訓練程式＋mix_exp3 設定，`mix_exp3`／`vxm_casc2`（＋RCN 串 2 顆，`--rcn`）／`vxm_pyr`（自己寫的由粗到細 `VxmPyramid`，`--dwp`；使用者選的，不用 DWP 原作網路）／`vxm_pyr_casc2`。就是舊的 2 × 2 把底子從 mix_exp6 換成 mix_exp3，同一支程式、每格只差速度場 → 位移場，不用寫新程式。命名規則 `底子程式_加了什麼`，名字一律照 §31.12 的表。
+  🔴 **同日改走速度場**（使用者：老師比較喜歡 SVF；手冊 §31.14）：2 × 2 的底子用 mix_exp6，四格就是已有的 mix_exp6／mix_cascade_rcn／mix_pyramid_dwp／mix_cascade_pyramid_rcn_dwp，上面三顆位移場的不跑；`mix_pyramid_dwp` 的平滑項保留（逐層罰速度場，跟 DWP 罰最後位移場不同，簡報要寫明）。開跑前重讀兩篇原文與程式的逐項對照在手冊 §31.13。
+  📌 **第一目標：合併版 mix_cascade_pyramid_rcn_dwp 為什麼變低**。val 第 150～250 輪平均：舊合併 0.8134 vs 新合併 0.8107（單獨那兩組開不開 `--rcn`／`--dwp` 只差 ≤ 0.0005）；訓練影像項從頭就較差。但沒量過換隨機起點的差距 → 先把舊的 mix_cascade_pyramid 原封不動再練一次，再決定要不要做消融。✅ 使用者同意，操作單 `ASD/指令_mix_cascade_pyramid_ablation.md`（A `mix_cascade_pyramid_rep2` → 視結果 B `_rcn`、C `_dwp`；排在 B3 之後、B4 之前；筆電小尺寸試跑三種開關組合都正常；程式沒改）。RCN 版 VoxelMorph 一顆 300,547 參數，跟 mix_exp3 幾乎同一個網路（差在解碼器第 5 層放在 1/2 解析度、LeakyReLU 0.1）；平滑項同樣權重 1，RCN 罰得是 VoxelMorph 的 1.5 倍（係數 1/2 vs 1/3）
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

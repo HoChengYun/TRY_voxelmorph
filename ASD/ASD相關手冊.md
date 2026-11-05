@@ -3662,7 +3662,7 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 - **受試者的小腦越暗，被撐得越大，兩個 atlas 都一樣**：（小腦白質 ÷ 大腦白質）vs 搬後體積，Spearman r = −0.75（sub-0036）、−0.73（MNI152），p < 1e-8；最暗 1/3 的人 1.46 倍、最亮 1/3 的人 1.04 倍（MNI152 那顆：2.45、1.63 倍）。sub-0036 仍有 15/51 位超過 1.3 倍（範圍 0.88～1.99）
 - 解讀：支持「全域相關係數不能局部調亮度；受試者的小腦比 atlas 暗，模型就把白質撐大來湊相似度」。仍不是證明：換 atlas 時亮度、形狀（MNI152 是 152 人平均，比較糊）、標籤來源都一起換了。第二步的局部 NCC 那顆（`models\rcn_vtn3_ncc`，MNI152 atlas）可以從另一邊檢查
 
-**下一步**：RCN 程式跑 VoxelMorph（B3）待做。→ 11-04 改成 **B4：VoxelMorph × 3**（`models\orig_rcn_vxm3`，跟 B 節只差底層網路；B3 不跑）。RCN 版 VoxelMorph（300,547 參數）跟官方 VoxelMorph（301,411）的差別：解碼器第 5 層（32 通道）放在 1/2 解析度、原尺寸只剩 34 → 16 → 16（官方 34 → 32 → 16 → 16）、LeakyReLU 0.1（官方 0.2）、初始化 uniform_scaling；平滑項 RCN 是 ½ Σ 三方向平均平方差，官方是 ⅓ Σ → 同權重 RCN 罰 1.5 倍。第二步才換局部 NCC（10-31 使用者：「先用相同設定和論文跑出差不多的感覺，再開始爆改程式」）。
+**下一步**：RCN 程式跑 VoxelMorph（B3）待做。→ 11-04 使用者決定：**先跑 B3（1 顆，`models\orig_rcn_vxm1`）看會不會壞掉，再跑 B4（VoxelMorph × 3，`models\orig_rcn_vxm3`，跟 B 節只差底層網路）**。11-05 使用者把 B4 改成**串 2 顆**（`models\orig_rcn_vxm2`，14,939,414 參數）：跟 mix_cascade／mix_cascade_rcn 同樣顆數，可比原作程式 vs 我們的實作；跟 VTN × 3 同時差底層網路與顆數，跟 B3 只差顆數。AI 上 10-30 停掉的 `orig_rcn_vxm2`（`--round 1250`）先改名成 `orig_rcn_vxm2_stopped1030`。RCN 版 VoxelMorph（300,547 參數）跟官方 VoxelMorph（301,411）的差別：解碼器第 5 層（32 通道）放在 1/2 解析度、原尺寸只剩 34 → 16 → 16（官方 34 → 32 → 16 → 16）、LeakyReLU 0.1（官方 0.2）、初始化 uniform_scaling；平滑項 RCN 是 ½ Σ 三方向平均平方差，官方是 ⅓ Σ → 同權重 RCN 罰 1.5 倍。第二步才換局部 NCC（10-31 使用者：「先用相同設定和論文跑出差不多的感覺，再開始爆改程式」）。
 圖與每個結構的數字：`models\orig_rcn_vtn3\vis\`、`models\orig_dwp\vis_0032\`（第 32 輪；`vis\` 是第 51 輪）、`models\orig_rcn_vtn3_subj\vis\`（01 總覽、02 小腦放大、03 整顆腦三個切面，矢狀面是正中線往左 10 張）；都在 gitignore，含受試者切片。
 
 **第二步第一顆（11-02 使用者決定）**：`models\rcn_vtn3_ncc`，操作單 `ASD/指令_rcn_ncc.md`。只把 RCN 的相似度從全域相關係數換成局部 NCC（窗格 9），`reg_factor` 等其他都不動。改了 loss，論文上不能再叫 RCN。
@@ -3685,8 +3685,96 @@ torch 用 2.5.1+cu121：筆電、AI（驅動最高 CUDA 12.2）都能用。
 - **剩下的差距在大腦**：皮質 0.690（mix_exp3 0.771）、白質 0.820（0.868），51/51 都較低；皮質甚至低於原作 RCN 的 0.716
 - **各級**：VTN 1、2 幾乎沒在做事（Dice 0.678、0.724），大部分在第 3 顆（0.789）；原作 RCN 是第 1 顆做最多（0.740 → 0.761 → 0.760）
 - **訓練不穩**：每隔數千步（約第 6～7 千、12～13 千、17～18 千、23～25 千步）相似度突然從 −0.18 掉到接近 0、平滑項與 affine 損失暴增，之後再慢慢回來；val 跟著掉（第 17,000 步 0.339、folding 0.79%）。原作 RCN 的 log 很平順。最好的第 12,000 步在 lr 第一次減半之前。原因未查（推測：局部 NCC 的梯度比全域相關係數大很多，lr 1e-4 對 VTN × 3 太大；未驗證）
+  - 11-05 拆 log：**每次都是一步就壞**（前一步完全正常，下一步相似度、平滑項、affine 三項同時跳；例：第 6,170 步 −0.179／0.024 → 6,177 步 −0.017／0.34），之後 1,000～2,000 步慢慢回來；平滑項突然變成前 50 步 2 倍以上的步數：原作 0（最多 1.3 倍）、NCC 版 159（最多 26 倍）；前 3,800 步沒崩，lr 減半後照樣崩（第 23,753、24,630 步）。推測：局部 NCC 每格各自除以亮度變化量，平坦的格子梯度大，碰上強的 B-spline 增強就暴衝；網路大（9,900 萬）、affine 會學、沒有梯度裁剪 → 一次更新就壞（mix_exp3 同樣 NCC 但 30 萬參數、沒有 affine，沒事）。要確認得在 `train_rcn.py` 每步記梯度大小與受試者編號（洗牌沒固定 seed，現在查不到是哪幾位）；使用者還沒決定要不要做
 - 圖與數字：`models\rcn_vtn3_ncc\vis\`（per_structure_stages.csv、group_stats.csv）
 程式：`ASD/reproduce/rcn_torch.py` 加 `local_ncc_loss`（三位受試者跟 VoxelMorph 的 NCC 比對，差 0）、`RecursiveCascadedNetworks` 加參數 `sim`（預設 `cc` = 原作），用 `--net_args "sim='ncc'"` 開。`verify_rcn_port.py` 重跑全部通過，舊模型照舊能讀。
+
+### 31.12 第二步的路線：同一套訓練方式的 2 × 2（11-05 使用者暫定）
+
+使用者：cascade 想用 VoxelMorph 原作程式改成串接版，參考 RCN 論文與原作程式。四格都用 VoxelMorph 原作的訓練程式與 mix_exp3 的設定（位移場、局部 NCC 窗格 9、λ 1、batch 1、lr 1e-4 固定、250 輪 × 100 步、不增強），只換網路／加串接。
+由粗到細那一欄 11-05 使用者選**自己寫的 `VxmPyramid`**（不用 DWP 原作網路）：跟 VoxelMorph 同一套積木、參數 41 萬（VoxelMorph 30 萬），變好時比較能歸功於「由粗到細」這個設計；代價是報告只能寫「照 DWP 做法自己實作」。
+
+| | VoxelMorph 網路 | 由粗到細（自己寫的 `VxmPyramid`，`--dwp`）|
+|---|---|---|
+| 1 顆 | `mix_exp3`（已有 0.8062）| `vxm_pyr` |
+| 串 2 顆（照 RCN，`--rcn`）| `vxm_casc2` | `vxm_pyr_casc2` |
+
+- 就是舊的那組 2 × 2（mix_exp6／mix_cascade_rcn／mix_pyramid_dwp／mix_cascade_pyramid_rcn_dwp）把底子從 mix_exp6 換成 mix_exp3：同一支程式（`ASD/arch.py`、`ASD/train_arch.py`），每一格只差「速度場 → 位移場」（`--int-steps 0 --int-downsize 1`）。三顆新的都不用寫程式，開跑前在筆電驗位移場模式、量顯存
+- 命名規則 `底子程式_加了什麼`：`vxm_` = VoxelMorph 原作程式＋mix_exp3 設定；`dwp_` = DWP 原作程式＋DWP 原作訓練；`orig_rcn_` = RCN 原作程式（沿用）；`_casc2` = 套 RCN 串接 2 顆；`_pyr` = 自己寫的由粗到細；`_dwpnet` = 網路換成 DWP 原作的網路（沒選，見下）
+- 沒選的：`vxm_dwpnet`、`vxm_dwpnet_casc2`（DWP 原作網路原封不動 import 進 VoxelMorph 訓練；189 萬參數，跟 mix_exp3 同時差設計、積木、大小；要寫新訓練程式、在 venv_dwp 跑）
+- 串接從 RCN 拿：各自的權重一起訓練、第 k 顆輸入 = 用合成形變從原始影像搬一次、合成 U = u + warp(U, u)、相似度只算最後、平滑每顆都罰、每顆輸出 ×1/n、串接的 warp 取邊界值（`ASD/arch.py` VxmCascade `--rcn`，已驗證）。不拿：affine stem（資料已用 ANTs 對過 affine）、全域相關係數、batch 4、lr 減半、B-spline 增強、RCN 的平滑項係數
+- 指令共同部分 `ASD/train_arch.py ... --image-loss ncc --lambda 1.0 --int-steps 0 --int-downsize 1 --epochs 250`：`vxm_casc2` 加 `--arch cascade --n-cascades 2 --rcn`；`vxm_pyr` 加 `--arch pyramid --dwp`；`vxm_pyr_casc2` 加 `--arch cascade --n-cascades 2 --stage pyramid --rcn --dwp`。開跑前在筆電驗「位移場時串 1 顆 = VxmDense」（`verify_cascade.py --model models\mix_exp3\0240.pt`，有 `multipass_0240.csv` 可對）並量顯存
+- 另一條「路線 A」（`dwp_casc2`：DWP 原作程式＋串接、訓練照 DWP）暫不做
+- 排序（AI 一次一顆）：B3 `orig_rcn_vxm1` → B4 `orig_rcn_vxm2` → `vxm_casc2` → `vxm_pyr` → `vxm_pyr_casc2`
+
+### 31.13 開跑前重讀 RCN、DWP 原文與程式（11-05，使用者：「在做這些之前去看 RCN DWP 原文和程式」）
+
+讀的東西：RCN 論文（arXiv 1907.12353v3）全文、`network/recursive_cascaded_networks.py`、`base_networks.py`、`spatial_transformer.py`、`framework.py`、`train.py`；DWP 論文（arXiv 2407.19274，WBIR 2024）全文、`models/networks/vxm_pwc.py`、`vxm.py`、`utils.py`、`models/utils/warp.py`、`registration_head.py`、`resize_flow.py`、`tasks/brainmri/run_iter.py`、`configs/vxm_dualpyd_cfg.py`；我們的 `ASD/arch.py`、`ASD/train_arch.py`、官方 `voxelmorph/torch/networks.py`。
+
+**RCN（給 `vxm_casc2`）**
+
+| 項目 | 論文 | 程式 | `vxm_casc2`（`--rcn`）|
+|---|---|---|---|
+| 第 k 顆輸入 | 式 (3) φ_k = f_k(I_m^(k−1), I_f) | `stem(img1, 上一顆的 warped)` | 同 |
+| 合成 | 式 (4) φ_n ∘ … ∘ φ_1 | `warp(上一顆 agg_flow, flow) + flow` | 同（`U = u + T(U, u)`）|
+| 最後的影像 | 式 (5) 用合成後的形變搬**原始**影像 | `warp(img2, agg_flow)` | 同 |
+| 超出影像範圍 | **§3.1 有寫**：「out-of-bound indices by nearest-point interpolation」| `tf.clip_by_value`（= border）| 同（`BorderTransformer`）|
+| 相似度 | 只算最後（§3.2）；全域相關係數（§4.1）| `raw_weight` 只有最後一顆 = 1 | 只算最後；**局部 NCC**（VoxelMorph）|
+| 平滑項 | 每一顆的 φ_k 都罰 L2（§3.2）| 每顆罰自己乘過 1/n 的 `flow`，`reg_factor` 1，½Σ／(X·Y·Z·3) | 每顆罰自己乘過 1/n 的位移，VoxelMorph `Grad('l2')`（⅓Σ 平均）、λ 1 |
+| 每顆輸出 ×1/n | **論文沒寫** | `flow_multiplier=1.0/n_cascades` | 同 |
+| 梯度穿過 warp | — | `warp_gradient=True` | 同（沒有 detach）|
+| affine | §3.1：最前面一顆會學的 affine；**論文所有 VoxelMorph 串接的數字都含 affine stem**（表 1 註 2、表 2 的「1-cascade VoxelMorph」= affine＋1 顆）| `VTNAffineStem` | **沒有**（資料已用 ANTs 對過 affine；表 1 的 VoxelMorph¹ 也是先 ANTs affine）|
+| 訓練 | Adam、batch 4、10 萬步、lr 6 萬／8 萬步減半；B-spline 增強在程式裡 | 同 | VoxelMorph 的（batch 1、lr 固定、2.5 萬步、不增強）|
+| 換顆數時 | §5「不調 loss 的比例」| — | λ 不跟顆數變 |
+
+- 論文表 2（LPBA）：VoxelMorph 1 → 2 顆 0.688 → 0.699（+0.011）；表 4：2 顆 0.699 > 通道 ×2 的 VM x2 0.691（參數多 2 倍）。跟我們舊系列一樣（mix_cascade +0.0105、串接贏加寬）
+- **更正**：之前跟使用者說 border「論文沒寫、程式才有」是錯的，論文 §3.1 有寫；論文沒寫的只有 ×1/n
+- 結論：`vxm_casc2` 的串接部分跟 RCN 論文、程式逐項相同；不同的只有刻意不拿的（affine stem、全域相關係數、RCN 的訓練方式、RCN 的平滑項係數）
+
+**DWP（給 `vxm_pyr`）**
+
+| 項目 | 論文 | 程式（`vxm_dualpyd_cfg.py`）| `vxm_pyr`（`VxmPyramid --dwp`）|
+|---|---|---|---|
+| 兩張影像的特徵 | 共用權重的兩個 encoder（「D」）| `CNNEncoder` 同一個跑兩次 | 同 |
+| 每一層 | Fig. 1：上一層形變放大 → 搬移動影像的特徵 → 跟固定影像特徵、上一層 decoder 特徵接起來 → decoder → FlowConv → 跟放大的形變合成 | `WarpPyramidalDecoder.forward` | 同 |
+| 合成 | — | `warp(prev_flow, δ.detach()) + δ` | 同 |
+| 超出影像範圍 | — | 補 0（grid_sample 預設）| 同（VoxelMorph 的 SpatialTransformer）|
+| FlowConv | 3×3、normal(0, 1e-5)、bias 0 | 同 | 同（同 VxmDense）|
+| 最細一層 | 1/2 解析度，再放大到原尺寸 | `RegistrationHead` spatial_scale 2 | **原尺寸**（多一層）|
+| 方塊 | strided conv 縮小、transposed conv 放大 | InstanceNorm、LeakyReLU 0.2、encoder [8,16,32,48,64]、decoder [128,96,64,32] | VoxelMorph 的：strided conv、最近鄰放大、沒有 norm、enc [16,32,32,32] |
+| 粗的層的 loss | 1/16、1/8、1/4 各算 2^−l (L_sim + λL_reg) | `run_iter.py`：avg_pool 縮小影像、該層**總形變**搬、NCC 窗格 9；平滑罰該層**總形變** | 同（λ 1）|
+| **主層的平滑項** | λL_reg(φ)，φ = 最後的形變 | `reg(flow)`：只罰**最後的總形變**（1/2 解析度）| 🔴 **不同**：每一層的**修正量 δ** 各罰一次（5 層 5 項），沒罰最後的總形變 |
+| 雙向、Dice loss | 式 (1) 有 γL_seg，γ = λ = 0.5 | 雙向；`dice_weight 0`；AMP、左右翻轉、lr ×0.996／epoch | 單向、無 Dice loss、VoxelMorph 訓練 |
+
+- 🔴 **主層平滑項是我們 10-06 自己定的**（比照 RCN「每顆都罰」，把每一層當一顆），10-21 對照時沒抓到。DWP 程式與論文都是罰最後的總形變；VoxelMorph、RCN 也都是罰「網路輸出的那一個形變」。舊的 mix_pyramid／mix_pyramid_dwp（SVF）每層各自積分，罰每層的速度場還說得通；改成位移場後要不要改成 DWP 的做法，**等使用者決定**（要改 `train_arch.py`，開跑 `vxm_pyr` 前要定）
+- 論文的 VXM 基準不是官方 VoxelMorph：strided conv＋transposed conv、通道 [16,32,64,96,128]、2.6 M 參數，而且訓練有 Dice loss（γ 0.5）。論文 DWP 70.4 vs VXM 67.0（LPBA）是在這個條件下
+
+**兩個疊在一起（給 `vxm_pyr_casc2`）**：兩篇原作都沒有這個組合，以下是我們要自己定的
+- 每顆輸出 ×1/n：RCN 的網路內部不 warp 特徵，乘在輸出就好；由粗到細的網路內部會用自己的形變 warp 特徵，現在的程式乘在每一層的 δ 上（內部一致）
+- 平滑項：照 RCN 是「每顆罰自己輸出的形變」，照 DWP 是「罰最後的總形變」→ 兩邊一致的做法是每顆罰自己最後的總形變；現在的程式是每顆每層的 δ 都罰（2 × 5 = 10 項）
+- 粗的層的 loss：現在只加在最後一顆（RCN「相似度只算最後」）；舊的合併版第 1 級變差，可能跟這個有關（未驗證）
+- 建議等 `vxm_casc2`、`vxm_pyr` 回來再定
+
+### 31.14 改走速度場的 2 × 2；第一目標：合併版為什麼變低（11-05）
+
+- 使用者想起老師比較喜歡 SVF → 2 × 2 的底子改成 mix_exp6（速度場），四格就是已經跑完的 `mix_exp6` 0.8051／`mix_cascade_rcn` 0.8166／`mix_pyramid_dwp` 0.8162／`mix_cascade_pyramid_rcn_dwp` 0.8149；§31.12 的 `vxm_casc2`、`vxm_pyr`、`vxm_pyr_casc2`（位移場）不跑。這三顆以後不該再叫「舊設定」（CLAUDE.md 註 ⁵ 待改）
+- `mix_pyramid_dwp` 的平滑項（§31.13 🔴 那項）使用者選 **A：保留**，寫成「依 SVF 逐層罰速度場（DWP 原作罰最後之位移場）」，不重跑
+- 使用者：「現在第一目標，是把 mix_cascade_pyramid_rcn_dwp 變低問題解決」
+- 手上的 log 與 val 曲線（不用訓練）：
+
+| 模型 | 訓練影像項（ep 16～25 平均）| 訓練影像項（ep 241～250）| val 最高 | **val 第 150～250 輪平均**（21 點）|
+|---|---|---|---|---|
+| mix_cascade | −0.2201 | −0.2599 | 0.8129 | 0.8094 |
+| mix_cascade_rcn | −0.2199 | −0.2605 | 0.8138 | 0.8099 |
+| mix_pyramid | −0.2272 | −0.2601 | 0.8128 | 0.8096 |
+| mix_pyramid_dwp | −0.2256 | −0.2586 | 0.8134 | 0.8097 |
+| mix_cascade_pyramid | −0.2419 | −0.2706 | 0.8170 | **0.8134** |
+| mix_cascade_pyramid_rcn_dwp | −0.2347 | −0.2696 | 0.8132 | **0.8107** |
+
+  - 單獨那兩組：`--rcn`、`--dwp` 開不開，第 150～250 輪平均只差 0.0005、0.0001 → **test 上的「各 +0.001」在雜訊範圍內**（val 曲線相鄰兩點本身就跳 SD 0.003）
+  - 合併那組：差 0.0027，21 個點平均下來還在，而且**訓練影像項從頭就比較差**（第 25 輪差 0.007、最後差 0.001）→ 是「學得比較差」，不是 overfit，也不只是挑 epoch 的運氣
+  - 🔴 但從來沒量過「同一個設定、換一個隨機起點重練」會差多少；舊的合併版（0.8134）本身比單獨兩組高 0.004，可能有一部分是那一次運氣好
+- 建議順序：① 舊設定 `mix_cascade_pyramid` 原封不動再練一次（新名字，只換隨機起點）→ 回來跟 0.8134／0.8107 比，先知道要解決的差距是不是真的 ② 是真的，再做消融：只開 `--rcn`、只開 `--dwp`（各約 37 小時）
 
 ## 32. 10/29 meeting 老師的紅字（10/28 簡報，2026-10-29）
 

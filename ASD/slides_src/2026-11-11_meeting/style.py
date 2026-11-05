@@ -33,7 +33,10 @@ MODELS = {
     'dwp': ('DWP（原作）', 'Dual-stream coarse-to-fine、local NCC', '#0E7C7B',
             'orig_dwp', 'dice_0032.csv', 'surface_0032.csv', 'dice_curve_val_all.csv', 32 * 418),
 }
-PARAMS = {'vxm': 301411, 'rcn': 99094929, 'dwp': 1886796}     # state_dict 的浮點參數數（11-03 從 checkpoint 數）
+# 修改一（RCN＋local NCC，11-04 帶回）：不放進 MODELS（那幾張三模型的圖照舊），只在指標表、修改一的頁用
+NCC = ('RCN＋local NCC', '僅將相似度改為 local NCC', '#B5487A',
+       'rcn_vtn3_ncc', 'dice_012000.csv', 'surface_012000.csv', 'dice_curve_val.csv', 12000)
+PARAMS = {'vxm': 301411, 'rcn': 99094929, 'dwp': 1886796, 'ncc': 99094929}     # state_dict 的浮點參數數（11-03 從 checkpoint 數；ncc 同 RCN，NCC 沒有參數）
 FG_VOX = 1867705                                              # MNI152 atlas 非背景 voxel 數
 
 

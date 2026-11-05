@@ -12,7 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon
 
-from style import J, OUT, MODELS, PARAMS, FG_VOX, INK, MUTED, GRAY, RULE, W, save, clean
+from style import J, OUT, MODELS, NCC, PARAMS, FG_VOX, INK, MUTED, GRAY, RULE, W, save, clean
 
 KEYS = ('vxm', 'rcn', 'dwp')
 LBL = [int(x) for x in np.load(J('voxelmorph-code', 'data', 'labels.npz'))['labels']]
@@ -44,6 +44,14 @@ for k in KEYS:
         o['vs_vxm_n'] = int((d > v).sum())
         o['vs_vxm_p'] = float(wilcoxon(d, v).pvalue)
     out[k] = o
+# 修改一（RCN＋local NCC）：只進總表，不進下面兩張圖
+tn, sn = load(J('models', NCC[3], NCC[4])), load(J('models', NCC[3], NCC[5]))
+assert list(tn.index) == list(aff.index)
+dn = tn.dice_mean
+out['ncc'] = dict(dice=float(dn.mean()), dice_sd=float(dn.std()), hd95=float(sn.hd95_mean.mean()), sdlogj=float(sn.sdlogj.mean()),
+                  fold_vox=float((sn.jneg_fg_pct / 100 * FG_VOX).mean()), params=PARAMS['ncc'], n_gt_affine=int((dn > aff.dice_mean).sum()),
+                  vs_vxm_n=int((dn > T['vxm'].dice_mean).sum()), vs_vxm_p=float(wilcoxon(dn, T['vxm'].dice_mean).pvalue),
+                  vs_rcn_n=int((dn > T['rcn'].dice_mean).sum()), vs_rcn_p=float(wilcoxon(dn, T['rcn'].dice_mean).pvalue))
 json.dump(out, open(J('models', 'deck_charts', '1111_p2_metrics.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 for k, o in out.items():
     print(k, {a: (round(b, 4) if isinstance(b, float) else b) for a, b in o.items()})

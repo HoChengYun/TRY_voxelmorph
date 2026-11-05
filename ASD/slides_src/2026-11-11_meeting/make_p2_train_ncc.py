@@ -16,7 +16,7 @@ from style import J, INK, MUTED, GRAY, W, save, clean
 
 PAT = re.compile(r'epoch:\s*(\d+)\s+step:\s*(\d+)/(\d+).*?loss:\s*(\S+)\s+\((\S+),\s*(\S+),\s*(\S+)\)')
 COLS = [('orig_rcn_vtn3', 'RCN（原作）', 'global correlation', '#2F7FD0', 23000, '相似度項 1 − r'),
-        ('rcn_vtn3_ncc', 'RCN＋local NCC（修改一）', '僅更換相似度項', '#D08C2B', 12000, '相似度項 −NCC')]
+        ('rcn_vtn3_ncc', 'RCN＋local NCC（修改一）', '僅更換相似度項', '#B5487A', 12000, '相似度項 −NCC')]
 VAL_AFF = pd.read_csv(J('models', 'mix_exp3', 'dice_baseline_val.csv')).dice_mean.mean()
 
 

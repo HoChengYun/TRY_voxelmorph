@@ -12,7 +12,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
-from style import OUT, INK, MUTED, PAPER, RULE, W, MODELS, save
+from style import OUT, INK, MUTED, PAPER, RULE, W, MODELS, NCC, save
 
 M = json.load(open(os.path.join(OUT, '1111_p2_metrics.json'), encoding='utf-8'))
 
@@ -63,9 +63,9 @@ eq_block('1111_eq_mod.png',
          1.55, fs=19)
 
 # ════ 路線圖 ════
-fig = plt.figure(figsize=(W, 3.7), facecolor=PAPER)
+fig = plt.figure(figsize=(W, 4.3), facecolor=PAPER)
 ax = fig.add_axes([0, 0, 1, 1])
-ax.set_xlim(0, W); ax.set_ylim(0, 3.7); ax.axis('off')
+ax.set_xlim(0, W); ax.set_ylim(0, 4.3); ax.axis('off')
 
 
 def box(x, y, w, h, title, lines, col, status, scol):
@@ -77,15 +77,16 @@ def box(x, y, w, h, title, lines, col, status, scol):
 
 
 GREEN, AMBER, GRAYC = '#3E9B3A', '#D08C2B', '#9A9A93'
-v, r, d = M['vxm'], M['rcn'], M['dwp']
-box(0.15, 1.15, 2.6, 1.6, '① VoxelMorph', ['原作設定（mix_exp3）', 'U-Net、local NCC、λ = 1',
+v, r, d, n = M['vxm'], M['rcn'], M['dwp'], M['ncc']
+box(0.15, 1.35, 2.6, 1.6, '① VoxelMorph', ['原作設定（mix_exp3）', 'U-Net、local NCC、λ = 1',
     'Dice %.4f、%.2f M 參數' % (v['dice'], v['params'] / 1e6)], MODELS['vxm'][2], '完成', GREEN)
-box(3.35, 2.15, 2.9, 1.35, '② RCN（cascade）', ['Affine＋VTN × 3、global correlation', 'Dice %.4f、%.1f M 參數' % (r['dice'], r['params'] / 1e6)],
+box(3.35, 3.0, 2.9, 1.15, '② RCN（cascade）', ['Affine＋VTN × 3、global correlation', 'Dice %.4f、%.1f M 參數' % (r['dice'], r['params'] / 1e6)],
     MODELS['rcn'][2], '完成', GREEN)
-box(3.35, 0.4, 2.9, 1.35, '② DWP（coarse-to-fine）', ['Dual-stream pyramid、local NCC', 'Dice %.4f、%.2f M 參數' % (d['dice'], d['params'] / 1e6)],
+box(3.35, 1.65, 2.9, 1.15, '② RCN（VoxelMorph）', ['僅將 VTN 換成 VoxelMorph', '先 1 顆，再 2 顆'], MODELS['rcn'][2], '訓練中', AMBER)
+box(3.35, 0.3, 2.9, 1.15, '② DWP（coarse-to-fine）', ['Dual-stream pyramid、local NCC', 'Dice %.4f、%.2f M 參數' % (d['dice'], d['params'] / 1e6)],
     MODELS['dwp'][2], '完成', GREEN)
-box(6.85, 2.15, 2.5, 1.35, '③ 修改 RCN', ['global correlation → local NCC', '其餘同原作重現版'], '#D08C2B', '訓練中', AMBER)
-box(9.95, 1.15, 2.05, 1.6, '④ Cascade × C2F', ['RCN 之每一級改為', 'DWP 之雙流金字塔'], '#7A4FA0', '規劃中', GRAYC)
+box(6.85, 3.0, 2.5, 1.15, '③ 修改 RCN', ['global correlation → local NCC', 'Dice %.4f' % n['dice']], NCC[2], '完成', GREEN)
+box(9.95, 1.35, 2.05, 1.6, '④ Cascade × C2F', ['RCN 之每一級改為', 'DWP 之雙流金字塔'], '#7A4FA0', '規劃中', GRAYC)
 
 
 def arrow(x1, y1, x2, y2, t=None, dy=0.08):
@@ -94,12 +95,14 @@ def arrow(x1, y1, x2, y2, t=None, dy=0.08):
         ax.text((x1 + x2) / 2, (y1 + y2) / 2 + dy, t, ha='center', va='bottom', fontsize=8.8, color=MUTED, linespacing=1.25)
 
 
-arrow(2.78, 2.3, 3.32, 2.8, '原作程式', 0.12)
-arrow(2.78, 1.6, 3.32, 1.1)
-arrow(6.28, 2.82, 6.82, 2.82, '換相似度')
-arrow(9.38, 2.6, 9.92, 2.25)
-arrow(6.28, 1.08, 9.92, 1.6, '結合', -0.32)
-ax.text(1.45, 0.55, '原作重現：僅改資料、atlas、影像大小、\n訓練量（2.5 萬步）、評估', ha='center', va='center', fontsize=8.8, color=MUTED, linespacing=1.3)
+arrow(2.78, 2.6, 3.32, 3.5)
+ax.text(2.95, 3.0, '原作程式', ha='right', va='bottom', fontsize=8.8, color=MUTED)
+arrow(2.78, 2.15, 3.32, 2.22)
+arrow(2.78, 1.7, 3.32, 0.9)
+arrow(6.28, 3.57, 6.82, 3.57, '換相似度')
+arrow(9.38, 3.3, 9.92, 2.6)
+arrow(6.28, 0.9, 9.92, 1.7, '結合', -0.32)
+ax.text(1.45, 0.75, '原作重現：僅改資料、atlas、影像大小、\n訓練量（2.5 萬步）、評估', ha='center', va='center', fontsize=8.8, color=MUTED, linespacing=1.3)
 save(fig, '1111_p2_roadmap.png')
 
 # ════ 未來規劃：cascade × coarse-to-fine ════

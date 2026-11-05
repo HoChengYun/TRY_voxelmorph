@@ -11,7 +11,7 @@
 > | TransMorph-diff | 官方 IXI 的 `train_TransMorph_diff.py` | TransMorph 專案 `mixv2\train_mixv2_diff.py`（預設＝官方）| 同上 |
 >
 > **訓練量不必照原作**（使用者 10-28）。下面每一顆都給兩種：照原作的量，或縮短成跟其他模型一樣約 2.5 萬步；學習率排程照原作的形狀跟著總步數縮（DWP 例外，見 A 節）。
-> 跑的機器：**AI**。🔴 **一次只跑一顆**。指令全部是 **cmd（命令提示字元）** 語法。最後更新：2026-11-04（加 B4：RCN 原作，VTN 換成 VoxelMorph × 3；B3 不跑）；2026-11-02（加 B3：RCN 程式跑 1 顆 VoxelMorph）；2026-10-31（加 B2：RCN 往同一位受試者 sub-0036）；2026-10-30（DWP 訓練量定案：60 輪＋`--nondeterministic`；RCN 定案 VTN × 3 顆、2.5 萬步（`--round 5000`））；10-28 筆電四支都試跑過、評估跑通
+> 跑的機器：**AI**。🔴 **一次只跑一顆**。指令全部是 **cmd（命令提示字元）** 語法。最後更新：2026-11-05（B4 改成 VoxelMorph × 2 顆，`models\orig_rcn_vxm2`；AI 上 10-30 停掉的同名資料夾要先改名）；2026-11-04（加 B4：RCN 原作，VTN 換成 VoxelMorph；順序：先 B3（1 顆）、再 B4）；2026-11-02（加 B3：RCN 程式跑 1 顆 VoxelMorph）；2026-10-31（加 B2：RCN 往同一位受試者 sub-0036）；2026-10-30（DWP 訓練量定案：60 輪＋`--nondeterministic`；RCN 定案 VTN × 3 顆、2.5 萬步（`--round 5000`））；10-28 筆電四支都試跑過、評估跑通
 
 ---
 
@@ -166,7 +166,7 @@ deactivate
 - 原作可以選底層網路與顆數（`-b`、`-n`），預設 VTN；論文放出來的腦部模型是 VTN 3 顆、VTN 10 顆、VoxelMorph 5 顆 → 用 **VTN 3 顆**，跟原作放出的模型同一種設定
 - VTN（Volume Tweening Network，RCN 同一群作者）不是 VoxelMorph 的變形：參考 FlowNet，往下縮 6 層（到 1/64）、每格最多 512 個數字，每一層都先猜粗的形變再往上修細；一顆約 2,800 萬參數，但大的層都在很小的格子上，顯存反而比 VoxelMorph 少。最前面的 affine 網路也是 VTN 論文的
 - 代價：底層網路跟 mix_cascade（我們的 VoxelMorph 串兩顆）不同，不能直接拿來比「原作程式 vs 我們的實作」
-- 10-30 先開跑的 VoxelMorph × 2（`models\orig_rcn_vxm2`）已停掉，不用
+- 10-30 先開跑的 VoxelMorph × 2（`models\orig_rcn_vxm2`，`--round 1250`）已停掉，不用；11-05 B4 要重用這個名字，開跑前先把那個資料夾改名（見 B4）
 
 | | 用這個 |
 |---|---|
@@ -285,7 +285,9 @@ python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vtn3_sub
 
 ## B3. RCN 程式跑 1 顆 VoxelMorph（`models\orig_rcn_vxm1`）
 
-> ⏸ **11-04 不跑了，改跑 B4（VoxelMorph 串 3 顆）**。B3 原本要問「小腦問題跟 VTN 有沒有關係」，rcn_vtn3_ncc 已經回答（VTN 不變、只換相似度，小腦就正常）；使用者要的是串多顆 VoxelMorph。下面保留當紀錄。
+> ▶ **11-04 使用者決定先跑這顆（1 顆），再跑 B4（11-05 改成 2 顆）**：先看 RCN 程式裡 1 顆 VoxelMorph 會不會壞掉。
+> 🔴 一次只跑一顆：B4 已經開跑的話先在那個視窗按 Ctrl+C 停掉（每 1,000 步會存 `last.pt`，之後可以用 B4 的「接著練」指令接回去；停之前沒存到的那幾百步會重跑）。
+> 這顆跟 mix_exp3 的網路幾乎一樣（差在解碼器第 5 層的位置、LeakyReLU 斜率），差別主要是 RCN 的訓練方式（全域相關係數、會學的 affine、batch 4、lr 減半、B-spline 增強、平滑係數 1.5 倍）。
 
 **11-02 使用者決定**：要看 B 節那顆的小腦問題跟 VTN 有沒有關係。這顆跟 B 節只差底層網路（3 顆 VTN → 1 顆 VoxelMorph），就是 RCN 論文表 2 的 `1-cascade VoxelMorph`。**不用改程式**。
 
@@ -296,12 +298,12 @@ python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vtn3_sub
 | 網路 | 最前面的 affine（1,434 萬參數）＋ RCN 版 VoxelMorph（30 萬參數），共 14,638,867 個參數 |
 | 訓練量 | 同 B 節：batch 4、2.5 萬步（`--round 5000`），lr 在 1.5 萬、2 萬步各減半 |
 | 存檔 | 每 1,000 步一顆 `NNNNNN.pt`（估計約 60 MB），共 25 顆約 1.5 GB；`last.pt` 另含 Adam 狀態 |
-| 顯存 | 筆電試跑實際用到 6.76 GB、PyTorch 預留 9.83 GB（筆電 8 GB 放不下，每步 1～3 分鐘，要在 AI 跑） |
+| 顯存 | 筆電試跑實際用到 6.76 GB、PyTorch 預留 9.83 GB（筆電 8 GB 放不下，每步 1～3 分鐘，要在 AI 跑）；AI 單獨跑不用設上限 |
 | 時間 | 估計約 28 小時（VoxelMorph 2 顆跟 DWP 同時跑每步 8.17 秒，1 顆約一半；沒實測）|
 
 🔴 它雖然叫 VoxelMorph，但不是 mix_exp3：相似度、affine、資料增強、batch、lr 都跟 RCN 一樣。
 
-論文最多串 5 顆（LPBA 0.708），但我們的影像較大，5 顆估計約 25 GB，AI 放不下。想跟 B 節只差底層網路，可以改成 3 顆：指令改 `-n 3`、`--model-dir models\orig_rcn_vxm3`（顯存估計約 16 GB、約 3.5 天，要單獨跑）。
+論文最多串 5 顆（LPBA 0.708），但我們的影像較大，5 顆估計約 25 GB，AI 放不下。串 2 顆見 B4。想跟 B 節只差底層網路要串 3 顆：指令改 `-n 3`、`--model-dir models\orig_rcn_vxm3`（筆電實測實際用到 15.95 GB、預留 20.31 GB，要設 `per_process_memory_fraction:0.9`、單獨跑）。
 
 **B3-1 訓練**（開一個新的 cmd）：
 
@@ -339,28 +341,33 @@ python ASD\reproduce\eval_repro.py --method rcn --model-dir models\orig_rcn_vxm1
 python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vxm1\NNNNNN.pt --test-dir data\mixed_preprocessed_v2\test --surface --gpu 0
 ```
 
-**怎麼看結果**（要帶回 `NNNNNN.pt`，才算得出每個結構的體積）。比較對象：affine 小腦白質 0.717；B 節 RCN 0.640、體積 1.72 倍；DWP 0.824、體積 1.02 倍：
+**怎麼看結果**（要帶回 `NNNNNN.pt`，才算得出每個結構的體積）。比較對象：affine 0.6882、小腦白質 0.717；B 節 RCN（VTN × 3）0.7602、小腦白質 0.640、體積 1.72 倍；mix_exp3 0.8062、小腦白質 0.823：
 
-- 小腦白質接近 0.64、體積也被撐大 → 不是 VTN 的問題，指向全域相關係數配 MNI152 atlas
-- 小腦白質接近 0.82、體積接近 1 倍 → 跟 VTN 或串 3 顆有關（這顆同時換了網路和顆數，分不出是哪一個）
-- 落在中間 → 兩邊都有影響，要再拆開
+- **會不會壞掉**：30 個結構平均有沒有高於 affine、有沒有結構低於 affine（B 節只有小腦白質、小腦皮質低於 affine）
+- **小腦**：結果不確定。推力來自全域相關係數＋MNI152（換相似度、換 atlas 兩個實驗都支持），但那兩個實驗都是 VTN × 3，沒測過別的網路。B 節每一級拆開看：小腦白質 Dice affine stem 0.700 → 第 1 顆 **0.750**（高於 affine，體積已 1.20 倍）→ 第 2 顆 0.706（1.45 倍）→ 第 3 顆 0.640（1.72 倍），**撐大是一顆一顆累積的** → 1 顆可能只是輕微撐大、不一定低於 affine。不確定的地方：1 顆時輸出不乘 1/3（單顆推得比較遠），VoxelMorph 參數少（能做的形變可能較小）；而且這顆同時換了網路和顆數，分不出是哪一個造成的
+- **跟 mix_exp3 比**：網路幾乎一樣，差距主要來自 RCN 的訓練方式
 
 ---
 
-## B4. RCN 原作，VTN 換成 VoxelMorph × 3（`models\orig_rcn_vxm3`）
+## B4. RCN 原作，VTN 換成 VoxelMorph × 2（`models\orig_rcn_vxm2`）
 
-**11-04 使用者決定**：RCN 原作的設定全部不動，只把底層網路從 VTN 換成 RCN 程式自己寫的 VoxelMorph，顆數同 B 節（3 顆）→ **跟 B 節只差底層網路**。原作本來就有 `-b VoxelMorph` 這個選項，**不用改程式**。
+> 🔴 **11-05：B3 跑完後先跑 `ASD/指令_mix_cascade_pyramid_ablation.md` 的 A（`mix_cascade_pyramid_rep2`，第一目標），再回來跑 B4**；A 的結果決定 B、C 要不要跑，要跑的話也排在 B4 前面。
+
+**11-04 使用者決定**：RCN 原作的設定全部不動，只把底層網路從 VTN 換成 RCN 程式自己寫的 VoxelMorph。原作本來就有 `-b VoxelMorph` 這個選項，**不用改程式**。**排在 B3（1 顆）跑完之後**（11-04 使用者：先看 1 顆會不會壞掉）。
+**11-05 使用者改成串 2 顆**（本來 3 顆）：跟 mix_cascade、mix_cascade_rcn（我們自己實作的 VoxelMorph 串兩顆）同樣顆數，可以比「原作程式 vs 我們的實作」。
+代價：跟 B 節（VTN × 3）同時差底層網路與顆數兩件事；跟 B3（1 顆）只差顆數。
 
 | | 用這個 |
 |---|---|
-| 跟 B 節一樣 | MNI152 atlas、全域相關係數、最前面會學的 affine、每顆輸出 ×1/3、batch 4、2.5 萬步（`--round 5000`，lr 在 1.5 萬、2 萬步各減半）、B-spline 資料增強 |
-| 只換這個 | VTN × 3 → VoxelMorph × 3。RCN 版 VoxelMorph 一顆 300,547 個參數，跟 mix_exp3 的 301,411 幾乎一樣：編碼器、各層通道相同，差在解碼器第 5 層（32 通道）放在 1/2 解析度（官方放在原尺寸）、LeakyReLU 0.1（官方 0.2）|
-| 參數 | affine 14,338,320 ＋ 3 × 300,547 = 15,239,961 |
-| 顯存 | 估計約 16 GB（從 1 顆 6.8 GB、2 顆 11.3 GB 外插，沒實測；batch 4 的 4 對是依序算，顯存跟 1 對一樣）|
-| 時間 | 沒實測，估計 2.5～3.5 天（VoxelMorph 全尺寸那幾層很花時間，比 VTN 慢）。**要單獨跑** |
-| 硬碟 | 每 1,000 步一顆 `NNNNNN.pt`（約 61 MB），25 顆約 1.5 GB；`last.pt` 另含 Adam 狀態 |
+| 跟 B 節一樣 | MNI152 atlas、全域相關係數、最前面會學的 affine、batch 4、2.5 萬步（`--round 5000`，lr 在 1.5 萬、2 萬步各減半）、B-spline 資料增強 |
+| 換這兩個 | VTN × 3 → VoxelMorph × 2（每顆輸出 ×1/2，B 節是 ×1/3）。RCN 版 VoxelMorph 一顆 300,547 個參數，跟 mix_exp3 的 301,411 幾乎一樣：編碼器、各層通道相同，差在解碼器第 5 層（32 通道）放在 1/2 解析度（官方放在原尺寸）、LeakyReLU 0.1（官方 0.2）|
+| 參數 | affine 14,338,320 ＋ 2 × 300,547 = 14,939,414 |
+| 顯存 | 10-30 筆電試跑約 11.3 GB（11-04 實測實際用到：1 顆 6.76 GB、3 顆 15.95 GB）→ AI 24 GB 單獨跑不用設上限；batch 4 的 4 對是依序算，顯存跟 1 對一樣 |
+| 時間 | 沒實測單獨跑。10-30 跟 DWP 同時跑每步 8.17 秒（2.5 萬步約 57 小時），單獨跑應該更快，估計約 2 天。**要單獨跑** |
+| 硬碟 | 每 1,000 步一顆 `NNNNNN.pt`（約 60 MB），25 顆約 1.5 GB；`last.pt` 另含 Adam 狀態 |
 
 🔴 它雖然叫 VoxelMorph，但不是 mix_exp3：相似度、affine、資料增強、batch、lr 都跟 RCN 一樣；平滑項的算法同一種（相鄰格差的平方），但 RCN 乘 1/2、VoxelMorph 除以 3 → 同樣權重 1，RCN 罰得是 1.5 倍。
+跟 mix_cascade 也不一樣：mix_cascade 是 SVF、局部 NCC、沒有會學的 affine、batch 1、lr 固定（訓練方式對齊 mix_exp6）。
 
 **B4-1 訓練**（開一個新的 cmd）：
 
@@ -372,38 +379,38 @@ cd /d D:\chengyun\TRY_voxelmorph
 vxm_env\Scripts\activate.bat
 ```
 
-先設顯存上限（單獨跑也要設：讓 PyTorch 預留的量不超過卡的 9 成，免得溢位到系統記憶體）：
+🔴 先把 10-30 停掉的那次改名（同一個名字，裡面是 `--round 1250`、每 250 步存一顆的舊檔；不改名的話新舊存檔會混在一起，B4-2 掃 val 時會把舊的也掃進去）。資料夾不存在的話會顯示「找不到」，不用管：
 
 ```bat
-set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.9
+ren models\orig_rcn_vxm2 orig_rcn_vxm2_stopped1030
 ```
 
 ```bat
-python ASD\reproduce\train_rcn.py -b VoxelMorph -n 3 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm3 --round 5000 --save-every 1000 -g 0
+python ASD\reproduce\train_rcn.py -b VoxelMorph -n 2 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm2 --round 5000 --save-every 1000 -g 0
 ```
 
-- 第二行要看到 `VoxelMorph × 3 顆（＋affine），rep 1，共 15239961 個參數；影像 192x224x192；batch 4；25000 步（lr 0.0001，15000、20000 步後各減半）`
-- 跳出 `CUDA out of memory` 的話，把上限調成 `0.95` 再跑一次
+- 第二行要看到 `VoxelMorph × 2 顆（＋affine），rep 1，共 14939414 個參數；影像 192x224x192；batch 4；25000 步（lr 0.0001，15000、20000 步後各減半）`
+- 跳出 `CUDA out of memory` 的話，先確定沒有別的程式在用 GPU，再跑一次
 - 開跑後看一下工作管理員的「共用 GPU 記憶體」，要維持在 1 GB 以下；記下第一段（1,000 步）跑完要多久，乘 25 就是總時間
 - 中斷了可以接著練（其他參數要跟原本一樣，只多 `-c`）：
 
 ```bat
-python ASD\reproduce\train_rcn.py -b VoxelMorph -n 3 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm3 --round 5000 --save-every 1000 -g 0 -c models\orig_rcn_vxm3\last.pt
+python ASD\reproduce\train_rcn.py -b VoxelMorph -n 2 --train-dir data\mixed_preprocessed_v2\train --atlas IXI\atlas_mni152_09c_v3.npz --model-dir models\orig_rcn_vxm2 --round 5000 --save-every 1000 -g 0 -c models\orig_rcn_vxm2\last.pt
 ```
 
 **B4-2 用 val 挑**（25 顆都掃，`--step 1`）：
 
 ```bat
-python ASD\reproduce\eval_repro.py --method rcn --model-dir models\orig_rcn_vxm3 --step 1 --test-dir data\mixed_preprocessed_v2\val --gpu 0
+python ASD\reproduce\eval_repro.py --method rcn --model-dir models\orig_rcn_vxm2 --step 1 --test-dir data\mixed_preprocessed_v2\val --gpu 0
 ```
 
 **B4-3 test（只跑一次）**，`NNNNNN` 換成挑出來的步數：
 
 ```bat
-python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vxm3\NNNNNN.pt --test-dir data\mixed_preprocessed_v2\test --surface --gpu 0
+python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vxm2\NNNNNN.pt --test-dir data\mixed_preprocessed_v2\test --surface --gpu 0
 ```
 
-**要帶回**：`models\orig_rcn_vxm3\` 底下的 CSV、`train_log.txt`，加上挑出來的 `NNNNNN.pt`（要算每一級的 Dice 與小腦體積）。
+**要帶回**：`models\orig_rcn_vxm2\` 底下的 CSV、`train_log.txt`，加上挑出來的 `NNNNNN.pt`（要算每一級的 Dice 與小腦體積）。
 
 **怎麼看結果**（比較對象：B 節 VTN × 3 test 0.7602、小腦白質 0.640、體積 1.72 倍；mix_exp3 0.8062）：
 
@@ -487,4 +494,4 @@ val、test 同 C，把 `runs\tm_orig` 換成 `runs\tm_diff_orig`。
 ## 跑完之後
 
 把每一顆的 `train_log.txt`、`dice_curve_val.csv`、`dice_NNNN.csv`、`surface_NNNN.csv` 帶回筆電（.pt／.pth 不用）：
-`models\orig_dwp\`、`models\orig_rcn_vtn3\`、`models\orig_rcn_vtn3_subj\`、`models\orig_rcn_vxm3\`（這兩顆另外帶回挑出來的 `NNNNNN.pt`，要分析小腦）；TransMorph 兩顆放筆電的 `models\tm_orig\`、`models\tm_diff_orig\`。
+`models\orig_dwp\`、`models\orig_rcn_vtn3\`、`models\orig_rcn_vtn3_subj\`、`models\orig_rcn_vxm1\`、`models\orig_rcn_vxm2\`（RCN 這幾顆另外帶回挑出來的 `NNNNNN.pt`，要分析小腦）；TransMorph 兩顆放筆電的 `models\tm_orig\`、`models\tm_diff_orig\`。
