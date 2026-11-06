@@ -351,7 +351,7 @@ python ASD\reproduce\eval_repro.py --method rcn --model models\orig_rcn_vxm1\NNN
 
 ## B4. RCN 原作，VTN 換成 VoxelMorph × 2（`models\orig_rcn_vxm2`）
 
-> 🔴 **11-05：B3 跑完後先跑 `ASD/指令_mix_cascade_pyramid_ablation.md` 的 A（`mix_cascade_pyramid_rep2`，第一目標），再回來跑 B4**；A 的結果決定 B、C 要不要跑，要跑的話也排在 B4 前面。
+> 🔴 **11-05：B3 跑完後先跑 `ASD/指令_mix_cascade_pyramid_ablation.md` 的第 1 顆（`mix_cascade_pyramid_rep2`，第一目標），再回來跑 B4**；第 1 顆的結果決定第 2、3 顆要不要跑，要跑的話也排在 B4 前面。
 
 **11-04 使用者決定**：RCN 原作的設定全部不動，只把底層網路從 VTN 換成 RCN 程式自己寫的 VoxelMorph。原作本來就有 `-b VoxelMorph` 這個選項，**不用改程式**。**排在 B3（1 顆）跑完之後**（11-04 使用者：先看 1 顆會不會壞掉）。
 **11-05 使用者改成串 2 顆**（本來 3 顆）：跟 mix_cascade、mix_cascade_rcn（我們自己實作的 VoxelMorph 串兩顆）同樣顆數，可以比「原作程式 vs 我們的實作」。

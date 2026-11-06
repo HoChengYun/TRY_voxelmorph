@@ -272,7 +272,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
 │   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
 │   ├── 指令_rcn_ncc.md                 # RCN 只換成局部 NCC（第二步第一顆，`models\rcn_vtn3_ncc`，手冊 §31.11）
-│   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：A 舊設定再練一次（rep2）→ 看 val 第 150～250 輪平均決定要不要跑 B（只開 --rcn）、C（只開 --dwp）
+│   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：第 1 顆舊設定再練一次（rep2）→ 看 val 第 150～250 輪平均決定要不要跑第 2 顆（只開 --rcn）、第 3 顆（只開 --dwp）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
 │   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
@@ -440,6 +440,37 @@ exp5 把 λ 調大 10 倍也只從 1.2% 變 3.3%。**要用 NCC 的話，λ 應�
 ## 常用指令
 
 全部在 `C:\Users\h4524\claude_cheng` 底下、`vxm_env` 啟動後執行。
+
+### 訓練程式的支線（2026-11-06 整理）
+
+綽號（11-06 使用者要的，講話時用這個）：三條線叫「**VXM 線**」「**重現線**」「**TM 線**」，每支程式的綽號在表格第一欄。
+⚠️ 「RCN 重現」（程式）跟 `train_arch.py` 的 `--rcn`（開關）是兩回事：前者是 RCN 原作翻過來的整套，後者只是在我們的串接上補兩個 RCN 的細節。
+
+**1. VXM 線：VoxelMorph 原作程式這一支**（`vxm_env`）：`ASD/run_train.py` 是外殼，依參數交給下面三支之一
+
+| 綽號 | 程式 | 是什麼 | 跑過／要跑的 |
+|---|---|---|---|
+| **原版** | `voxelmorph-code/scripts/torch/train.py` | 官方原版，原封不動 | mix_exp1～7、mix_wide、mix_wide_vel、tiger_exp1～3；之後 v3 資料的三種去頭殼也用它（mix_exp3 設定）|
+| **架構版** | `ASD/train_arch.py` | 官方 train.py 加「串接」「由粗到細」（網路在 `ASD/arch.py`），開關 `--arch`、`--stage`、`--rcn`、`--dwp` | mix_cascade 系列、mix_pyramid 系列；第一目標的 `mix_cascade_pyramid_rep2`／`_rcn`／`_dwp`（手冊 §31.14）|
+| **標籤版** | `ASD/train_semisup.py` | 官方 train.py 加「訓練時也用標籤」（`run_train.py --seg-weight`）| mix_exp8、mix_exp9 |
+
+**2. 重現線：照原作重現這一支**（`ASD/reproduce/`，手冊 §31）
+
+| 綽號 | 程式 | 是什麼 | 跑過／要跑的 |
+|---|---|---|---|
+| **RCN 重現** | `train_rcn.py`＋`rcn_torch.py` | RCN 原作 TF 逐行翻成 PyTorch（`vxm_env`）| orig_rcn_vtn3、orig_rcn_vtn3_subj、rcn_vtn3_ncc（`--net_args "sim='ncc'"`）；B3 orig_rcn_vxm1、B4 orig_rcn_vxm2 |
+| **DWP 重現** | `train_dwp.py` | 直接 import DWP 原作程式、只換資料（`venv_dwp`）| orig_dwp |
+
+**3. TM 線：TransMorph 這一支**（另一專案 `D:\MyHome\MRI\Transmorph_NewArchitecture\mixv2\`，用該專案自己的 `venv`）
+
+| 綽號 | 程式 | 跑過的 |
+|---|---|---|
+| **TM** | `train_mixv2.py` | tm_mixv2（`--legacy` = 舊設定，對齊 mix_exp3）|
+| **TM-diff** | `train_mixv2_diff.py` | tm_diff_mixv2（官方 TransMorph-diff）|
+
+**沒用過**：**窗格版** `voxelmorph-code/scripts/torch/train/train_NCCPatchSize.py`（可調 NCC 窗格）。
+評估：1 用 `ASD/test_dice.py`（`ASD/arch.py` 的 `load_model()` 讀得懂三種）；2 用 `ASD/reproduce/eval_repro.py`；3 用該專案的 `mixv2/eval_mixv2.py`。三支算法與 CSV 格式都同 `test_dice.py`。
+AI 排隊（11-06）：B3 `orig_rcn_vxm1`（RCN 重現）→ 消融第 1 顆 `mix_cascade_pyramid_rep2`（架構版）→ 看它決定要不要跑第 2 顆 `_rcn`、第 3 顆 `_dwp`（架構版）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3、B4 是 `指令_reproduce.md` 的節名；消融那三顆叫「第 1／2／3 顆」，不用 A／B／C（11-06 改，免得撞名）。
 
 ### 製作 atlas
 ```powershell
@@ -940,7 +971,7 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   📌 **11-04 使用者決定下一顆**：RCN 原作設定不動，只把 VTN 換成 RCN 程式自己的 VoxelMorph × 3（`models\orig_rcn_vxm3`，操作單 `ASD/指令_reproduce.md` B4；原作本來就有 `-b VoxelMorph`，不用改程式）。**同日改成先跑 B3（1 顆，`models\orig_rcn_vxm1`）看會不會壞掉，再跑 B4**。**11-05 B4 改成串 2 顆**（`models\orig_rcn_vxm2`；跟 mix_cascade 同樣顆數，可比原作程式 vs 我們的實作；跟 VTN × 3 同時差網路與顆數；AI 上 10-30 停掉的同名資料夾要先改名）。
   📌 **11-05 第二步路線暫定「同一套訓練方式的 2 × 2」**（手冊 §31.12）：四格都用 VoxelMorph 原作訓練程式＋mix_exp3 設定，`mix_exp3`／`vxm_casc2`（＋RCN 串 2 顆，`--rcn`）／`vxm_pyr`（自己寫的由粗到細 `VxmPyramid`，`--dwp`；使用者選的，不用 DWP 原作網路）／`vxm_pyr_casc2`。就是舊的 2 × 2 把底子從 mix_exp6 換成 mix_exp3，同一支程式、每格只差速度場 → 位移場，不用寫新程式。命名規則 `底子程式_加了什麼`，名字一律照 §31.12 的表。
   🔴 **同日改走速度場**（使用者：老師比較喜歡 SVF；手冊 §31.14）：2 × 2 的底子用 mix_exp6，四格就是已有的 mix_exp6／mix_cascade_rcn／mix_pyramid_dwp／mix_cascade_pyramid_rcn_dwp，上面三顆位移場的不跑；`mix_pyramid_dwp` 的平滑項保留（逐層罰速度場，跟 DWP 罰最後位移場不同，簡報要寫明）。開跑前重讀兩篇原文與程式的逐項對照在手冊 §31.13。
-  📌 **第一目標：合併版 mix_cascade_pyramid_rcn_dwp 為什麼變低**。val 第 150～250 輪平均：舊合併 0.8134 vs 新合併 0.8107（單獨那兩組開不開 `--rcn`／`--dwp` 只差 ≤ 0.0005）；訓練影像項從頭就較差。但沒量過換隨機起點的差距 → 先把舊的 mix_cascade_pyramid 原封不動再練一次，再決定要不要做消融。✅ 使用者同意，操作單 `ASD/指令_mix_cascade_pyramid_ablation.md`（A `mix_cascade_pyramid_rep2` → 視結果 B `_rcn`、C `_dwp`；排在 B3 之後、B4 之前；筆電小尺寸試跑三種開關組合都正常；程式沒改）。RCN 版 VoxelMorph 一顆 300,547 參數，跟 mix_exp3 幾乎同一個網路（差在解碼器第 5 層放在 1/2 解析度、LeakyReLU 0.1）；平滑項同樣權重 1，RCN 罰得是 VoxelMorph 的 1.5 倍（係數 1/2 vs 1/3）
+  📌 **第一目標：合併版 mix_cascade_pyramid_rcn_dwp 為什麼變低**。val 第 150～250 輪平均：舊合併 0.8134 vs 新合併 0.8107（單獨那兩組開不開 `--rcn`／`--dwp` 只差 ≤ 0.0005）；訓練影像項從頭就較差。但沒量過換隨機起點的差距 → 先把舊的 mix_cascade_pyramid 原封不動再練一次，再決定要不要做消融。✅ 使用者同意，操作單 `ASD/指令_mix_cascade_pyramid_ablation.md`（第 1 顆 `mix_cascade_pyramid_rep2` → 視結果第 2 顆 `_rcn`、第 3 顆 `_dwp`；排在 B3 之後、B4 之前；筆電小尺寸試跑三種開關組合都正常；程式沒改）。RCN 版 VoxelMorph 一顆 300,547 參數，跟 mix_exp3 幾乎同一個網路（差在解碼器第 5 層放在 1/2 解析度、LeakyReLU 0.1）；平滑項同樣權重 1，RCN 罰得是 VoxelMorph 的 1.5 倍（係數 1/2 vs 1/3）
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 
