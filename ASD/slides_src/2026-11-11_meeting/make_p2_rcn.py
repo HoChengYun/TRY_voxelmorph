@@ -43,22 +43,27 @@ aff1 = cb_wm(os.path.join(V1, 'per_structure_affine.csv')).mean()
 # ════ mech ════
 fig, ax = plt.subplots(1, 2, figsize=(W, 4.3), gridspec_kw=dict(width_ratios=[1, 1.1]))
 fig.subplots_adjust(left=0.065, right=0.985, top=0.86, bottom=0.15, wspace=0.22)
-a = ax[0]
-x = np.arange(4)
-st0 = [p0[p0.stage == k].dice_cb_wm.mean() for k in range(4)]
-st1 = [gs_[(gs_.stage == 'stage%d' % k) & (gs_.group == 'cb_wm')].dice.mean() for k in range(4)]
-for st, af, col, lab in ((st0, aff0, C_MNI, 'MNI152 atlas'), (st1, aff1, C_SUB, 'sub-0036 atlas')):
-    a.plot(x, st, color=col, lw=2, marker='o', ms=7, mfc=col, mec='white', mew=1.2, zorder=3)
-    a.axhline(af, color=col, lw=1, ls=(0, (4, 3)), zorder=2)
-    for k in range(4):
-        a.text(k, st[k] + 0.006, '%.3f' % st[k], ha='center', va='bottom', fontsize=8.5, color=INK)
-    a.text(3.15, st[-1], lab, va='center', ha='left', fontsize=9, color=INK)
-a.set_xticks(x, ['Affine\nstem', 'VTN 1', 'VTN 2', 'VTN 3'])
-a.set_xlim(-0.3, 4.1)
-a.set_ylim(0.62, 0.84)
-a.set_ylabel('小腦白質 Dice（左右合併）', fontsize=10)
-a.set_title('(a) 各級輸出之小腦白質 Dice（test 51 位平均；虛線 = affine）', fontsize=10.5, loc='left', color=INK)
-clean(a)
+
+# (a) 抽成函式（11-11：另存只有 (a) 的 1111_rcn_mech_a.png）
+def panel_a(a, title=True):
+    x = np.arange(4)
+    st0 = [p0[p0.stage == k].dice_cb_wm.mean() for k in range(4)]
+    st1 = [gs_[(gs_.stage == 'stage%d' % k) & (gs_.group == 'cb_wm')].dice.mean() for k in range(4)]
+    for st, af, col, lab in ((st0, aff0, C_MNI, 'MNI152 atlas'), (st1, aff1, C_SUB, 'sub-0036 atlas')):
+        a.plot(x, st, color=col, lw=2, marker='o', ms=7, mfc=col, mec='white', mew=1.2, zorder=3)
+        a.axhline(af, color=col, lw=1, ls=(0, (4, 3)), zorder=2)
+        for k in range(4):
+            a.text(k, st[k] + 0.006, '%.3f' % st[k], ha='center', va='bottom', fontsize=8.5, color=INK)
+        a.text(3.15, st[-1], lab, va='center', ha='left', fontsize=9, color=INK)
+    a.set_xticks(x, ['Affine\nstem', 'VTN 1', 'VTN 2', 'VTN 3'])
+    a.set_xlim(-0.3, 4.1)
+    a.set_ylim(0.62, 0.84)
+    a.set_ylabel('小腦白質 Dice（左右合併）', fontsize=10)
+    a.set_title(('(a) ' if title else '') + '各級輸出之小腦白質 Dice（test 51 位平均；虛線 = affine）', fontsize=10.5, loc='left', color=INK)
+    clean(a)
+
+
+panel_a(ax[0])
 
 a = ax[1]
 it = pd.read_csv(os.path.join(V1, 'intensity.csv')).pivot(index='subject', columns='group', values='mean_intensity')
@@ -83,6 +88,10 @@ a.legend(loc='upper right', frameon=True, framealpha=0.9, edgecolor='none', font
 a.set_title('(b) 相對亮度與形變後體積（每點一位；虛線 = atlas 之相對亮度）', fontsize=10.5, loc='left', color=INK)
 clean(a, grid='both')
 save(fig, '1111_rcn_mech.png')
+fig, a = plt.subplots(figsize=(W * 0.6, 4.3))
+fig.subplots_adjust(left=0.11, right=0.97, top=0.9, bottom=0.15)
+panel_a(a, title=False)
+save(fig, '1111_rcn_mech_a.png')
 
 # ════ atlas：各結構 ════
 N = [('小腦白質', (7, 46)), ('小腦皮質', (8, 47)), ('大腦白質', (2, 41)), ('大腦皮質', (3, 42)), ('側腦室', (4, 43)), ('視丘', (10, 49)), ('尾狀核', (11, 50)),

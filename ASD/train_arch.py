@@ -25,6 +25,11 @@ log：  loss: 總計  (影像項, 平滑項)   —— 平滑項是 n 顆加起�
              configs/pwc_cfg.py 的 scale_pyramid、scale_loss_weights）。λ 用這次的 --lambda（原作 0.5，我們整個系列 1）。
              串兩顆時只算最後一顆（RCN 只對最後一顆算相似度）。
           log 在括號後面多印「ms: 子層 loss 合計」；總計＝影像項＋平滑項＋ms。影像項只有最後一層，照樣能跟其他模型比。
+    --dwp-ms-stage first（2026-11-13，手冊 §31.14 選項 1；只給 --arch cascade --stage pyramid --dwp）：
+          ② 的子層 loss 改算**第 1 顆**（預設 last = 最後一顆，跟以前一樣）。第 1 顆的輸入就是原始的移動影像，
+          等於 DWP 原作「一個金字塔從頭對齊」的用法；第 2 顆只修細節、不再被要求在粗層對齊。
+          消融（mix_cascade_pyramid_dwp）顯示 ② 加在第 2 顆時，第 2 顆在 1/16、1/8 層多動 2～3 倍、細層少動，兩級後 Dice 變低。
+          這個選項不存進 .pt 的 config，--resume 時要自己帶一樣的參數。
 存出來的 .pt 帶 config['arch']，test_dice.py 等腳本透過 ASD/arch.py 的 load_model() 讀。
 
 用法（一般透過 ASD/run_train.py --arch cascade 呼叫，不直接跑）：
@@ -81,11 +86,15 @@ parser.add_argument('--crop', type=int, nargs=3, help='測試用：只取中間�
 parser.add_argument('--max-steps', type=int, default=0, help='測試用：總共只跑幾步就停，並印顯存峰值（0 = 不限）')
 parser.add_argument('--rcn', action='store_true', help='照 RCN 原作程式：每顆輸出乘 1/n、串接的 warp 取邊界值（只給 --arch cascade）')
 parser.add_argument('--dwp', action='store_true', help='照 DWP 原作程式：合成時 δ detach、粗的層也算相似度（只給由粗到細）')
+parser.add_argument('--dwp-ms-stage', default='last', choices=['last', 'first'],
+                    help='--dwp 的子層 loss 算哪一顆（只給 --arch cascade --stage pyramid）：last = 最後一顆（預設，以前都是這樣）、first = 第 1 顆')
 args = parser.parse_args()
 
 PYR = args.arch == 'pyramid' or (args.arch == 'cascade' and args.stage == 'pyramid')
 assert not args.rcn or args.arch == 'cascade', '--rcn 只給 --arch cascade 用'
 assert not args.dwp or PYR, '--dwp 只給由粗到細（--arch pyramid 或 --stage pyramid）用'
+assert args.dwp_ms_stage == 'last' or (args.dwp and args.arch == 'cascade' and args.stage == 'pyramid'), \
+    '--dwp-ms-stage first 只給 --arch cascade --stage pyramid --dwp 用'
 FLOW_MULT = 1.0 / args.n_cascades if args.rcn else 1.0
 DWP_SCALES = (16, 8, 4)          # DWP 的子層：1/16、1/8、1/4；權重 = 1/scale
 
@@ -183,7 +192,7 @@ if args.rcn:
     desc += '；照 RCN 原作：每顆輸出乘 1/%d、串接的 warp 取邊界值' % args.n_cascades
 if args.dwp:
     desc += '；照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項（權重 1/16、1/8、1/4%s）' % (
-        '，只算最後一顆' if args.arch == 'cascade' else '')
+        ('，只算第 1 顆（--dwp-ms-stage first）' if args.dwp_ms_stage == 'first' else '，只算最後一顆') if args.arch == 'cascade' else '')
 print('架構：%s，共 %d 個參數；影像項 %s，λ = %g（每一%s都罰）；int_steps %d、int_downsize %d；'
       '%d 位訓練資料；影像 %s%s'
       % (desc + ('，省顯存模式（--grad-checkpoint）' if args.grad_checkpoint else ''), n_par, args.image_loss, args.weight,
@@ -199,7 +208,8 @@ for epoch in range(args.initial_epoch, args.epochs):
         t0 = time.time()
         source = torch.from_numpy(sample())[:, None].to(device)
         if args.dwp:
-            moved, pres, (src_in, Us, warps) = model(source, atlas_t, return_levels=True)
+            kw = {'levels_stage': 0} if args.dwp_ms_stage == 'first' else {}       # 預設不傳 = 最後一顆（同以前）
+            moved, pres, (src_in, Us, warps) = model(source, atlas_t, return_levels=True, **kw)
             ms = dwp_sublevel_loss(src_in, Us, warps)
         else:
             moved, pres = model(source, atlas_t)

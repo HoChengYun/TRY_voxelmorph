@@ -151,11 +151,12 @@ ax.add_patch(Circle((CX, LC), 2, fc='white', ec=INK, lw=1.2, zorder=4))
 ax.text(CX, LC, r'$\circ$', ha='center', va='center', fontsize=17, zorder=5)
 arr(ax, (CX + 2, LC), (101, LC), r'$\Phi_l$', dy=0.4, fs=13)
 poly(ax, [(61, LC), (61, LH), (101, LH)])
-poly(ax, [(78, LC), (78, LV), (101, LV)], color=_RED, ls='--')
+# 平滑項每一層都罰 v_l：10-06 第一版就有，不是 --dwp 加的 → 黑色（11-11 更正，原本誤標紅色）
+poly(ax, [(78, LC), (78, LV), (101, LV)], color=INK, ls='--')
 ax.text(97, LH + 0.4, r'$h_l$', ha='center', va='bottom', fontsize=12)
-ax.text(97, LV + 0.4, r'$v_l$', ha='center', va='bottom', fontsize=12, color=_RED)
+ax.text(97, LV + 0.4, r'$v_l$', ha='center', va='bottom', fontsize=12)
 ax.text(101.8, LC, r'$D_{l-1}$' + '（' + r'$l=0$' + '：輸出 ' + r'$\Phi_0$' + '）', ha='left', va='center', fontsize=11.5)
-ax.text(101.8, LV, r'$\lambda\Vert\nabla v_l\Vert^2$', ha='left', va='center', fontsize=11.5, color=_RED)
+ax.text(101.8, LV, r'$\lambda\Vert\nabla v_l\Vert^2$', ha='left', va='center', fontsize=11.5)
 ax.text(101.8, LH, r'$D_{l-1}$', ha='left', va='center', fontsize=11.5)
 # 新加的（紅字）：① 合成時 φ_l 當取樣位置的那條路 detach；② Φ_l 另外算子層 loss
 ax.text(63.5, LC + 6.8, r'$\Phi_l=\phi_l+\tilde{\Phi}_{l+1}(x+\mathrm{detach}(\phi_l))$', ha='left', va='bottom',

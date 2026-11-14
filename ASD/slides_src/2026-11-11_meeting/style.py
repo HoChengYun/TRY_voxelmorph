@@ -75,3 +75,27 @@ def clean(ax, grid='y'):
     if grid:
         ax.grid(axis=grid, color=RULE, lw=0.6)
         ax.set_axisbelow(True)
+
+
+# ── 數字欄之底色（11-11，同 p23 熱圖）：同一欄內比較，較佳 = 深、較差 = 淺；粗體 = 該欄最佳 ──
+HEAT_LO, HEAT_HI = '#EEF3F8', '#2F5F9E'
+
+
+def heat_t(vals, better, log=False):
+    """vals：數字串列；better：'high'（越大越好）或 'low'；log：差距跨好幾個數量級時（folding）先取 log10。回傳 0～1，1 = 該欄最佳。"""
+    import numpy as np
+    v = np.log10(np.asarray(vals, float) + 0.1) if log else np.asarray(vals, float)
+    lo, hi = v.min(), v.max()
+    t = (v - lo) / (hi - lo) if hi > lo else np.full(len(v), 0.5)
+    return list(t if better == 'high' else 1 - t)
+
+
+def heat_cell(fig, x, y, text, t, w=0.062, h=0.075, fontsize=10.5):
+    """在 figure 座標 (x, y) 畫一格有底色的數字。"""
+    from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.patches import FancyBboxPatch
+    cmap = LinearSegmentedColormap.from_list('heat', [HEAT_LO, HEAT_HI])
+    fig.patches.append(FancyBboxPatch((x - w / 2, y - h / 2), w, h, boxstyle='round,pad=0,rounding_size=0.006',
+                                      transform=fig.transFigure, fc=cmap(t), ec='none', zorder=0))
+    fig.text(x, y, text, ha='center', va='center', fontsize=fontsize, color='white' if t > 0.6 else INK,
+             fontweight='bold' if t > 0.999 else 'normal')

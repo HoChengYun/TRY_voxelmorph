@@ -145,15 +145,19 @@ class VxmCascade(LoadableModel):
         u, pre = m.fields(src, target, mult=self.flow_mult)   # 由粗到細：每一層一個速度場，全部都要罰
         return (u,) + tuple(pre)
 
-    def forward(self, source, target, registration=False, return_levels=False):
-        """return_levels=True（訓練用，只給 stage='pyramid'）：另外回傳最後一顆的（輸入影像, 各層總形變, 各層的 warp），
-        給 train_arch.py --dwp 算粗的層的相似度。RCN 只對最後一顆算相似度，所以子層 loss 也只算最後一顆。"""
+    def forward(self, source, target, registration=False, return_levels=False, levels_stage=None):
+        """return_levels=True（訓練用，只給 stage='pyramid'）：另外回傳某一顆的（輸入影像, 各層總形變, 各層的 warp），
+        給 train_arch.py --dwp 算粗的層的相似度。
+        levels_stage：回傳第幾顆（0 起算）。None（預設）= 最後一顆 —— RCN 只對最後一顆算相似度，所以子層 loss 也只算最後一顆。
+        2026-11-13 加（手冊 §31.14 選項 1）：train_arch.py --dwp-ms-stage first 傳 0，子層 loss 改算第 1 顆；預設行為不變。"""
         assert not return_levels or self.stage == 'pyramid', 'return_levels 只給 stage=pyramid 用'
         U, pres, extra = None, [], None
         last = len(self.stages) - 1
+        want = last if levels_stage is None else levels_stage
+        assert 0 <= want <= last, levels_stage
         for i, m in enumerate(self.stages):
             src = source if U is None else self.transformer(source, U)
-            keep = return_levels and i == last
+            keep = return_levels and i == want
             if self.grad_ckpt and self.training and torch.is_grad_enabled():
                 out = torch.utils.checkpoint.checkpoint(self._run_stage, m, src, target, keep, use_reentrant=False)
             else:

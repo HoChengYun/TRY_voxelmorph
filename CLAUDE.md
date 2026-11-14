@@ -1,7 +1,7 @@
 # VoxelMorph × IXI 專案交接筆記
 
 > 給 Claude Code 的上下文文件。閱讀本文後應可直接接手任何子任務，無需重新詢問背景。
-> 最後更新：**2026-11-04**（11-04：RCN 只換成局部 NCC 帶回 **0.7894**（小腦修好；訓練每隔數千步崩一次），下一顆：RCN 原作只把 VTN 換成 VoxelMorph × 3（操作單 B4）；11-03：RCN 換真人 atlas（sub-0036）帶回：affine 0.6499 → **0.7976**，小腦白質 0.736 → 0.819（50/51 位高於 affine）；小腦比 atlas 暗的人才被撐大（兩個 atlas 都是），手冊 §31.11；11-02：照原作重現帶回 RCN **0.7602**（小腦白質低於 affine、被撐大 1.72 倍）、DWP **0.8104**（val 掃完 60 顆挑第 32 輪；小腦正常），手冊 §31.11；VoxelMorph 對照組改用論文設定的 mix_exp3；10-30：三種去顱骨那份資料 745 位正在虛擬機上跑，輸入 `orig.mgz`；IXI 等 FreeSurfer 跑完再併進 v3；筆電的 FSS_A001 已刪，見待辦 0c；🔴 10-29 meeting 老師紅字 4 頁記在待辦 0c、手冊 §32（p3 p 值定義、p8 只換去頭殼工具各訓練一顆、p15 加參數量、p17 細分標籤看殘留影響哪一區）；RCN、DWP 的原作／重現版／舊設定三方對照記在手冊 §31.10；更正：DWP 原作訓練量其實是 2.5 萬步（每輪 250 步）、平滑實際權重 0.5 × 2 = 1（§31.4、§31.9））
+> 最後更新：**2026-11-13**（11-13：合併版變低的消融帶回三顆（手冊 §31.14.1～3）：重練 rep2 **0.8198**（下降是真的；重練一次差 0.0006）、只開 `--rcn` **0.8200**（不是 RCN）、只開 `--dwp` **0.8161**（**是 DWP**）；拆兩級（`ASD/analyze_combo_ablation.py`）：有 `--dwp` 時第 2 級在 1/16、1/8 層多動 2～3 倍、細層少動 → 懷疑 ④「粗層 loss 只加在第 2 級」；第 4 顆 `mix_cascade_pyramid_dwp_ms1`（④ 改加在第 1 級，新選項 `--dwp-ms-stage first`）排上 AI。11-11 meeting 簡報 39 頁（`ASD/slides_src/2026-11-11_meeting/`）；原理筆記重寫、符號統一成 Φ／φ。11-04：11-04：RCN 只換成局部 NCC 帶回 **0.7894**（小腦修好；訓練每隔數千步崩一次），下一顆：RCN 原作只把 VTN 換成 VoxelMorph × 3（操作單 B4）；11-03：RCN 換真人 atlas（sub-0036）帶回：affine 0.6499 → **0.7976**，小腦白質 0.736 → 0.819（50/51 位高於 affine）；小腦比 atlas 暗的人才被撐大（兩個 atlas 都是），手冊 §31.11；11-02：照原作重現帶回 RCN **0.7602**（小腦白質低於 affine、被撐大 1.72 倍）、DWP **0.8104**（val 掃完 60 顆挑第 32 輪；小腦正常），手冊 §31.11；VoxelMorph 對照組改用論文設定的 mix_exp3；10-30：三種去顱骨那份資料 745 位正在虛擬機上跑，輸入 `orig.mgz`；IXI 等 FreeSurfer 跑完再併進 v3；筆電的 FSS_A001 已刪，見待辦 0c；🔴 10-29 meeting 老師紅字 4 頁記在待辦 0c、手冊 §32（p3 p 值定義、p8 只換去頭殼工具各訓練一顆、p15 加參數量、p17 細分標籤看殘留影響哪一區）；RCN、DWP 的原作／重現版／舊設定三方對照記在手冊 §31.10；更正：DWP 原作訓練量其實是 2.5 萬步（每輪 250 步）、平滑實際權重 0.5 × 2 = 1（§31.4、§31.9））
 > 10-28 晚：（🔴 **新方法第一步改成「照原作程式重現」，只改逼不得已的**（使用者，手冊 §31）：DWP 原作程式不改、只換資料（`ASD/reproduce/train_dwp.py`，獨立環境 venv_dwp）；
 > RCN 從 TF 1.4 逐行翻成 PyTorch（`rcn_torch.py`，`verify_rcn_port.py` 直接執行原作 TF 程式比對，全部相同；RCN 的腦部實驗本來就是 atlas 配準）；TransMorph 兩支改成每輪全部資料洗牌、預設 500 輪（官方）。
 > 四顆筆電試跑、評估（`eval_repro.py`）都跑通，**沒有正式訓練**（訓練量不必照原作）；操作單 `ASD/指令_reproduce.md`。之前的 cascade／pyramid 系列、兩顆 TransMorph 註記為舊設定（表上 ⁵）；舊設定跟原作逐項差在哪見手冊 §31.9。兩個 repo 已 push（`228dd12`、TransMorph 專案 `a7f42ca`）。
@@ -82,6 +82,9 @@ ASD（老師提供）那條線已擴充成**四包 FreeSurfer 資料（ASD 164 +
 | **mix_cascade_rcn**⁵ | 同 mix_cascade，照 RCN 原作補細節（`--rcn`：每顆輸出 ×1/n、串接取邊界值），val 挑 epoch 195 | 0.6882 | **0.8166** | +0.128 | 0.0012% | 22 | **2.33** | 0.559 |
 | **mix_pyramid_dwp**⁵ | 同 mix_pyramid，照 DWP 原作補細節（`--dwp`：合成時 δ detach、粗的三層也算 loss），val 挑 epoch 205 | 0.6882 | **0.8162** | +0.128 | 0.0006% | 10⁴ | **2.34** | 0.555 |
 | **mix_cascade_pyramid_rcn_dwp**⁵ | 同 mix_cascade_pyramid，`--rcn --dwp` 都開，val 挑 epoch 155（之後 val 略降）| 0.6882 | **0.8149** | +0.127 | 0.0038% | 71⁴ | 2.40 | 0.642 |
+| **mix_cascade_pyramid_rep2** | 同 mix_cascade_pyramid（都不開），只換隨機起點（消融第 1 顆，11-07），val 挑 epoch 250 | 0.6882 | **0.8198** | +0.132 | 0.0048% | 90⁴ | — | — |
+| **mix_cascade_pyramid_rcn** | 同上，只開 `--rcn`（消融第 2 顆，11-11），val 挑 epoch 200 | 0.6882 | **0.8200** | +0.132 | 0.0037% | 69⁴ | — | — |
+| **mix_cascade_pyramid_dwp** | 同上，只開 `--dwp`（消融第 3 顆，11-13），val 挑 epoch 215 | 0.6882 | **0.8161** | +0.128 | 0.0044% | 82⁴ | — | — |
 | TransMorph-diff（另一專案 mixv2）⁵ | 官方 TransMorphDiff 照官方訓練方式（機率式 SVF、MSE＋KL、Adamax、lr 遞減、三向翻轉），只把訓練量改成 2.5 萬步，val 挑 epoch 75 | 0.6882 | **0.7143** | +0.026 | 0.916% | 17,101 | 3.83 | 2.342 |
 | **orig_rcn_vtn3**（照原作重現）| RCN：affine＋VTN × 3、全域相關係數、batch 4、2.5 萬步（原作 10 萬步），val 挑第 23,000 步 | 0.6882 | **0.7602** | +0.072 | 0.0012% | 22 | 3.12 | 0.500 |
 | **orig_dwp**（照原作重現）| DWP 期刊版：局部 NCC、60 輪 = 25,080 步，val 掃完 60 顆挑第 32 輪（第 51 輪 0.8092）| 0.6882 | **0.8104** | +0.122 | 0.31% | 5,810 | 2.33 | 1.262 |
@@ -272,7 +275,8 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_mix_rcn_dwp.md             # 照原作「機制」補細節重跑三顆（舊設定，手冊 §29，10-28 已帶回）
 │   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
 │   ├── 指令_rcn_ncc.md                 # RCN 只換成局部 NCC（第二步第一顆，`models\rcn_vtn3_ncc`，手冊 §31.11）
-│   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：第 1 顆舊設定再練一次（rep2）→ 看 val 第 150～250 輪平均決定要不要跑第 2 顆（只開 --rcn）、第 3 顆（只開 --dwp）
+│   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：第 1 顆舊設定再練一次（rep2）→ 第 2 顆（只開 --rcn）、第 3 顆（只開 --dwp）都已帶回；第 4 顆 mix_cascade_pyramid_dwp_ms1（--dwp --dwp-ms-stage first，④ 改加在第 1 級，11-13）
+│   ├── analyze_combo_ablation.py       # 合併版消融各顆：拆兩級（第 1 級後／兩級後 Dice、各級位移、每一級每一層的總形變）＋訓練過程圖 → models\combo_ablation\（11-13，手冊 §31.14.2；第 4 顆帶回後自動加入）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
 │   │                                   #   eval_repro.py（DWP、RCN 的評估，算法與 CSV 同 test_dice.py）。原作 repo 不放進來：筆電 D:\MyHome\MRI\orig_repos\、AI D:\chengyun\orig_repos\
@@ -451,7 +455,7 @@ exp5 把 λ 調大 10 倍也只從 1.2% 變 3.3%。**要用 NCC 的話，λ 應�
 | 綽號 | 程式 | 是什麼 | 跑過／要跑的 |
 |---|---|---|---|
 | **原版** | `voxelmorph-code/scripts/torch/train.py` | 官方原版，原封不動 | mix_exp1～7、mix_wide、mix_wide_vel、tiger_exp1～3；之後 v3 資料的三種去頭殼也用它（mix_exp3 設定）|
-| **架構版** | `ASD/train_arch.py` | 官方 train.py 加「串接」「由粗到細」（網路在 `ASD/arch.py`），開關 `--arch`、`--stage`、`--rcn`、`--dwp` | mix_cascade 系列、mix_pyramid 系列；第一目標的 `mix_cascade_pyramid_rep2`／`_rcn`／`_dwp`（手冊 §31.14）|
+| **架構版** | `ASD/train_arch.py` | 官方 train.py 加「串接」「由粗到細」（網路在 `ASD/arch.py`），開關 `--arch`、`--stage`、`--rcn`、`--dwp`、`--dwp-ms-stage`（11-13）| mix_cascade 系列、mix_pyramid 系列；第一目標的 `mix_cascade_pyramid_rep2`／`_rcn`／`_dwp`（已帶回）、`_dwp_ms1`（手冊 §31.14）|
 | **標籤版** | `ASD/train_semisup.py` | 官方 train.py 加「訓練時也用標籤」（`run_train.py --seg-weight`）| mix_exp8、mix_exp9 |
 
 **2. 重現線：照原作重現這一支**（`ASD/reproduce/`，手冊 §31）
@@ -470,7 +474,8 @@ exp5 把 λ 調大 10 倍也只從 1.2% 變 3.3%。**要用 NCC 的話，λ 應�
 
 **沒用過**：**窗格版** `voxelmorph-code/scripts/torch/train/train_NCCPatchSize.py`（可調 NCC 窗格）。
 評估：1 用 `ASD/test_dice.py`（`ASD/arch.py` 的 `load_model()` 讀得懂三種）；2 用 `ASD/reproduce/eval_repro.py`；3 用該專案的 `mixv2/eval_mixv2.py`。三支算法與 CSV 格式都同 `test_dice.py`。
-AI 排隊（11-06）：B3 `orig_rcn_vxm1`（RCN 重現）→ 消融第 1 顆 `mix_cascade_pyramid_rep2`（架構版）→ 看它決定要不要跑第 2 顆 `_rcn`、第 3 顆 `_dwp`（架構版）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3、B4 是 `指令_reproduce.md` 的節名；消融那三顆叫「第 1／2／3 顆」，不用 A／B／C（11-06 改，免得撞名）。
+AI 排隊（11-13）：消融第 1～3 顆已帶回 → 第 4 顆 `mix_cascade_pyramid_dwp_ms1`（架構版，要先 `git pull` 拿到 `--dwp-ms-stage`）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3 `orig_rcn_vxm1` 是否已跑待使用者確認。B3、B4 是 `指令_reproduce.md` 的節名；消融那幾顆叫「第 1／2／3／4 顆」，不用 A／B／C（11-06 改，免得撞名）。
+（舊）AI 排隊（11-06）：B3 `orig_rcn_vxm1`（RCN 重現）→ 消融第 1 顆 `mix_cascade_pyramid_rep2`（架構版）→ 看它決定要不要跑第 2 顆 `_rcn`、第 3 顆 `_dwp`（架構版）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3、B4 是 `指令_reproduce.md` 的節名；消融那三顆叫「第 1／2／3 顆」，不用 A／B／C（11-06 改，免得撞名）。
 
 ### 製作 atlas
 ```powershell
@@ -972,6 +977,8 @@ FreeSurfer 端建議的兩段式設計（**尚未定案，決定權在使用者�
   📌 **11-05 第二步路線暫定「同一套訓練方式的 2 × 2」**（手冊 §31.12）：四格都用 VoxelMorph 原作訓練程式＋mix_exp3 設定，`mix_exp3`／`vxm_casc2`（＋RCN 串 2 顆，`--rcn`）／`vxm_pyr`（自己寫的由粗到細 `VxmPyramid`，`--dwp`；使用者選的，不用 DWP 原作網路）／`vxm_pyr_casc2`。就是舊的 2 × 2 把底子從 mix_exp6 換成 mix_exp3，同一支程式、每格只差速度場 → 位移場，不用寫新程式。命名規則 `底子程式_加了什麼`，名字一律照 §31.12 的表。
   🔴 **同日改走速度場**（使用者：老師比較喜歡 SVF；手冊 §31.14）：2 × 2 的底子用 mix_exp6，四格就是已有的 mix_exp6／mix_cascade_rcn／mix_pyramid_dwp／mix_cascade_pyramid_rcn_dwp，上面三顆位移場的不跑；`mix_pyramid_dwp` 的平滑項保留（逐層罰速度場，跟 DWP 罰最後位移場不同，簡報要寫明）。開跑前重讀兩篇原文與程式的逐項對照在手冊 §31.13。
   📌 **第一目標：合併版 mix_cascade_pyramid_rcn_dwp 為什麼變低**。val 第 150～250 輪平均：舊合併 0.8134 vs 新合併 0.8107（單獨那兩組開不開 `--rcn`／`--dwp` 只差 ≤ 0.0005）；訓練影像項從頭就較差。但沒量過換隨機起點的差距 → 先把舊的 mix_cascade_pyramid 原封不動再練一次，再決定要不要做消融。✅ 使用者同意，操作單 `ASD/指令_mix_cascade_pyramid_ablation.md`（第 1 顆 `mix_cascade_pyramid_rep2` → 視結果第 2 顆 `_rcn`、第 3 顆 `_dwp`；排在 B3 之後、B4 之前；筆電小尺寸試跑三種開關組合都正常；程式沒改）。RCN 版 VoxelMorph 一顆 300,547 參數，跟 mix_exp3 幾乎同一個網路（差在解碼器第 5 層放在 1/2 解析度、LeakyReLU 0.1）；平滑項同樣權重 1，RCN 罰得是 VoxelMorph 的 1.5 倍（係數 1/2 vs 1/3）
+  ✅ **11-07～11-13 消融帶回**（手冊 §31.14.1）：rep2 0.8198（下降是真的；重練一次 test 差 0.0006、配對檢定仍 p = 0.016 → 差 0.001 左右的結論都不能當真）、只開 `--rcn` 0.8200（不是 RCN）、只開 `--dwp` 0.8161（**是 DWP**；`--dwp` 放在單獨的 pyramid 上不會變差，問題在合併時的規則）。拆兩級（§31.14.2，`ASD/analyze_combo_ablation.py`）：有 `--dwp` 的兩顆第 2 級在 1/16 層動 0.34～0.37 mm（其他 0.12～0.20）、細層少動，第 1 級多動（3.04～3.11 vs 2.75～2.85 mm）；平滑項一直較高（0.016 vs 0.0145）。只開 `--rcn` 的訓練影像項從頭就較差、Dice 卻不變 → 訓練影像項不能當 Dice 下降的證據。
+  📌 **11-13 使用者選「選項 1」**：第 4 顆 `mix_cascade_pyramid_dwp_ms1` = `--dwp`，但 ④ 粗層 loss 改加在**第 1 級**（新選項 `--dwp-ms-stage first`；`arch.py` `VxmCascade.forward` 加 `levels_stage`、`train_arch.py`／`run_train.py` 加參數，預設 = 以前的行為，筆電驗證通過；手冊 §31.14.3）。操作單第 4 顆
 - 🔴 **老師可能不希望改架構**（使用者 10-06 說到時候會講）：所有改動做成「加上去的」——新檔案＋`--arch`，
   不給 `--arch` 就是原本的 VoxelMorph，現有的訓練、評估、結果都不受影響；要撤掉時整組拿掉即可
 

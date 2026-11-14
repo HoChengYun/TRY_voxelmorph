@@ -58,11 +58,11 @@ def arrow(xa, ya, xb, yb, c, lab, dy=0.0, ls='-'):
 ax.plot(x0, 2.0, 'o', color=INK, ms=8)
 ax.text(x0, 2.42, 'x = %d' % x0, ha='center', fontsize=10.5, color=INK)
 # 第二段：在 x 往右 u2
-arrow(x0, 1.92, x0 + u2, 1.08, BLUE, r'① 第二段 $u_2(x)=+%d$' % u2, dy=0.05)
+arrow(x0, 1.92, x0 + u2, 1.08, BLUE, r'① 第二段 $\phi_2(x)=+%d$' % u2, dy=0.05)     # 11-11：符號 U/u → Φ/φ，同筆記與 decoder 單層圖
 ax.plot(x0 + u2, 1.0, 'o', color=BLUE, ms=7)
 # 第一段：在 x + u2 = 12 取 U1
 arrow(x0 + u2, 0.92, x0 + u2 + U1(x0 + u2), 0.08, TEAL,
-      r'② 在 $x+u_2=%d$ 取第一段：$U_1(%d)=+%d$' % (x0 + u2, x0 + u2, U1(x0 + u2)), dy=0.05)
+      r'② 在 $x+\phi_2=%d$ 取第一段：$\phi_1(%d)=+%d$' % (x0 + u2, x0 + u2, U1(x0 + u2)), dy=0.05)
 ax.plot(x0 + u2 + U1(x0 + u2), 0.0, 'o', color=TEAL, ms=8)
 ax.text(x0 + u2 + U1(x0 + u2) + 0.3, -0.42, '合成：%d + %d + %d = %d ✓' % (x0, u2, U1(x0 + u2), x0 + u2 + U1(x0 + u2)),
         ha='left', fontsize=10.5, color=TEAL, fontweight='bold')
@@ -70,12 +70,12 @@ ax.text(x0 + u2 + U1(x0 + u2) + 0.3, -0.42, '合成：%d + %d + %d = %d ✓' % (
 ax.plot(x0 + u2 + U1(x0), 0.0, 'x', color=RED, ms=10, mew=2.5)
 ax.text(x0 + u2 + U1(x0) - 0.3, -0.42, '直接相加：%d + %d + %d = %d ✗' % (x0, u2, U1(x0), x0 + u2 + U1(x0)),
         ha='right', fontsize=10.5, color=RED)
-ax.text(22.3, 1.0, r'$U(x)=u_2(x)+U_1(x+u_2(x))$' + '\n' + r'第一段要在「第二段指到的地方」取，不是在 $x$ 取',
+ax.text(22.3, 1.0, r'$\Phi(x)=\phi_2(x)+\phi_1(x+\phi_2(x))$' + '\n' + r'第一段要在「第二段指到的地方」取，不是在 $x$ 取',
         fontsize=11, color=INK, va='center')
 ax.set_xlim(3.5, 31.5)
 ax.set_ylim(-0.75, 2.75)
 ax.axis('off')
-ax.set_title('為什麼兩段形變要「合成」：第一段的位移跟位置有關（這裡 $U_1(10)=3$、$U_1(12)=5$）', fontsize=11.5, loc='left', color=INK)
+ax.set_title('為什麼兩段形變要「合成」：第一段的位移跟位置有關（這裡 $\phi_1(10)=3$、$\phi_1(12)=5$）', fontsize=11.5, loc='left', color=INK)
 save(fig, 'cp_compose.png')
 
 # ── 2. 同一個 12 mm，在每一層是幾格 ────────────────────────────────────

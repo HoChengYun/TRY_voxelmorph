@@ -33,29 +33,32 @@ SER = [('Affine', load('mix_exp3', 'dice_baseline.csv'), GRAY),
 fig, ax = plt.subplots(1, 2, figsize=(W, 4.4), gridspec_kw=dict(width_ratios=[1.25, 1]))
 fig.subplots_adjust(left=0.06, right=0.985, top=0.86, bottom=0.15, wspace=0.2)
 
-# ---- (a) 主要結構之 Dice ----
-a = ax[0]
-cols = GROUPS + [('30 結構平均', None)]
-n = len(SER)
-wd = 0.8 / n
-for i, (nm, labs) in enumerate(cols):
-    for j, (sn, c, colr) in enumerate(SER):
-        v = (c.dice_mean if labs is None else c[['label_%d' % l for l in labs]].mean(axis=1)).values
-        pos = i - 0.4 + wd * (j + 0.5)
-        a.boxplot(v, positions=[pos], widths=wd * 0.85, patch_artist=True, showfliers=True,
-                  flierprops=dict(marker='o', ms=2, mfc=colr, mec='none', alpha=0.6),
-                  medianprops=dict(color='white', lw=1.2), whiskerprops=dict(color=colr, lw=0.9),
-                  capprops=dict(color=colr, lw=0.9), boxprops=dict(facecolor=colr, edgecolor=colr))
-a.axvline(len(GROUPS) - 0.5, color=GRAY, lw=0.8, ls=':')
-a.set_xticks(np.arange(len(cols)), [c[0] for c in cols], fontsize=10)
-a.set_xlim(-0.55, len(cols) - 0.45)
-a.set_ylim(0.38, 0.97)
-a.set_ylabel('Dice（左右合併）', fontsize=10)
-for sn, _, colr in SER:
-    a.scatter([], [], marker='s', s=55, color=colr, label=sn)
-a.legend(loc='lower center', ncol=4, frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.01), columnspacing=1.0, handletextpad=0.3)
-a.set_title('(a) 主要結構之 Dice（test 51 位）', fontsize=10.5, loc='left', color=INK)
-clean(a)
+# ---- (a) 主要結構之 Dice（11-11：抽成函式，另存只有 (a) 的 1111_ncc_result_a.png）----
+def panel_a(a, title=True):
+    cols = GROUPS + [('30 結構平均', None)]
+    n = len(SER)
+    wd = 0.8 / n
+    for i, (nm, labs) in enumerate(cols):
+        for j, (sn, c, colr) in enumerate(SER):
+            v = (c.dice_mean if labs is None else c[['label_%d' % l for l in labs]].mean(axis=1)).values
+            pos = i - 0.4 + wd * (j + 0.5)
+            a.boxplot(v, positions=[pos], widths=wd * 0.85, patch_artist=True, showfliers=True,
+                      flierprops=dict(marker='o', ms=2, mfc=colr, mec='none', alpha=0.6),
+                      medianprops=dict(color='white', lw=1.2), whiskerprops=dict(color=colr, lw=0.9),
+                      capprops=dict(color=colr, lw=0.9), boxprops=dict(facecolor=colr, edgecolor=colr))
+    a.axvline(len(GROUPS) - 0.5, color=GRAY, lw=0.8, ls=':')
+    a.set_xticks(np.arange(len(cols)), [c[0] for c in cols], fontsize=10)
+    a.set_xlim(-0.55, len(cols) - 0.45)
+    a.set_ylim(0.38, 0.97)
+    a.set_ylabel('Dice（左右合併）', fontsize=10)
+    for sn, _, colr in SER:
+        a.scatter([], [], marker='s', s=55, color=colr, label=sn)
+    a.legend(loc='lower center', ncol=4, frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.01), columnspacing=1.0, handletextpad=0.3)
+    a.set_title(('(a) ' if title else '') + '主要結構之 Dice（test 51 位）', fontsize=10.5, loc='left', color=INK)
+    clean(a)
+
+
+panel_a(ax[0])
 
 # ---- (b) 相對亮度 vs 形變後體積 ----
 a = ax[1]
@@ -84,6 +87,10 @@ a.legend(loc='upper right', frameon=True, framealpha=0.9, edgecolor='none', font
 a.set_title('(b) 相對亮度與形變後體積（每點一位；atlas 皆為 MNI152）', fontsize=10.5, loc='left', color=INK)
 clean(a, grid='both')
 save(fig, '1111_ncc_result.png')
+fig, a = plt.subplots(figsize=(W, 4.2))
+fig.subplots_adjust(left=0.06, right=0.985, top=0.9, bottom=0.12)
+panel_a(a, title=False)
+save(fig, '1111_ncc_result_a.png')
 
 # ---- 數字給 build.js（不手打）----
 KEY = {'Affine': 'affine', MODELS['rcn'][0]: 'rcn', NCC[0]: 'ncc', 'VoxelMorph': 'vxm'}

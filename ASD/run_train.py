@@ -70,6 +70,9 @@ ap.add_argument('--grad-checkpoint', action='store_true', help='串接時省顯�
 #   --dwp：由粗到細照 DWP（Jian et al., WBIR 2024）—— 合成時 δ detach、粗的層（1/16、1/8、1/4）也算影像項＋平滑項
 ap.add_argument('--rcn', action='store_true', help='串接照 RCN 原作程式（只給 --arch cascade）')
 ap.add_argument('--dwp', action='store_true', help='由粗到細照 DWP 原作程式（--arch pyramid 或 --stage pyramid）')
+#   --dwp-ms-stage first（2026-11-13，手冊 §31.14）：串接＋由粗到細時，DWP 的子層 loss 改算第 1 顆（預設 last = 最後一顆）
+ap.add_argument('--dwp-ms-stage', default='last', choices=['last', 'first'],
+                help='--dwp 的子層 loss 算哪一顆（只給 --arch cascade --stage pyramid --dwp）')
 ap.add_argument('--gpu', default='0')
 ap.add_argument('--train-dir', '--data-dir', dest='train_dir', required=True,
                 help='train 資料夾，例如 data\\mixed_preprocessed_v1\\train')
@@ -98,6 +101,8 @@ if args.rcn and args.arch != 'cascade':
     sys.exit('[X] --rcn 只給串接（--arch cascade）用')
 if args.dwp and not PYR:
     sys.exit('[X] --dwp 只給由粗到細（--arch pyramid 或 --arch cascade --stage pyramid）用')
+if args.dwp_ms_stage != 'last' and not (args.dwp and args.arch == 'cascade' and args.stage == 'pyramid'):
+    sys.exit('[X] --dwp-ms-stage first 只給 --arch cascade --stage pyramid --dwp 用')
 # 每步時間、存檔大小大約是一顆 VoxelMorph 的幾倍（2026-10-06 筆電實測：串兩顆 1.89、由粗到細 1.49、
 # 疊在一起 2.86、疊在一起＋省顯存 3.54 倍；參數 2、1.35、2.7 倍）
 per = 1.43 if args.stage == 'pyramid' else 0.95                         # 串接時每一顆的時間倍數
@@ -110,7 +115,8 @@ ARCH_DESC = {'cascade': ('串 %d 顆 VoxelMorph（RCN；ASD/train_arch.py），�
 if ARCH_DESC and args.rcn:
     ARCH_DESC += '；照 RCN 原作：每顆輸出乘 1/%d、串接的 warp 取邊界值' % args.n_cascades
 if ARCH_DESC and args.dwp:
-    ARCH_DESC += '；照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項'
+    ARCH_DESC += '；照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項' + (
+        '（只算第 1 顆）' if args.dwp_ms_stage == 'first' else '（串接時只算最後一顆）' if args.arch == 'cascade' else '')
 DATA = os.path.abspath(args.train_dir)
 TEST = os.path.join(os.path.dirname(DATA), 'test')     # 只用來做起跑前檢查
 ATLAS = args.atlas or os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz')
@@ -267,6 +273,8 @@ if ARCH:
         cmd += ['--rcn']
     if args.dwp:
         cmd += ['--dwp']
+    if args.dwp_ms_stage != 'last':
+        cmd += ['--dwp-ms-stage', args.dwp_ms_stage]
 if initial_epoch > 0:
     cmd += ['--initial-epoch', str(initial_epoch),
             '--load-model', os.path.join(MODEL_DIR, '%04d.pt' % initial_epoch)]
