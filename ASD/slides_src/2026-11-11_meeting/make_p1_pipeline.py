@@ -14,13 +14,13 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 
-from style import J, OUT, INK, MUTED, RULE, W, save, load_lut, colorize as _colorize
+from style import DATA_ROOT, J, OUT, INK, MUTED, RULE, W, save, load_lut, colorize as _colorize
 
 LUT = load_lut()
 colorize = lambda L: _colorize(L, LUT)     # noqa: E731
 
 S = sys.argv[1] if len(sys.argv) > 1 else 'VNT045'
-D = J('data', 'example_for_meeting', S)
+D = J(DATA_ROOT, 'example_for_meeting', S)
 ARMS = [('freesurfer', 'FreeSurfer', 'recon-all 7.4.1\nbrainmask.mgz', 'freesurfer_mask', '#D62728'),
         ('tigerbx', 'tigerbx', 'tigerbx 0.2.3\nBET', 'tigerbx_mask', '#2F7FD0'),
         ('synthstrip', 'SynthStrip', 'mri_synthstrip\n（FreeSurfer 7.4.1）', 'synthstrip_mask', '#3E9B3A')]

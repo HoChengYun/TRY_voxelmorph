@@ -16,6 +16,9 @@ import numpy as np
 os.environ.setdefault('NEURITE_BACKEND', 'pytorch')
 os.environ.setdefault('VXM_BACKEND', 'pytorch')
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))   # 專案根目錄
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, os.path.join(ROOT, 'voxelmorph-code'))
 import torch
 import voxelmorph as vxm
@@ -26,7 +29,7 @@ N_CPU = int(sys.argv[2]) if len(sys.argv) > 2 else 3
 
 MODEL = os.path.join(ROOT, 'models', 'mix_exp1', '0230.pt')
 atlas = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
-files = sorted(glob.glob(os.path.join(ROOT, 'data', 'mixed_preprocessed_v1', 'test', '*.npz')))
+files = sorted(glob.glob(os.path.join(DATA_ROOT, 'mixed_preprocessed_v1', 'test', '*.npz')))
 vols = [np.load(f)['vol'].astype(np.float32) for f in files]
 
 

@@ -17,6 +17,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, os.path.join(ROOT, 'ASD'))
 import torch                                       # noqa: E402
 from arch import load_model, vxm                   # noqa: E402
@@ -27,7 +30,7 @@ atlas = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))['vol'].ast
 aseg = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
 LABELS = np.load(os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))['labels'].astype(int)
 FG = torch.from_numpy(atlas > 0).to(dev)
-files = sorted(glob.glob(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test', '*.npz')))
+files = sorted(glob.glob(os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test', '*.npz')))
 tgt = torch.from_numpy(atlas)[None, None].to(dev)
 nn_warp = vxm.torch.layers.SpatialTransformer(atlas.shape, mode='nearest').to(dev)
 

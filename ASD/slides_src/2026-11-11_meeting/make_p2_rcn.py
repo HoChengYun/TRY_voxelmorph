@@ -19,7 +19,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from style import J, OUT, INK, MUTED, GRAY, RULE, W, save, clean
+from style import DATA_ROOT, J, OUT, INK, MUTED, GRAY, RULE, W, save, clean
 
 C_MNI, C_SUB = '#2F7FD0', '#D08C2B'
 M = J('models')
@@ -157,9 +157,9 @@ SUBJ = 'VNT045'
 OLD = r'C:\Users\h4524\AppData\Local\Temp\claude\C--Users-h4524-claude-cheng\b94b7d4d-abf6-4d59-84e4-c9799aade1ce\scratchpad'
 mni = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
 mseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
-a36 = np.load(J('data', 'mixed_preprocessed_v2', 'val', 'sub-0036.npz'))
+a36 = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'val', 'sub-0036.npz'))
 sub, sseg = a36['vol'].astype(np.float32), a36['seg'].astype(np.int32)
-d = np.load(J('data', 'mixed_preprocessed_v2', 'test', SUBJ + '.npz'))
+d = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', SUBJ + '.npz'))
 vol, seg = d['vol'].astype(np.float32), d['seg'].astype(np.int32)
 take = lambda v, p, i: {'sag': v[i, :, :], 'cor': v[:, i, :]}[p]     # noqa: E731
 

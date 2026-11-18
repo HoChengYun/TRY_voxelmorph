@@ -37,6 +37,9 @@ plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']    # ≤、�
 plt.rcParams['axes.unicode_minus'] = False
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 OUT = os.path.join(ROOT, 'models', 'deck_charts')
 os.makedirs(OUT, exist_ok=True)
 
@@ -174,7 +177,7 @@ def grid_slices(subject):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     atlas = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
     seg = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg']
-    vol = np.load(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test', subject + '.npz'))['vol']
+    vol = np.load(os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test', subject + '.npz'))['vol']
     vol = vol.astype(np.float32)
     perm, flip = canonical_axes(seg.astype(np.int32))      # 跟 visualize_reg_ixi.py 一樣轉成 RAS 再切
 

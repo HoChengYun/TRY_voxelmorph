@@ -26,6 +26,9 @@ import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 J = lambda *p: os.path.join(ROOT, *p)
 plt.rcParams['font.family'] = ['Microsoft JhengHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -62,7 +65,7 @@ aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg']
 INT = [('Cerebral-WM', (2, 41)), ('Cerebral-Cortex', (3, 42)), ('Cerebellum-WM', (7, 46)), ('Cerebellum-Cortex', (8, 47)),
        ('Brain-Stem', (16,)), ('Lateral-Vent', (4, 43))]
 sub = {n: [] for n, _ in INT}
-for f in sorted(glob.glob(J('data', 'mixed_preprocessed_v2', 'test', '*.npz'))):
+for f in sorted(glob.glob(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', '*.npz'))):
     z = np.load(f)
     for n, ls in INT:
         sub[n].append(float(z['vol'][np.isin(z['seg'], ls)].mean()))
@@ -72,7 +75,7 @@ with open(os.path.join(HERE, 'deck_data_tmdiff.json'), 'w', encoding='utf-8') as
     json.dump(T, fh, ensure_ascii=False, indent=1)
 
 # ── 圖 ────────────────────────────────────────────────────────────────
-vol = np.load(J('data', 'mixed_preprocessed_v2', 'test', S + '.npz'))['vol']
+vol = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', S + '.npz'))['vol']
 W_ = {'atlas': atlas, 'affine': vol,
       'tm_mixv2': np.load(J('models', 'deck_charts', '1028_vis_cache_%s_tm_mixv2.npz' % S))['warped'],
       'tm_diff': np.load(J('models', 'deck_charts', '1028_vis_cache_%s_tm_diff_mixv2.npz' % S))['warped']}

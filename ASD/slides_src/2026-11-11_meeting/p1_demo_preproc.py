@@ -12,13 +12,13 @@ import sys
 import numpy as np
 import ants
 
-from style import J, OUT
+from style import DATA_ROOT, J, OUT
 
 SUBJ = sys.argv[1:] or ['VNT045']
 ARMS = {'freesurfer': 'freesurfer_strip', 'tigerbx': 'tigerbx_strip', 'synthstrip': 'synthstrip_strip'}
 atlas = ants.image_read(J('IXI', 'atlas_mni152_09c_v3.nii.gz'))
 for s in SUBJ:
-    D = J('data', 'example_for_meeting', s)
+    D = J(DATA_ROOT, 'example_for_meeting', s)
     seg = ants.image_read(os.path.join(D, 'labels', 'aseg.nii.gz'))
     for arm, fn in ARMS.items():
         dst = os.path.join(OUT, '1111_p1_demo_%s_%s.npz' % (s, arm))

@@ -23,6 +23,9 @@ from scipy.stats import spearmanr, mannwhitneyu
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, HERE)
 from check_skullstrip import measure_top, measure_base, measure_back
 from skullstrip_label_dice import NAME, EVAL, MIN_SHARE
@@ -32,13 +35,13 @@ SK = J('models', 'skullstrip_check')
 COHORTS = [  # (名字, 殘留 CSV, 用 split 篩, 配準前, 配準後, 影像資料夾)
     ('test', J('models', 'skullstrip_check', 'skullstrip_all520.csv'), 'test',
      J('models', 'mix_exp2', 'dice_baseline.csv'), J('models', 'mix_exp3', 'dice_0240.csv'),
-     J('data', 'mixed_preprocessed_v2', 'test')),
+     J(DATA_ROOT, 'mixed_preprocessed_v2', 'test')),
     ('val', J('models', 'skullstrip_check', 'skullstrip_all520.csv'), 'val',
      J('models', 'mix_exp2', 'dice_baseline_val.csv'), os.path.join(SK, 'cohorts', 'dice_mix_exp3_0240_val.csv'),
-     J('data', 'mixed_preprocessed_v2', 'val')),
+     J(DATA_ROOT, 'mixed_preprocessed_v2', 'val')),
     ('MRS', os.path.join(SK, 'skullstrip_MRS.csv'), None,
      os.path.join(SK, 'cohorts', 'dice_baseline_MRS.csv'), os.path.join(SK, 'cohorts', 'dice_mix_exp3_0240_MRS.csv'),
-     J('data', 'MRS_preprocessed_v1', 'train')),
+     J(DATA_ROOT, 'MRS_preprocessed_v1', 'train')),
 ]
 EXCLUDE = {'A0131', 'FSS_A001'}
 N_NEAR = 10            # 每批取殘留最多幾位來找「旁邊的結構」

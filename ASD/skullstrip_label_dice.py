@@ -25,13 +25,16 @@ from scipy.stats import spearmanr, mannwhitneyu
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, HERE)
 from check_skullstrip import measure_top, measure_base, measure_back
 
 CSV = os.path.join(ROOT, 'models', 'skullstrip_check', 'skullstrip_all520.csv')
 AFTER = os.path.join(ROOT, 'models', 'mix_exp3', 'dice_0240.csv')
 BEFORE = os.path.join(ROOT, 'models', 'mix_exp2', 'dice_baseline.csv')
-TEST = os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test')
+TEST = os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test')
 OUT = os.path.join(ROOT, 'models', 'skullstrip_check')
 N, MIN_SHARE, EXCLUDE = 10, 0.05, {'A0131'}
 EVAL = set(np.load(os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))['labels'].astype(int).tolist())

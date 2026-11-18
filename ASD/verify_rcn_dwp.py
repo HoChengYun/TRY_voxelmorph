@@ -20,6 +20,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, HERE)
 ap = argparse.ArgumentParser()
 ap.add_argument('--old', required=True, help='改之前的 arch.py（git show HEAD~:ASD/arch.py > 某處）')
@@ -50,7 +53,7 @@ print('1. 舊模型：改之前 vs 現在的 arch.py（同一組權重）')
 atlas = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
 aseg = np.load(os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
 labels = np.load(os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))['labels'].astype(int)
-d = np.load(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test', args.subject + '.npz'))
+d = np.load(os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test', args.subject + '.npz'))
 src = torch.from_numpy(d['vol'].astype(np.float32))[None, None].to(dev)
 tgt = torch.from_numpy(atlas)[None, None].to(dev)
 seg = torch.from_numpy(d['seg'].astype(np.float32))[None, None].to(dev)

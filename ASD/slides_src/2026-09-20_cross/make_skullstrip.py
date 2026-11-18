@@ -24,6 +24,9 @@ plt.rcParams['axes.unicode_minus'] = False
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, os.path.join(ROOT, 'ASD'))
 from check_skullstrip import measure_top, measure_base, find, VERY_FAR  # noqa: E402
 from scipy import ndimage as ndi  # noqa: E402
@@ -32,7 +35,7 @@ OUT = os.path.join(ROOT, 'models', 'deck_charts')
 os.makedirs(OUT, exist_ok=True)
 D = json.load(open(os.path.join(HERE, 'deck_data.json'), encoding='utf-8'))
 SS = D['skullstrip']
-DATA = os.path.join(ROOT, 'data', 'mixed_preprocessed_v2')
+DATA = os.path.join(DATA_ROOT, 'mixed_preprocessed_v2')
 
 INK, MUTED, PAPER = '#141A1D', '#5F6A6B', '#FAFAF8'
 TEAL, RUST = '#0E7C7B', '#A34F1B'

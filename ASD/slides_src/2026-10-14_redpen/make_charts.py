@@ -23,6 +23,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, os.path.join(ROOT, 'ASD'))
 OUT = os.path.join(ROOT, 'models', 'deck_charts')
 D = json.load(open(os.path.join(HERE, 'deck_data.json'), encoding='utf-8'))
@@ -328,7 +331,7 @@ def six(metric, fname, prefix='皮質'):
     for i, (grp, rr, col) in enumerate((('去顱骨不完全', worst, RUST), ('去顱骨完整', cleanest, TEAL))):
         for j, meta in enumerate(rr):
             s = meta['subject']
-            d = np.load(find(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2'), s)[0])
+            d = np.load(find(os.path.join(DATA_ROOT, 'mixed_preprocessed_v2'), s)[0])
             vol, seg = d['vol'], d['seg']
             H, W = vol.shape[1], vol.shape[2]
             if metric == 'top':                                        # 冠狀中間那片，只留上半（同 top_compare.png 第 2 欄）

@@ -23,6 +23,9 @@ from scipy.stats import spearmanr, mannwhitneyu
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, os.path.join(ROOT, 'ASD'))
 sys.argv = sys.argv[:1]
 import skullstrip_volume as sv
@@ -405,7 +408,7 @@ if os.path.exists(os.path.join(sv.SK, 'residue_volume_tigerbx_r%d_summary.csv' %
             ('ax', 2, 'z', (-40, -15, 10, 35, 60), (0, -2))]        # 位置圖：矢狀面 x = −2
     # 10-27 使用者：「p17 可以併到 p5 6 7」→ 第三列 SynthStrip（＋SynthSeg 標籤；data/synthseg_preprocessed_v1，跟 tigerbx 一樣 --n4 前處理）。
     # SynthSeg 把腦溝與腦表面外的腦脊髓液也標成 CSF（24），直接用 seg > 0 補球的話殘留幾乎都被算進球裡 → 這一套的 S 不含 24
-    SS_NPZ = os.path.join(ROOT, 'data', 'synthseg_preprocessed_v1', 'test', SUBJECT + '.npz')
+    SS_NPZ = os.path.join(DATA_ROOT, 'synthseg_preprocessed_v1', 'test', SUBJECT + '.npz')
     ROWS = ['FreeSurfer', 'tigerbx']
     if os.path.exists(SS_NPZ):
         zz = np.load(SS_NPZ)
@@ -560,7 +563,7 @@ if os.path.exists(os.path.join(sv.SK, 'residue_volume_tigerbx_r%d_summary.csv' %
         print('exp2 %s：殘留中位數 %.0f cm³｜affine %.3f → %.3f（%+.3f）｜ΔDice r=%+.2f p=%.3f｜配準後 r=%+.2f p=%.3f（n=%d）' % (
             tag, st['median'], b_.mean(), a_.mean(), (a_ - b_).mean(), st['r'], st['p'], st['r_after'], st['p_after'], st['n']))
     T['exp2'] = {k: v[0] for k, v in E2.items()}
-    _br = np.array([(np.load(os.path.join(ROOT, 'data', 'tigerbx_preprocessed_v2', c, s + '.npz'))['seg'] > 0).sum() / 1000 for c, s in keys])
+    _br = np.array([(np.load(os.path.join(DATA_ROOT, 'tigerbx_preprocessed_v2', c, s + '.npz'))['seg'] > 0).sum() / 1000 for c, s in keys])
     T['exp2']['tg']['r_res_brain'] = float(spearmanr(E2['tg'][1], _br)[0])          # 殘留 vs 腦體積
     T['exp2']['tg']['r_after_brain'] = float(spearmanr(E2['tg'][3], _br)[0])        # 配準後 Dice vs 腦體積
     xmax = max(E2['fs'][1].max(), E2['tg'][1].max()) * 1.05

@@ -48,6 +48,9 @@ from scipy.stats import spearmanr, mannwhitneyu
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, HERE)
 from skullstrip_label_dice import NAME, EVAL, MIN_SHARE
 from skullstrip_label_dice_pooled import COHORTS, EXCLUDE, N_NEAR, read
@@ -60,9 +63,9 @@ SUMMARY = lambda r: os.path.join(SK, 'residue_volume%s_r%d_summary.csv' % (TAG, 
 _J = lambda *p: os.path.join(ROOT, *p)
 TIGER_COHORTS = [  # 同 COHORTS 的格式：(名字, 殘留 CSV（取 split）, split, 配準前, 配準後, 影像資料夾)
     ('test', os.path.join(SK, 'skullstrip_all520.csv'), 'test', os.path.join(SK, 'cohorts', 'dice_tiger_baseline_test.csv'),
-     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_test.csv'), _J('data', 'tigerbx_preprocessed_v2', 'test')),
+     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_test.csv'), _J(DATA_ROOT, 'tigerbx_preprocessed_v2', 'test')),
     ('val', os.path.join(SK, 'skullstrip_all520.csv'), 'val', os.path.join(SK, 'cohorts', 'dice_tiger_baseline_val.csv'),
-     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_val.csv'), _J('data', 'tigerbx_preprocessed_v2', 'val')),
+     os.path.join(SK, 'cohorts', 'dice_tiger_exp3_0210_val.csv'), _J(DATA_ROOT, 'tigerbx_preprocessed_v2', 'val')),
 ]
 
 

@@ -30,6 +30,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 sys.path.insert(0, HERE)
 OUTD = os.path.join(ROOT, 'models', 'combo_ablation')
 os.makedirs(OUTD, exist_ok=True)
@@ -65,7 +68,7 @@ if not args.plot_only:
     LABELS = np.load(os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))['labels'].astype(int)
     FG = torch.from_numpy(atlas > 0).to(dev)
     FGL = {k: (F.avg_pool3d(FG.float()[None, None], 2 ** k, 2 ** k)[0, 0] > 0.5) if k else FG for k in range(5)}
-    files = sorted(glob.glob(os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test', '*.npz')))
+    files = sorted(glob.glob(os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test', '*.npz')))
     assert len(files) == 51
     tgt = torch.from_numpy(atlas)[None, None].to(dev)
     nn_warp = vxm.torch.layers.SpatialTransformer(atlas.shape, mode='nearest').to(dev)
@@ -191,7 +194,7 @@ for k in K:
     ax.plot(range(5, 10), S[k]['lv2'], color=c, ls=ls, lw=1.6, marker='o', ms=4, label=RUNS[k][2])
 ax.axvline(4.5, color=RULE, lw=1)
 ax.text(2, ax.get_ylim()[1], '第 1 級', ha='center', va='bottom', fontsize=9.5, color=MUTED)
-ax.text(7, ax.get_ylim()[1], '第 2 級（④ 只加在 1/16～1/4）', ha='center', va='bottom', fontsize=9.5, color=MUTED)
+ax.text(7, ax.get_ylim()[1], '第 2 級（底色：--dwp 之 ④ 原本加的 1/16～1/4）', ha='center', va='bottom', fontsize=9.5, color=MUTED)
 ax.axvspan(4.6, 7.4, color='#E8F3F2', zorder=0)
 ax.set_xticks(range(10), LV + LV, fontsize=8.5)
 ax.set_ylabel('合成後之總形變（mm，腦內平均）', fontsize=9.5, color=MUTED)
@@ -257,7 +260,7 @@ axs[0, 1].set_ylim(0.010, 0.022)
 axs[1, 0].set_title('(c) val Dice（每 5 輪；細線 = 原始，粗線 = 5 點移動平均）', fontsize=10.5, loc='left', color=INK)
 axs[1, 0].axvspan(150, 250, color=RULE, alpha=0.3, lw=0, zorder=0)
 axs[1, 0].set_ylim(0.800, 0.820)
-axs[1, 1].set_title('(d) --dwp 之子層 loss（④；取負號，越高越好）', fontsize=10.5, loc='left', color=INK)
+axs[1, 1].set_title('(d) --dwp 之子層 loss（④；取負號，越高越好；ms1 算的是第 1 級，不能跟另兩條比）', fontsize=10.5, loc='left', color=INK)
 inset = axs[0, 0].inset_axes([0.45, 0.1, 0.5, 0.5])
 for k in K:
     inset.plot(E[150:], TR[k]['img'][150:], color=RUNS[k][3], ls=RUNS[k][4], lw=1.4)
@@ -267,7 +270,7 @@ for ax in axs.flat:
     ax.set_xlabel('epoch', fontsize=9.5, color=MUTED)
     clean(ax)
 axs[0, 1].legend(fontsize=9, frameon=False, loc='upper right')
-fig.suptitle('合併版五顆之訓練過程（設定相同，只差 --rcn／--dwp）', fontsize=12.5, x=0.06, ha='left', color=INK)
+fig.suptitle('合併版各顆之訓練過程（設定相同，只差 --rcn／--dwp／--dwp-ms-stage）', fontsize=12.5, x=0.06, ha='left', color=INK)
 save(fig, 'train_curves.png')
 
 # ════ 數字 ════
@@ -276,6 +279,6 @@ for k in K:
     print('  %-8s 影像相似度 %.4f / %.4f    平滑項 %.5f / %.5f' % (k, TR[k]['img'][:50].mean(), TR[k]['img'][150:].mean(),
                                                                TR[k]['smooth'][:50].mean(), TR[k]['smooth'][150:].mean()))
 print('\n第 1 級後 Dice，配對比較（vs rep2）：')
-for k in ('rcn', 'dwp', 'both'):
+for k in [k for k in ('rcn', 'dwp', 'both', 'ms1') if k in S]:
     a, b = np.array(S[k]['d1']), np.array(S['rep2']['d1'])
     print('  %-5s %.4f vs %.4f，%d/51 位較高，p = %.3g' % (k, a.mean(), b.mean(), int((a > b).sum()), wilcoxon(a, b).pvalue))

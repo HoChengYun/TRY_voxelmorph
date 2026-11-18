@@ -34,11 +34,14 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--csv', default=os.path.join(ROOT, 'models', 'skullstrip_check', 'skullstrip_all520.csv'))
 ap.add_argument('--models', nargs='+', default=['mix_exp3:0240'], help='實驗:epoch')
-ap.add_argument('--test-dir', default=os.path.join(ROOT, 'data', 'mixed_preprocessed_v2', 'test'))
+ap.add_argument('--test-dir', default=os.path.join(DATA_ROOT, 'mixed_preprocessed_v2', 'test'))
 ap.add_argument('--atlas', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3.npz'))
 ap.add_argument('--atlas-seg', default=os.path.join(ROOT, 'IXI', 'atlas_mni152_09c_v3_seg.npz'))
 ap.add_argument('--labels', default=os.path.join(ROOT, 'voxelmorph-code', 'data', 'labels.npz'))

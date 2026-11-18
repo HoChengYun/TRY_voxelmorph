@@ -36,6 +36,9 @@ from scipy.ndimage import binary_fill_holes as ndi_fill
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 J = lambda *p: os.path.join(ROOT, *p)
 sys.path.insert(0, J('ASD'))
 
@@ -60,7 +63,7 @@ atlas_vol = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float3
 atlas_seg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
 FG = atlas_vol > 0
 assert int(FG.sum()) == FG_VOX
-d = np.load(J('data', 'mixed_preprocessed_v2', 'test', S + '.npz'))
+d = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', S + '.npz'))
 vol, seg = d['vol'].astype(np.float32), d['seg'].astype(np.int32)
 LABELS = [int(x) for x in np.load(J('voxelmorph-code', 'data', 'labels.npz'))['labels']]
 

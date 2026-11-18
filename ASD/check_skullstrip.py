@@ -41,6 +41,9 @@ import numpy as np
 from scipy import ndimage as ndi
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 VERY_FAR = 10          # 顱底：離腦幾 mm 以外算殘留
 VERTEX_BAND = 25       # 上緣：顱頂區的範圍
 BACK_BAND = 25         # 後腦杓：最後面那一帶的範圍
@@ -382,7 +385,7 @@ if __name__ == '__main__':
                          '不給就是 30 個結構一起平均')
     ap.add_argument('--labels-name', default='皮質', help='--labels 那幾個結構在圖上叫什麼（左欄，要短）')
     ap.add_argument('--labels-desc', help='圖上方標題寫的結構名稱（可以長，例如「大腦皮質、腦幹、小腦皮質」）；不給就用 --labels-name')
-    ap.add_argument('--data-root', default=os.path.join(ROOT, 'data', 'mixed_preprocessed_v2'))
+    ap.add_argument('--data-root', default=os.path.join(DATA_ROOT, 'mixed_preprocessed_v2'))
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
 

@@ -16,9 +16,9 @@ import scipy.ndimage as ndi
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from style import J, OUT, INK, MUTED, W, save
+from style import DATA_ROOT, J, OUT, INK, MUTED, W, save
 
-D = J('data', 'example_for_meeting')
+D = J(DATA_ROOT, 'example_for_meeting')
 LUT_P = r'D:\MyHome\MRI\FreeSurfer\base_v1\FreeSurferColorLUT.txt'
 LUT = {}
 for line in open(LUT_P, encoding='utf-8', errors='ignore'):

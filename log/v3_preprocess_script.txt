@@ -1,0 +1,5 @@
+# v3 三種去頭骨比較的前處理（2026-11-17 在筆電開跑；三組依序）
+# 切分：python ASD\make_split_v3.py --tsv data\skullstrip_compare\orig\subjects.tsv --out data\skullstrip_compare\split_v3.json
+# atlas 標籤：python ASD\make_atlas_aparc.py   -> IXI\atlas_mni152_09c_v3_seg_aparc+aseg.npz
+# 每一組（<組> = freesurfer / synthstrip / tigerbx；<影像> = freesurfer_strip / synthstrip\norm / tigerbx\norm）：
+python ASD\preprocess_fs.py --img-dir data\skullstrip_compare\<影像> --seg-dir data\skullstrip_compare\freesurfer_seg\aparc+aseg --atlas IXI\atlas_mni152_09c_v3.nii.gz --out-dir data\v3_<組>_preprocessed --subject-list data\skullstrip_compare\tigerbx\subjects.txt --list-is-final --grouping none --split-from data\skullstrip_compare\split_v3.json --n4 > log\v3_preprocess_<組>.txt 2>&1

@@ -96,7 +96,9 @@ def inspect(path):
         u = np.unique(s)
         if not np.all(u == u.astype(np.int64)):
             problems.append('seg 有非整數值 —— 內插法用錯了')
-        if u.max() > 255 or u.min() < 0:
+        # 2026-11-17：上限 255 → 14175（FreeSurferColorLUT 最大編號）。v3 的 seg 是 aparc+aseg，
+        #   皮質分區編號 1000～2035，舊上限會把每一個檔都判成壞的
+        if u.max() > 14175 or u.min() < 0:
             problems.append('seg 值 %s 超出 FreeSurfer 標籤範圍' % [u.min(), u.max()])
         if len(u) < 10:
             problems.append('seg 只有 %d 種標籤 —— 疑似壞的' % len(u))

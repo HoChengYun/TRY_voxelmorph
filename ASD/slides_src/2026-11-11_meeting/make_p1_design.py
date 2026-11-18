@@ -18,7 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Patch
 
-from style import J, OUT, INK, MUTED, PAPER, W, save, load_lut, colorize
+from style import DATA_ROOT, J, OUT, INK, MUTED, PAPER, W, save, load_lut, colorize
 
 LUT = load_lut()
 NAMES = {}
@@ -64,7 +64,7 @@ save(fig, '1111_p1_design.png')
 
 # ════ wmparc 示範（sub-0043）════
 S = 'sub-0043'
-D = J('data', 'example_for_meeting', S)
+D = J(DATA_ROOT, 'example_for_meeting', S)
 canon = lambda f, dt=None: (lambda a: a.astype(dt) if dt else a)(np.asarray(nib.as_closest_canonical(nib.load(os.path.join(D, f))).dataobj))  # noqa: E731
 orig = canon('orig.nii.gz', np.float32) / 255
 wm = canon(os.path.join('labels', 'wmparc.nii.gz'), np.int32)

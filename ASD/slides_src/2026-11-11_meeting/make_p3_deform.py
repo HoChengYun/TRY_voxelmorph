@@ -16,7 +16,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.ndimage import binary_fill_holes
 
-from style import J, OUT, INK, MUTED, PAPER, W, save
+from style import DATA_ROOT, J, OUT, INK, MUTED, PAPER, W, save
 
 S = 'VNT045'
 # key：(顯示名稱, 顏色, models 子資料夾, epoch)；顏色同 make_p3.py
@@ -29,7 +29,7 @@ RGB_MM = 8.0
 atlas = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
 aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
 FG = atlas > 0
-d = np.load(J('data', 'mixed_preprocessed_v2', 'test', S + '.npz'))
+d = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', S + '.npz'))
 vol, seg = d['vol'].astype(np.float32), d['seg'].astype(np.int32)
 y0 = int(round(np.argwhere(np.isin(aseg, [10, 49])).mean(0)[1]))
 xs = np.nonzero(atlas.max(axis=(1, 2)) > 0)[0]

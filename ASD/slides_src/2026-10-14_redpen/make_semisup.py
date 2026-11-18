@@ -30,6 +30,9 @@ from matplotlib.lines import Line2D
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 OUT = os.path.join(ROOT, 'models', 'deck_charts')
 J = lambda *p: os.path.join(ROOT, *p)
 D = json.load(open(os.path.join(HERE, 'deck_data.json'), encoding='utf-8'))
@@ -212,7 +215,7 @@ def infer():
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
     atlas = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
     aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
-    d = np.load(J('data', 'mixed_preprocessed_v2', 'test', SUBJ + '.npz'))
+    d = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', SUBJ + '.npz'))
     vol, seg = d['vol'].astype(np.float32), d['seg'].astype(np.int32)
     perm, flip = canonical_axes(aseg)
     R = lambda x: to_ras(x, perm, flip)

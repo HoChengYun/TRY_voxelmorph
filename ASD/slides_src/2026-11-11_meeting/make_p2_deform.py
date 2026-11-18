@@ -16,7 +16,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.ndimage import binary_fill_holes
 
-from style import J, OUT, MODELS, INK, MUTED, PAPER, W, save
+from style import DATA_ROOT, J, OUT, MODELS, INK, MUTED, PAPER, W, save
 
 S = 'VNT045'
 OLD = r'C:\Users\h4524\AppData\Local\Temp\claude\C--Users-h4524-claude-cheng\b94b7d4d-abf6-4d59-84e4-c9799aade1ce\scratchpad'
@@ -25,7 +25,7 @@ RGB_MM = 8.0
 atlas = np.load(J('IXI', 'atlas_mni152_09c_v3.npz'))['vol'].astype(np.float32)
 aseg = np.load(J('IXI', 'atlas_mni152_09c_v3_seg.npz'))['seg'].astype(np.int32)
 FG = atlas > 0
-vol = np.load(J('data', 'mixed_preprocessed_v2', 'test', S + '.npz'))['vol'].astype(np.float32)
+vol = np.load(J(DATA_ROOT, 'mixed_preprocessed_v2', 'test', S + '.npz'))['vol'].astype(np.float32)
 y0 = int(round(np.argwhere(np.isin(aseg, [10, 49])).mean(0)[1]))          # 冠狀：經過視丘中心
 xs = np.nonzero(atlas.max(axis=(1, 2)) > 0)[0]
 x0 = int(round((xs.min() + xs.max()) / 2)) - 10                             # 矢狀：正中線往受試者左側 10 張

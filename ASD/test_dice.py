@@ -45,6 +45,10 @@ Affine 已吸收大部分尺寸差（實測受試者被放大約 1.44 倍），�
     # 掃過多個 epoch（挑最佳用）
     python ASD\\test_dice.py --model-dir models\\mix_exp1 --step 10 --test-dir data\\mixed_preprocessed_v1\\test
 
+    # v3（2026-11-17 起，標籤是 aparc+aseg）：atlas 標籤換 aparc+aseg 版，皮質要併回 3／42
+    python ASD\\test_dice.py --model models\\v3_freesurfer_exp3\\0500.pt --test-dir data\\v3_freesurfer_preprocessed\\test ^
+        --atlas-seg IXI\\atlas_mni152_09c_v3_seg_aparc+aseg.npz --merge-cortex
+
     # tigerbx 組：atlas 分割也要換
     python ASD\\test_dice.py --model-dir models\\tiger_exp1 --step 10 ^
         --test-dir data\\tigerbx_preprocessed_v1\\test --atlas-seg IXI\\atlas_mni152_09c_v3_seg_tigerbx.npz
@@ -100,6 +104,9 @@ ap.add_argument('--gpu', default='0')
 ap.add_argument('--surface', action='store_true',
                 help='另外算 HD95（mm）與 SDlogJ，寫到 surface_<epoch>.csv（見檔頭）')
 ap.add_argument('--amp', action='store_true', help='網路用半精度（float16）跑，省顯存；標籤搬移與指標照舊單精度')
+ap.add_argument('--merge-cortex', action='store_true',
+                help='標籤是 aparc+aseg（皮質 68 區）時加：atlas 與受試者的 1000～1999 → 3、2000～2999 → 42，'
+                     '才算得到論文 30 個結構裡的左右皮質（v3 那批，2026-11-17）')
 args = ap.parse_args()
 if args.surface and args.model_dir:
     sys.exit('[X] --surface 只支援 --model 與 --baseline（掃 epoch 時 HD95 太慢）')
@@ -161,7 +168,27 @@ atlas_vol = np.load(os.path.normpath(args.atlas))['vol'].astype(np.float32)
 if not os.path.exists(args.atlas_seg):
     sys.exit('[X] 找不到 atlas 的 seg：%s\n'
              '    要先跑 ASD\\make_atlas_seg.py 產生。' % args.atlas_seg)
-atlas_seg = np.load(os.path.normpath(args.atlas_seg))['seg'].astype(np.int32)
+def prep_seg(s, name):
+    """2026-11-17 加（v3 那批的標籤是 aparc+aseg）。
+    --merge-cortex：皮質 68 區併回 aseg 的左右皮質（1000～1999 → 3、2000～2999 → 42）。
+      11-17 驗證過：aparc+aseg 這樣併完，跟同一位的 aseg 逐體素相同（抽 5 位＋atlas）。
+    防呆：標籤裡還有 ≥ 1000 的值就停下來。不停的話，皮質不在 3／42 上，
+      論文 30 個結構裡的左右皮質會安靜地少算（Dice 變成 28 個結構的平均），不會報錯。"""
+    if args.merge_cortex:
+        s = s.copy()
+        s[(s >= 1000) & (s < 2000)] = 3
+        s[(s >= 2000) & (s < 3000)] = 42
+    if s.max() >= 1000:
+        if args.merge_cortex:
+            sys.exit('[X] %s 併完皮質後還有 ≥ 1000 的標籤（最大 %d），例如 wmparc 的白質分區；這支程式不支援'
+                     % (name, s.max()))
+        sys.exit('[X] %s 的標籤有 ≥ 1000 的值（最大 %d）：這是 aparc+aseg 之類的皮質分區標籤。\n'
+                 '    要加 --merge-cortex 把皮質併回 3／42，不然左右皮質不會被算到。' % (name, s.max()))
+    return s
+
+
+atlas_seg = prep_seg(np.load(os.path.normpath(args.atlas_seg))['seg'].astype(np.int32),
+                     os.path.basename(args.atlas_seg))
 # 🔴 2026-09-16 加：同一顆模型會在 val（挑 epoch）和 test（最後一次）各評估一次。
 #    兩次都寫 dice_curve.csv 的話，後跑的會安靜蓋掉先跑的 —— 而且看檔名分不出
 #    這條曲線是哪一份資料算的。資料夾名不是 test 就自動加後綴。
@@ -190,6 +217,8 @@ print('  atlas      : %s  %s' % (os.path.basename(args.atlas), atlas_vol.shape))
 print('  atlas seg  : %s  %d 種標籤'
       % (os.path.basename(args.atlas_seg), len(np.unique(atlas_seg))))
 print('  評估結構   : %d 個（labels.npz）' % len(LABELS))
+if args.merge_cortex:
+    print('  皮質       : --merge-cortex（1000～1999 → 3、2000～2999 → 42，atlas 與受試者都併）')
 print('  測試資料   : %s  %d 筆' % (args.test_dir, len(test_files)))
 print('  裝置       : %s' % device)
 
@@ -295,7 +324,7 @@ def evaluate(model_path):
             if 'seg' not in d:
                 sys.exit('[X] %s 沒有 seg —— 這批 npz 不是 preprocess_fs.py 產生的' % f)
             vol = d['vol'].astype(np.float32)
-            seg = d['seg'].astype(np.int32)
+            seg = prep_seg(d['seg'].astype(np.int32), os.path.basename(f))
 
             v = torch.from_numpy(vol)[None, None].to(device)
             # ⭐ source=受試者, target=atlas（跟訓練時的 [scan, atlas] 一致）
@@ -390,7 +419,7 @@ def evaluate_baseline():
     rows = []
     for f in test_files:
         d = np.load(f)
-        seg = d['seg'].astype(np.int32)
+        seg = prep_seg(d['seg'].astype(np.int32), os.path.basename(f))
         per = {lab: dice(seg, atlas_seg, lab) for lab in LABELS}
         vals = np.array([per[l] for l in LABELS], dtype=float)
         r = {'file': os.path.basename(f),

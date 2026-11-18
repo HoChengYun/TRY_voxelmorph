@@ -22,8 +22,11 @@ from nibabel.processing import resample_from_to
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 OUT = os.path.join(ROOT, 'models', 'deck_charts')
-DATA = os.path.join(ROOT, 'data')
+DATA = DATA_ROOT
 SUBJECT = 'sub-0043'
 SRC = {
     'FreeSurfer': os.path.join(DATA, 'fs_subjects_data', 'fs_for_vxm', '%s', SUBJECT + '.nii.gz'),

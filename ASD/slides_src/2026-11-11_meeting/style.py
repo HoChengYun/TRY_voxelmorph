@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+DATA_ROOT = r'D:\MyHome\MRI\Cdisk_voxelmorph'   # 資料都放 D 槽（11-18 起，筆電）
+if not os.path.isdir(DATA_ROOT):
+    DATA_ROOT = os.path.join(ROOT, 'data')      # 其他機器（AI）：repo 底下的 data\
 J = lambda *p: os.path.join(ROOT, *p)     # noqa: E731
 OUT = J('models', 'deck_charts')          # 圖一律輸出成 1111_*.png
 for s in (sys.stdout, sys.stderr):
