@@ -281,7 +281,7 @@ C:\Users\h4524\claude_cheng\
 │   ├── 指令_reproduce.md               # ⭐ 照原作程式重現四顆：DWP、RCN（VTN 3 顆）、TransMorph、TransMorph-diff（照原作／縮短兩種訓練量，手冊 §31）
 │   ├── 指令_rcn_ncc.md                 # RCN 只換成局部 NCC（第二步第一顆，`models\rcn_vtn3_ncc`，手冊 §31.11）
 │   ├── 指令_mix_cascade_pyramid_ablation.md # 合併版為什麼變低（11-05，手冊 §31.14）：第 1 顆舊設定再練一次（rep2）→ 第 2 顆（只開 --rcn）、第 3 顆（只開 --dwp）都已帶回；第 4 顆 mix_cascade_pyramid_dwp_ms1（--dwp --dwp-ms-stage first，④ 改加在第 1 級，11-13；11-17 帶回 0.8196）
-│   ├── 指令_v3_skullstrip.md           # v3 三種去頭殼各練一顆（老師 10/29 p8）：原版 train.py、mix_exp3 設定、500 輪；v3_{freesurfer,synthstrip,tigerbx}_exp3，一次一顆（11-17）
+│   ├── 指令_v3_skullstrip.md           # v3 三種去頭殼各練一顆（老師 10/29 p8）：原版 train.py、mix_exp6 設定（速度場，11-19 從 mix_exp3 改）、500 輪；v3_{freesurfer,synthstrip,tigerbx}_exp6，一次一顆（11-17）
 │   ├── analyze_combo_ablation.py       # 合併版消融各顆：拆兩級（第 1 級後／兩級後 Dice、各級位移、每一級每一層的總形變）＋訓練過程圖 → models\combo_ablation\（11-13，手冊 §31.14.2；第 4 顆 11-17 已加入，§31.14.4）
 │   ├── reproduce\                      # ⭐ 照原作程式重現（10-28，手冊 §31）：train_dwp.py（DWP 原作程式只 import、只換資料；要 venv_dwp，requirements_dwp.txt）、
 │   │                                   #   rcn_torch.py（RCN 原作 TF → PyTorch 逐行翻，MIT：LICENSE_RCN.txt）、train_rcn.py、verify_rcn_port.py（直接執行原作 TF 程式比對）、
@@ -460,7 +460,7 @@ exp5 把 λ 調大 10 倍也只從 1.2% 變 3.3%。**要用 NCC 的話，λ 應�
 
 | 綽號 | 程式 | 是什麼 | 跑過／要跑的 |
 |---|---|---|---|
-| **原版** | `voxelmorph-code/scripts/torch/train.py` | 官方原版，原封不動 | mix_exp1～7、mix_wide、mix_wide_vel、tiger_exp1～3；之後 v3 資料的三種去頭殼也用它（mix_exp3 設定）|
+| **原版** | `voxelmorph-code/scripts/torch/train.py` | 官方原版，原封不動 | mix_exp1～7、mix_wide、mix_wide_vel、tiger_exp1～3；之後 v3 資料的三種去頭殼也用它（mix_exp6 設定＝速度場，11-19 改）|
 | **架構版** | `ASD/train_arch.py` | 官方 train.py 加「串接」「由粗到細」（網路在 `ASD/arch.py`），開關 `--arch`、`--stage`、`--rcn`、`--dwp`、`--dwp-ms-stage`（11-13）| mix_cascade 系列、mix_pyramid 系列；第一目標的 `mix_cascade_pyramid_rep2`／`_rcn`／`_dwp`（已帶回）、`_dwp_ms1`（手冊 §31.14）|
 | **標籤版** | `ASD/train_semisup.py` | 官方 train.py 加「訓練時也用標籤」（`run_train.py --seg-weight`）| mix_exp8、mix_exp9 |
 
@@ -480,7 +480,7 @@ exp5 把 λ 調大 10 倍也只從 1.2% 變 3.3%。**要用 NCC 的話，λ 應�
 
 **沒用過**：**窗格版** `voxelmorph-code/scripts/torch/train/train_NCCPatchSize.py`（可調 NCC 窗格）。
 評估：1 用 `ASD/test_dice.py`（`ASD/arch.py` 的 `load_model()` 讀得懂三種）；2 用 `ASD/reproduce/eval_repro.py`；3 用該專案的 `mixv2/eval_mixv2.py`。三支算法與 CSV 格式都同 `test_dice.py`。
-AI 排隊（11-17）：消融四顆都帶回（第 4 顆 `mix_cascade_pyramid_dwp_ms1` 0.8196，§31.14.4）→ 下一顆 v3 三種去頭殼 `v3_{freesurfer,synthstrip,tigerbx}_exp3`（`ASD/指令_v3_skullstrip.md`，使用者 11-17 確認排最前；等筆電前處理跑完、資料搬過去）→ B3 `orig_rcn_vxm1`（RCN 重現，還沒跑）→ B4 `orig_rcn_vxm2`；2 × 2 最後一格要不要補練 `--rcn --dwp --dwp-ms-stage first` 等使用者決定（待辦 5）。
+AI 排隊（11-17）：消融四顆都帶回（第 4 顆 `mix_cascade_pyramid_dwp_ms1` 0.8196，§31.14.4）→ 下一顆 v3 三種去頭殼 `v3_{freesurfer,synthstrip,tigerbx}_exp6`（11-19 改成速度場）（`ASD/指令_v3_skullstrip.md`，使用者 11-17 確認排最前；等筆電前處理跑完、資料搬過去）→ B3 `orig_rcn_vxm1`（RCN 重現，還沒跑）→ B4 `orig_rcn_vxm2`；2 × 2 最後一格要不要補練 `--rcn --dwp --dwp-ms-stage first` 等使用者決定（待辦 5）。
 （舊）AI 排隊（11-14）：消融第 1～3 顆已帶回 → 第 4 顆 `mix_cascade_pyramid_dwp_ms1`（架構版，要先 `git pull` 拿到 `--dwp-ms-stage`）→ B3 `orig_rcn_vxm1`（RCN 重現，**還沒跑**，使用者 11-14 確認）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3、B4 是 `指令_reproduce.md` 的節名；消融那幾顆叫「第 1／2／3／4 顆」，不用 A／B／C（11-06 改，免得撞名）。
 （舊）AI 排隊（11-06）：B3 `orig_rcn_vxm1`（RCN 重現）→ 消融第 1 顆 `mix_cascade_pyramid_rep2`（架構版）→ 看它決定要不要跑第 2 顆 `_rcn`、第 3 顆 `_dwp`（架構版）→ B4 `orig_rcn_vxm2`（RCN 重現）。B3、B4 是 `指令_reproduce.md` 的節名；消融那三顆叫「第 1／2／3 顆」，不用 A／B／C（11-06 改，免得撞名）。
 
@@ -867,8 +867,9 @@ Step 1 cascade、Step 2 coarse-to-fine（架構圖＋編號公式 (1)～(5)，`m
     同日改程式（使用者同意）：`test_dice.py` 加 `--merge-cortex`（＋標籤 ≥ 1000 沒加旗標就停），`check_dataset.py` seg 上限 255 → 14175；驗證：舊資料 baseline 跟以前逐值相同、v3 兩位跟獨立計算相同（30 個結構）、防呆兩種情況都擋下。v3 評估一律加 `--atlas-seg IXI\atlas_mni152_09c_v3_seg_aparc+aseg.npz --merge-cortex`
     ✅ **11-18 三組前處理都跑完**：都是失敗 0，train 1061／val 131／test 131。SynthStrip 那組 07:54 跑完；tigerbx 那組中途因為筆電重開機停過一次，從第 926 位接著跑（先確認停下時正在處理的那位沒有留下沒寫完的 npz），後段紀錄在 `log\v3_preprocess_tigerbx_part2.txt`。三組共約 30 GB，搬到 AI 照 `ASD/指令_v3_skullstrip.md` §0
   - ✅ 三組共用同一個 affine 還是各自算 → **各自算**（11-04 使用者）：每一路用自己的去頭殼影像算 affine，同實際使用情況。示範 3 位 × 3 路（`ASD/slides_src/2026-11-11_meeting/p1_demo_preproc.py`）：affine 的體積縮放 tigerbx 每位都最大（VNT045 FreeSurfer 1.26／tigerbx 1.29／SynthStrip 1.24），差 2～6%（殘留越多、縮放越小）；affine 後 Dice 差 ≤ 0.014 → 三路的差異會包含殘留造成的 affine 差異
-  - ✅ 三組的模型 → **VoxelMorph 原論文設定**（11-04 使用者：「先跑 voxelmorph 原論文設定」）：同 mix_exp3（官方 repo `voxelmorph-code/scripts/torch/train.py`，`--image-loss ncc --lambda 1.0 --int-steps 0 --int-downsize 1`，250 輪 × 100 步 = 2.5 萬步；論文約 15 萬步）。11-04 再確認：**先跑位移場**（不跑速度場；作者的速度場版 VoxelMorph-diff 是機率式 MSE＋KL，PyTorch 版做不到，見 `文獻/對位模型文獻筆記.md` §6）；老師要 SVF 時再加跑 mix_exp6 設定。訓練量可能改成論文的 15 萬步（約 2.6 天／顆），使用者說之後再定
-  - ✅ **訓練量 500 輪（5 萬步）**（11-17 使用者）：mix_exp3 第 250 輪 val 還在爬（每 50 輪平均 0.7934 → 0.7970 → 0.7990）、訓練資料變 2.5 倍；AI 上一顆約 21 小時、三顆約 2.6 天。操作單 `ASD/指令_v3_skullstrip.md`，實驗名 `v3_{freesurfer,synthstrip,tigerbx}_exp3`。AI 排在 B3、B4 之前（使用者 11-17 確認）。✅ 評估要用的 `test_dice.py --merge-cortex`、`check_dataset.py` 放寬標籤上限，11-17 已改（見上面 ⏸ 那段）
+  - 🔴 **11-19 使用者改成直接跑速度場（老師比較喜歡 SVF）**：設定同 **mix_exp6**（`--image-loss ncc --lambda 1.0 --int-steps 7 --int-downsize 1`，跟 `log\mix_exp6_script.txt` 逐項對過，只差輪數 500），實驗名改成 `v3_{freesurfer,synthstrip,tigerbx}_exp6`；位移場那三顆（`_exp3`）沒跑過、先不跑。AI 上單獨跑每步約 1.84 秒（mix_exp5 實測）→ 一顆約 26 小時、三顆約 3.2 天。下面兩行是 11-04、11-17 的舊決定，留著當歷史
+  - （舊）三組的模型 → **VoxelMorph 原論文設定**（11-04 使用者：「先跑 voxelmorph 原論文設定」）：同 mix_exp3（官方 repo `voxelmorph-code/scripts/torch/train.py`，`--image-loss ncc --lambda 1.0 --int-steps 0 --int-downsize 1`，250 輪 × 100 步 = 2.5 萬步；論文約 15 萬步）。11-04 再確認：**先跑位移場**（不跑速度場；作者的速度場版 VoxelMorph-diff 是機率式 MSE＋KL，PyTorch 版做不到，見 `文獻/對位模型文獻筆記.md` §6）；老師要 SVF 時再加跑 mix_exp6 設定。訓練量可能改成論文的 15 萬步（約 2.6 天／顆），使用者說之後再定
+  - ✅ **訓練量 500 輪（5 萬步）**（11-17 使用者）：mix_exp3 第 250 輪 val 還在爬（每 50 輪平均 0.7934 → 0.7970 → 0.7990）、訓練資料變 2.5 倍；AI 上一顆約 21 小時、三顆約 2.6 天（位移場時的估計）。操作單 `ASD/指令_v3_skullstrip.md`，實驗名當時是 `v3_{freesurfer,synthstrip,tigerbx}_exp3`（11-19 改成 `_exp6`）。AI 排在 B3、B4 之前（使用者 11-17 確認）。✅ 評估要用的 `test_dice.py --merge-cortex`、`check_dataset.py` 放寬標籤上限，11-17 已改（見上面 ⏸ 那段）
 
 ### 1. ✅ 接入 FreeSurfer 標籤 —— 已完成（前處理 → 訓練 → Dice → 視覺化）
 
