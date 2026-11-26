@@ -1,4 +1,7 @@
-# 合併版為什麼變低（cmd 版）：第 1 顆 rep2 → 第 2 顆 只開 rcn → 第 3 顆 只開 dwp → 第 4 顆 ④ 改加在第 1 級
+# 合併版為什麼變低（cmd 版）：第 1 顆 rep2 → 第 2 顆 只開 rcn → 第 3 顆 只開 dwp → 第 4 顆 ④ 改加在第 1 級 → 第 5 顆 完整合併
+
+> 🆕 **第 5 顆**（11-26，直接跳到「第 5 顆」那一節）：第 4 顆（0.8196，④ 放第 1 級就修好了）再加開 `--rcn` = 照兩篇原作的完整合併，當 2 × 2 的最後一格。
+> AI 排隊：**第 5 顆 → B3 → B4**（v3 三種去頭殼三顆都已帶回）。
 
 > ✅ **前三顆的結果（2026-11-13，手冊 §31.14）**：第 1 顆 rep2 0.8198（下降是真的）、第 2 顆只開 `--rcn` 0.8200（不是 RCN）、
 > 第 3 顆只開 `--dwp` 0.8161（**是 DWP**）。拆兩級看到第 2 級在 1/16、1/8 層多動 2～3 倍、細層少動 → 懷疑 ④「粗層 loss 只加在第 2 級」。
@@ -71,7 +74,7 @@ set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.9
 然後在**同一個視窗**：
 
 ```bat
-python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_cascade_pyramid_rep2 --image-lㄔㄛoss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --arch cascade --n-cascades 2 --stage pyramid --gpu 0
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_cascade_pyramid_rep2 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --arch cascade --n-cascades 2 --stage pyramid --gpu 0
 ```
 
 - log 每一行**不會**有 `ms:`（沒開 `--dwp`），正常
@@ -155,7 +158,9 @@ python ASD\test_dice.py --model models\mix_cascade_pyramid_rcn\NNNN.pt --test-di
 python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_cascade_pyramid_dwp --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --arch cascade --n-cascades 2 --stage pyramid --dwp --gpu 0 --check-only
 ```
 
-`架構` 那一行要有「**照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項**」，**不能**有「照 RCN 
+`架構` 那一行要有「**照 DWP 原作：合成時 δ detach、子層 1/16、1/8、1/4 也算影像項＋平滑項**」，**不能**有「照 RCN 原作」。
+
+**3-2 訓練**：
 
 ```bat
 set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.9
@@ -224,7 +229,57 @@ python ASD\test_dice.py --model models\mix_cascade_pyramid_dwp_ms1\NNNN.pt --tes
 
 ---
 
-## 中斷了怎麼辦（四顆都一樣）
+## 第 5 顆：mix_cascade_pyramid_rcn_dwp_ms1（--rcn --dwp 都開，④ 加在第 1 級）
+
+11-26 加（使用者決定補練，當 2 × 2 的最後一格）。= 第 4 顆再加開 `--rcn`，也就是照兩篇原作的完整合併：
+①② RCN（每顆輸出乘 1/2、串接的 warp 取邊界值）＋③④ DWP（合成時 δ detach、粗的三層也算 loss，④ 放第 1 級）。其他設定跟第 4 顆一字不差。
+**程式不用改**（第 4 顆的程式就有這三個開關）；筆電 11-26 小尺寸試跑（96³、3 步）三個開關一起開正常，每一行都有 `ms:`。
+
+**判讀**（事先定好）：`--rcn` 在合併版上沒有影響（第 2 顆 0.8200 vs 第 1 顆 0.8198），預期跟第 4 顆（0.8196）打平。
+- 打平（重練一次差約 0.0006，差 0.001 以內都算打平）→ 這顆當 2 × 2 的最後一格
+- 明顯較低 → `--rcn` 在修好的版本上有影響，先查 ① 乘在每一層 δ 上（RCN 原作沒有分層，只乘在輸出）
+
+先做第 0 步。
+
+**5-1 起跑前檢查**：
+
+```bat
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_cascade_pyramid_rcn_dwp_ms1 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --arch cascade --n-cascades 2 --stage pyramid --rcn --dwp --dwp-ms-stage first --gpu 0 --check-only
+```
+
+`架構` 那一行**兩個都要有**：「**照 RCN 原作：每顆輸出乘 1/2、串接的 warp 取邊界值**」和「**照 DWP 原作：……（只算第 1 顆）**」。少一個、或最後是「（串接時只算最後一顆）」，先停下來跟我說。
+
+**5-2 訓練**：
+
+```bat
+set PYTORCH_CUDA_ALLOC_CONF=per_process_memory_fraction:0.9
+```
+
+```bat
+python ASD\run_train.py --train-dir data\mixed_preprocessed_v2\train --exp-name mix_cascade_pyramid_rcn_dwp_ms1 --image-loss ncc --lambda 1.0 --epochs 250 --int-steps 7 --int-downsize 1 --arch cascade --n-cascades 2 --stage pyramid --rcn --dwp --dwp-ms-stage first --gpu 0
+```
+
+- log 第一行的「架構」要有「照 RCN 原作」和「只算第 1 顆（--dwp-ms-stage first）」；每一行最後**要有** `ms: ...`
+- 每步約 4～4.5 秒（第 4 顆實測共 31.6 小時），超過 10 秒停掉跟我說
+- 🔴 中斷要接著跑時，`--rcn --dwp --dwp-ms-stage first` **三個都要留著**（`--rcn`、`--dwp` 漏了程式會擋；`--dwp-ms-stage first` 沒存進 .pt，漏了擋不下來，會變成舊的合併版 mix_cascade_pyramid_rcn_dwp 的設定）
+
+**5-3 val 掃每一顆**：
+
+```bat
+python ASD\test_dice.py --model-dir models\mix_cascade_pyramid_rcn_dwp_ms1 --test-dir data\mixed_preprocessed_v2\val --exp-name mix_cascade_pyramid_rcn_dwp_ms1 --step 5 --gpu 0
+```
+
+**5-4 test（只跑一次）**，`NNNN` 換成 `dice_curve_val.csv` 裡 `dice_mean` 最大的 epoch：
+
+```bat
+python ASD\test_dice.py --model models\mix_cascade_pyramid_rcn_dwp_ms1\NNNN.pt --test-dir data\mixed_preprocessed_v2\test --exp-name mix_cascade_pyramid_rcn_dwp_ms1 --gpu 0
+```
+
+帶回來的東西同下面「收尾」；我會跟第 4 顆、單獨兩顆（mix_cascade_rcn、mix_pyramid_dwp）比 Dice、HD95、沒參與訓練的結構，並用 `ASD\analyze_combo_ablation.py` 拆兩級。
+
+---
+
+## 中斷了怎麼辦（五顆都一樣）
 
 新視窗先照第 0 步 `cd`、啟動虛擬環境，再打一次那一顆的 `set` 那行，然後把**同一行訓練指令**後面加 ` --resume`
 （用過省顯存模式的話 `--grad-checkpoint` 也要留著）。`--rcn`、`--dwp` **一定要跟原本一樣**，不一樣程式會擋下來（`AssertionError: … 不能混著接`）。
