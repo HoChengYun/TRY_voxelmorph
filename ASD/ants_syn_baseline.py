@@ -23,11 +23,21 @@
 （warped：搬過去的影像（線性）、seg_warped：搬過去的標籤（最近鄰）、flow：位移場 (3, X, Y, Z)、det：Jacobian、sec）。
 已經在 CSV 裡的受試者，給 --save-dir 時照樣重跑（只為了存結果），不會再寫一列進 CSV，會印出跟 CSV 那列的 Dice 差多少。
 
+v3 三種去頭殼（2026-11-27 加，老師 11/25 紅字 p7：「把 voxelmorph 換成傳統方法，去看看會不會被殘留體積影響」）：
+  --merge-cortex：標籤是 aparc+aseg 時加，皮質 68 區併回 3／42 再算 30 個結構（同 test_dice.py --merge-cortex）；
+    沒加旗標、標籤卻有 ≥ 1000 的值就停（不停的話左右皮質會安靜地少算）
+  --save-seg-dir：只存搬過去的標籤（aparc+aseg 不併、int16），給 v3_parcel_residue.py 算皮質 68 區；
+    一位約 0.3 MB（--save-dir 連位移場一起存，一位約 100 MB）
+  🔴 三套的 test 資料夾都叫 test，CSV 檔名會一樣 → 每套一定要給自己的 --out-dir
+
 用法
   python ASD\\ants_syn_baseline.py --test-dir data\\mixed_preprocessed_v2\\test --max-subjects 1 --check   # 先試一位
   python ASD\\ants_syn_baseline.py --test-dir data\\mixed_preprocessed_v2\\test                            # 51 位
   python ASD\\ants_syn_baseline.py --test-dir data\\mixed_preprocessed_v2\\test --subjects T054 D031 VNT045 sub-0043 ^
       --save-dir models\\ants_syn\\vis                                                                       # 視覺化用
+  python ASD\\ants_syn_baseline.py --test-dir data\\v3_freesurfer_preprocessed\\test ^
+      --atlas-seg IXI\\atlas_mni152_09c_v3_seg_aparc+aseg.npz --merge-cortex ^
+      --out-dir models\\ants_syn_v3\\freesurfer --save-seg-dir models\\ants_syn_v3\\freesurfer\\seg          # v3（三套各一次）
 """
 import os
 import sys
@@ -54,6 +64,9 @@ ap.add_argument('--max-subjects', type=int, default=0)
 ap.add_argument('--check', action='store_true', help='第一位驗證位移場慣例')
 ap.add_argument('--subjects', nargs='+', help='只做這幾位（檔名不含 .npz）')
 ap.add_argument('--save-dir', help='把搬過去的影像、標籤、位移場、Jacobian 存成 <save-dir>/<受試者>.npz')
+ap.add_argument('--merge-cortex', action='store_true',
+                help='標籤是 aparc+aseg 時加：atlas 與受試者的 1000～1999 → 3、2000～2999 → 42（同 test_dice.py）')
+ap.add_argument('--save-seg-dir', help='只存搬過去的標籤（不併皮質、int16）成 <save-seg-dir>/<受試者>.npz（seg_warped）')
 args = ap.parse_args()
 os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = str(args.threads)
 
@@ -84,6 +97,24 @@ def dice(a, b, lab):
     return np.nan if s == 0 else 2.0 * (x & y).sum() / s
 
 
+def prep_seg(s, name):
+    """同 test_dice.py 的 prep_seg（2026-11-27 搬過來）：--merge-cortex 把皮質 68 區併回 3／42；
+    標籤還有 ≥ 1000 的值就停（左右皮質會安靜地少算，Dice 變成 28 個結構的平均）。"""
+    if args.merge_cortex:
+        s = s.copy()
+        s[(s >= 1000) & (s < 2000)] = 3
+        s[(s >= 2000) & (s < 3000)] = 42
+    if s.max() >= 1000:
+        if args.merge_cortex:
+            sys.exit('[X] %s 併完皮質後還有 ≥ 1000 的標籤（最大 %d）；這支程式不支援' % (name, s.max()))
+        sys.exit('[X] %s 的標籤有 ≥ 1000 的值（最大 %d）：是 aparc+aseg 之類的皮質分區，要加 --merge-cortex'
+                 % (name, s.max()))
+    return s
+
+
+atlas_seg = prep_seg(atlas_seg, 'atlas seg')
+
+
 files = sorted(glob.glob(os.path.join(args.test_dir, '*.npz')))
 if args.subjects:
     want = set(args.subjects)
@@ -104,6 +135,8 @@ if os.path.exists(out):
             done_dice[row['file']] = float(row['dice_mean'])
 if args.save_dir:
     os.makedirs(args.save_dir, exist_ok=True)
+if args.save_seg_dir:
+    os.makedirs(args.save_seg_dir, exist_ok=True)
 fields = ['file', 'dice_mean', 'jneg_pct', 'jneg_fg_pct', 'sec'] + ['label_%d' % l for l in LABELS]
 new_file = not os.path.exists(out)
 print('ANTs SyN（SyNOnly、CC 半徑 4、step 0.25、Gaussian (9, 0.2)、迭代 %s）；%d 個執行緒；%d 位（已完成 %d）'
@@ -141,7 +174,8 @@ for k, f in enumerate(files):
         print('  [check] 自己搬的標籤跟 ANTs 搬的相同比例 %.5f；Jacobian 相關 %.4f；|J| ≤ 0：我們 %d、ANTs %d；'
               '仿射檔 %s' % (same, np.corrcoef(det[FG], jd[FG])[0, 1], int((det <= 0).sum()), int((jd <= 0).sum()),
                          [os.path.basename(t) for t in reg['fwdtransforms'] if not t.endswith('Warp.nii.gz')]), flush=True)
-    per = {lab: dice(seg_w, atlas_seg, lab) for lab in LABELS}
+    seg_e = prep_seg(seg_w, name)                     # 評估用（--merge-cortex 時併皮質；最近鄰搬完再併 = 先併再搬）
+    per = {lab: dice(seg_e, atlas_seg, lab) for lab in LABELS}
     r = {'file': name, 'dice_mean': float(np.nanmean([per[l] for l in LABELS])),
          'jneg_pct': 100 * float((det <= 0).mean()), 'jneg_fg_pct': 100 * float((det[FG] <= 0).mean()), 'sec': sec}
     r.update({'label_%d' % l: per[l] for l in LABELS})
@@ -151,6 +185,8 @@ for k, f in enumerate(files):
         np.savez_compressed(os.path.join(args.save_dir, name), warped=warped, seg_warped=seg_w.astype(np.int16),
                             flow=flow.astype(np.float32), det=det.astype(np.float32), sec=sec)
         print('  存 -> %s' % os.path.join(args.save_dir, name), flush=True)
+    if args.save_seg_dir:                             # 先存標籤再寫 CSV：中斷後 CSV 有的那幾位標籤一定也在
+        np.savez_compressed(os.path.join(args.save_seg_dir, name), seg_warped=seg_w.astype(np.int16))
     if rerun:
         print('  （已在 CSV：這次 Dice %.4f，CSV 那列 %.4f，差 %+.4f；不再寫進 CSV）'
               % (r['dice_mean'], done_dice[name], r['dice_mean'] - done_dice[name]), flush=True)
